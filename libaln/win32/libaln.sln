@@ -1,0 +1,82 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25402.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "alnpp", "alnpp.vcxproj", "{79E5138E-D1CB-4143-9F07-4ECFF90001C2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2} = {AEB0F1E6-D227-433A-8BFC-17AAA35624C2}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libaln", "libaln.vcxproj", "{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libalndll", "libalndll\libalndll.vcxproj", "{6B573435-058A-4D34-A927-9AA2CD08E9CF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ALNfitDeep", "ALNfitDeep.vcxproj", "{81F30868-CE4B-4997-B65E-55F17B7A4A85}"
+	ProjectSection(ProjectDependencies) = postProject
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2} = {79E5138E-D1CB-4143-9F07-4ECFF90001C2}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "realestate", "..\samples\realestate\ConsoleApplication1\ConsoleApplication1.vcxproj", "{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug MT DLL|Win32 = Debug MT DLL|Win32
+		Debug MT|Win32 = Debug MT|Win32
+		Debug|Win32 = Debug|Win32
+		Release MT DLL|Win32 = Release MT DLL|Win32
+		Release MT|Win32 = Release MT|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Debug MT DLL|Win32.ActiveCfg = Debug MT DLL|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Debug MT DLL|Win32.Build.0 = Debug MT DLL|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Debug MT|Win32.ActiveCfg = Debug MT|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Debug MT|Win32.Build.0 = Debug MT|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Debug|Win32.ActiveCfg = Release MT|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Release MT DLL|Win32.ActiveCfg = Release MT DLL|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Release MT DLL|Win32.Build.0 = Release MT DLL|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Release MT|Win32.ActiveCfg = Release MT|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Release MT|Win32.Build.0 = Release MT|Win32
+		{79E5138E-D1CB-4143-9F07-4ECFF90001C2}.Release|Win32.ActiveCfg = Release MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Debug MT DLL|Win32.ActiveCfg = Debug MT DLL|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Debug MT DLL|Win32.Build.0 = Debug MT DLL|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Debug MT|Win32.ActiveCfg = Debug MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Debug MT|Win32.Build.0 = Debug MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Debug|Win32.ActiveCfg = Release MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Release MT DLL|Win32.ActiveCfg = Release MT DLL|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Release MT DLL|Win32.Build.0 = Release MT DLL|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Release MT|Win32.ActiveCfg = Release MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Release MT|Win32.Build.0 = Release MT|Win32
+		{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}.Release|Win32.ActiveCfg = Release MT|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Debug MT DLL|Win32.ActiveCfg = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Debug MT DLL|Win32.Build.0 = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Debug MT|Win32.ActiveCfg = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Debug|Win32.ActiveCfg = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Release MT DLL|Win32.ActiveCfg = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Release MT DLL|Win32.Build.0 = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Release MT|Win32.ActiveCfg = Release MT DLL|Win32
+		{6B573435-058A-4D34-A927-9AA2CD08E9CF}.Release|Win32.ActiveCfg = Release MT DLL|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Debug MT DLL|Win32.ActiveCfg = Debug MT DLL|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Debug MT DLL|Win32.Build.0 = Debug MT DLL|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Debug MT|Win32.ActiveCfg = Debug MT|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Debug MT|Win32.Build.0 = Debug MT|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Debug|Win32.ActiveCfg = Release MT|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Release MT DLL|Win32.ActiveCfg = Release MT DLL|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Release MT DLL|Win32.Build.0 = Release MT DLL|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Release MT|Win32.ActiveCfg = Release MT|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Release MT|Win32.Build.0 = Release MT|Win32
+		{81F30868-CE4B-4997-B65E-55F17B7A4A85}.Release|Win32.ActiveCfg = Release MT|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Debug MT DLL|Win32.ActiveCfg = Debug|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Debug MT|Win32.ActiveCfg = Debug|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Debug|Win32.Build.0 = Debug|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release MT DLL|Win32.ActiveCfg = Release|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release MT|Win32.ActiveCfg = Release|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release|Win32.ActiveCfg = Release|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

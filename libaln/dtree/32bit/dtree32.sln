@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dtree32", "dtree32.vcproj", "{21502A2D-5CCE-487D-815D-59DE35C2B572}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		DLL Debug|Win32 = DLL Debug|Win32
+		DLL Release|Win32 = DLL Release|Win32
+		static lib Debug|Win32 = static lib Debug|Win32
+		static lib Release|Win32 = static lib Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.DLL Debug|Win32.ActiveCfg = DLL Debug|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.DLL Debug|Win32.Build.0 = DLL Debug|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.DLL Release|Win32.ActiveCfg = DLL Release|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.DLL Release|Win32.Build.0 = DLL Release|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.static lib Debug|Win32.ActiveCfg = static lib Debug|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.static lib Debug|Win32.Build.0 = static lib Debug|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.static lib Release|Win32.ActiveCfg = static lib Release|Win32
+		{21502A2D-5CCE-487D-815D-59DE35C2B572}.static lib Release|Win32.Build.0 = static lib Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
