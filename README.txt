@@ -13,9 +13,9 @@ imposition of bounds on partial derivatives of the function to be learned
 identification of input variables that can be removed to improve results
 classification into two classes (and more under some conditions)
 
-Most importantly, the ideas embodied in the software are key for all future development of DEEP learning.
+Most importantly, the ideas embodied in the software are key for future development of DEEP learning.
 
-The download from GitHub is about 9 MB: git clone https://github.com/Bill-Armstrong/Deep-Learning-ALN.git
+The download from GitHub is a bit more than 10 MB: git clone https://github.com/Bill-Armstrong/Deep-Learning-ALN.git
 
 This open-source project builds under Visual Studio 2015 Community (free) and makes use of C++ and Microsoft Foundation Classes (MFC).  The solution (.sln) file is in the folder libaln/win32. Batch build the libaln and alnpp libraries first (10 items), then the ALNfitDeep and realestate items (6 items). The executable ALNfitDeep.exe appears in the libaln/samples/ALNfitDeep/Release directory. You should have a new folder to contain a copy of the program and your data files.
 
