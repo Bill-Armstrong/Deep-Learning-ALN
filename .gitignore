@@ -9,7 +9,7 @@
 *.dep
 *.dll
 *.exe
-!.\ALNfitDeep.exe
+!ALNfitDeep.exe
 *.exp
 *.htm
 *.idb
