@@ -20,7 +20,10 @@ G. Do you remember the formula PV=nRT  for the pressure, volume and temperature 
 
 H. The default picks about 10% of the samples from the data to use for testing,  then it divides the remaining samples into two halves to determine the noise level.  It might be better to **determine the noise level without holding back a test set (use 0% for test)**. Then in a following run, set the noise level in the Processsing options dialog as found in the TrainProtocol.txt file of the first run and train on all the data except 10% held back for testing.
 
-I. Replace some of the output values in a copy of the DevilsTowerRotated.txt file by 99999. Train on that data after selecting the **Replace option** in the Processing options dialog. Check the R output file of the run, where the replacements are done. You can try more complicated real-world data where there are missing values in several columns.  The missing values may be replaced by successive trainings where the values in input columns are completely defined.  *Just select the last R output file as the next datafile for a run*.  Hints: 
+I. Replace some of the output values in a copy of the DevilsTowerRotated.txt file by 99999. Train on that data after selecting the **Replace option** in the Processing options dialog. Check the R output file of the run, where the replacements are done. You can try more complicated real-world data where there are missing values in several columns.  The missing values may be replaced by successive trainings where the values in input columns are completely defined.  *Just select the last R output file as the next datafile for a run*.
+Start with a file that has no header as the process builds a header to indicate the sequence of replacements.
+
+Hints: 
 * Inputs in a column become all defined if you remove the rows with missing values in that column. 
 * If the file with missing values is a relation in a relational database, you can use knowledge of the functional dependencies in that relation to suggest a sequence of column replacements.
 

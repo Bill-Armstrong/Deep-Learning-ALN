@@ -13,14 +13,17 @@ ALNfitDeep is open-source machine learning software for MS Windows that **everyo
 * identification of input variables that can be removed to improve results
 * classification into two classes (and more under some conditions)
 
-*Most importantly, the ideas embodied in the software are key for future development of **DEEP LEARNING**.*
+*Most importantly, the ideas embodied in the software are key for future development of **DEEP LEARNING** and **REINFORCEMENT LEARNING.*
 
-The download from GitHub is a bit more than 10 MB:
+The download from GitHub is currently less than 15 MB:
  **git clone https://github.com/Bill-Armstrong/Deep-Learning-ALN.git**
+
+The download contains a copy of the executable ALNfitDeep.exe, some sample data, and a lot of documentation along with the source code.
 
 The program needs two open source libraries: Boost and Eigen.  It expects to find C:\Boost\boost_1_60_0 and C:\Eigen\eigen-eigen-07105f7124f9 or later versions.  Boost provides some special functions and Eigen provides the singular value decomposition (SVD) both for use in stats. You can find them for (free) download at
 
 http://www.boost.org/
+
 http://eigen.tuxfamily.org/index.php?title=Main_Page
 
 ###What to do when you have downloaded
