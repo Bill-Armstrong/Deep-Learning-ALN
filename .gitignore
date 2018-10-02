@@ -16,6 +16,7 @@
 *.ilk
 *.in
 *.iobj
+*.ipch
 *.ipdb
 *.lib
 *.mak

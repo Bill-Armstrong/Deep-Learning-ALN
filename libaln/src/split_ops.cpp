@@ -46,6 +46,7 @@ static char THIS_FILE[] = __FILE__;
 // include classes
 #include ".\cmyaln.h" 
 
+extern CMyAln * pOTTS; // needed for temporary calculation of noise variance
 extern double dblMax;
 extern int nDim;
 extern double dblSetTolerance;
@@ -169,41 +170,42 @@ void dodivideVL(CMyAln* pALN, ALNNODE* pNode) // routine
 	}
 }
 
+
+
 void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 {
 	// this routine visits all the leaf nodes and determines whether the
 	// training error is below a certain limit related to validation error or tolerance
 	double dblSqErrorPieceTrain;
 	double dblSqErrorPieceVal;
-  ASSERT(pNode);
-  if (NODE_ISMINMAX(pNode))
-  {
-    dosplitcontrol(pALN, MINMAX_LEFT(pNode), dblLimit);
-    dosplitcontrol(pALN, MINMAX_RIGHT(pNode), dblLimit);
-  }
-  else
-  {
-    ASSERT(NODE_ISLFN(pNode));
-    dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TR set
-    if(bEstimateRMSError)
-    {
-			dblSqErrorPieceVal = (pNode->DATA.LFN.pSplit)->DBLSQERRORVAL;
-    }
-    else
-    {
-			dblSqErrorPieceVal = dblSetTolerance * dblSetTolerance; // no validation set!
-    }
-		if(dblSqErrorPieceTrain * (dblLimit * dblLimit) < dblSqErrorPieceVal)
-		// if the training average square error of the piece times dblLimit^2 (> 1.0) is less than the square validation error 
-		// or, if we are skipping validation,
-		// the training average square error times dblLimit is less than tolerance squared
+	ASSERT(pNode);
+	if (NODE_ISMINMAX(pNode))
+	{
+		dosplitcontrol(pALN, MINMAX_LEFT(pNode), dblLimit);
+		dosplitcontrol(pALN, MINMAX_RIGHT(pNode), dblLimit);
+	}
+	else
+	{
+		ASSERT(NODE_ISLFN(pNode));
+		dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TR set
+		if (bEstimateRMSError)
+		{
+			dblSqErrorPieceVal = (pNode->DATA.LFN.pSplit)->DBLSQERRORVAL; // this is normally what decides on splitting in the case of variable noise variance
+		}
+		else
+		{
+			dblSqErrorPieceVal = dblSetTolerance * dblSetTolerance; // no validation set! // this should be replaced by a known noise variance function sometime
+		}
+		if (dblSqErrorPieceTrain < dblSqErrorPieceVal * dblLimit)
+			// if the training average square error of the piece times dblLimit^2 (> 1.0) is less than the square validation error 
+			// or, if we are skipping validation,
+			// the training average square error times dblLimit is less than tolerance squared
 		{
 			// stop all future splitting of the piece
-       LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
+			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
 		}
 	}
 }
-
 
 void spliterrorsetTR(CMyAln * pALN) // routine
 {
@@ -246,10 +248,14 @@ void spliterrorsetVL(CMyAln * pALN) // routine
 		}
 		desired = adblX[nDim - 1];
 		adblX[nDim - 1] = 0; // not used by QuickEval WWA 2009.10.06
-		predict = pALN->QuickEval(adblX, &pActiveLFN);
+		// Review, Sept 30, 2018
+		//Here is where we use the OTTS (overtrained on the training set) function to compare with desired
+		// NOTE this is VER inefficient -- it should be done once for the validation data and OTTS
+		predict = pOTTS->QuickEval(adblX, &pActiveLFN);  // Just one line changed!!!!
     se = (predict - desired) * (predict - desired);
+		// now correct for the dimension. the average variance of predict - desired is !+ 2/(nDim+2), so we have to divide se by this
 		(pActiveLFN->DATA.LFN.pSplit)->nCount++;
-		(pActiveLFN->DATA.LFN.pSplit)->DBLSQERRORVAL += se;
+		(pActiveLFN->DATA.LFN.pSplit)->DBLSQERRORVAL += se / (1.0 + 2.0 / (nDim + 2.0));
   } // end loop over VLfile
 	free(adblX);
 } // END of spliterrorsetVL

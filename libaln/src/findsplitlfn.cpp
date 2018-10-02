@@ -74,12 +74,15 @@ static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode)
   // There have to be enough total adaptations ( taking account of responsibility)
 	// to equal the dimension of the problem multiplied by 4 to have pieces be determined after the split.
 	// A higher factor, e.g. 4 allows the split to be unequal and still have both parts determined,
-	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > 4.0 * pALN->nDim)
-		&& (LFN_SPLIT_RESPTOTAL(pNode) > 4.0 * pALN->nDim ))  // more experimentation would be good
+	// Another review on Sept 30,2018.  We have to allow splitting if there are only nDim + 1 hits but on different points;
+	// that is if the piece is overdetermined, it can split. We replace 4.0 * pALN-> nDim by pALN -> nDim +1 in two places
+	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > pALN->nDim + 1)
+		&& (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim + 1 ))  // more experimentation would be good
   {
     ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, pALN->nOutput);
 		ASSERT(pConstr->dblSqEpsilon == pConstr->dblEpsilon * pConstr->dblEpsilon);
 		// Now, if the square error is sufficiently large, the leaf is split (in splitlfn.cpp.
+		// Review Sept 30 2018  This is where the noise variance estimate should enter instead of the dblEpsilon.
 		if(LFN_SPLIT_SQERR(pNode) > LFN_SPLIT_RESPTOTAL(pNode)* pConstr->dblSqEpsilon) 
 		{
 			// LFN_SPLIT_T measures how much the ALN surface(smoothed)is currently above the data points far from the centroid.

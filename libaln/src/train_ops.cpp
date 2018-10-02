@@ -18,7 +18,6 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
@@ -57,23 +56,28 @@ static char THIS_FILE[] = __FILE__;
 int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
 static CMyAln* pAvgALN;      // an ALN representing the bagged average
 static CMyAln** apALN = NULL;       // an array of pointers to ALNs
-void ALNAPI dolinearregression();
-void ALNAPI onealnfit();
-void ALNAPI approximate();
-void ALNAPI validate(CMyAln * pALN);
-void fillvector(double * adblX, CMyAln* paln);
+CMyAln * pOTTS;  // This ALN is overtrained on the training set (OTTS) to help determine the noise level.
+void ALNAPI dolinearregression(); // this determines an upper bound on error
+void ALNAPI onealnfit(); // this overtrains OTTS so the noise level can be used during training.
+void ALNAPI approximate(); // this actually does the training while avoiding overtraining.
+void ALNAPI validate(CMyAln * pALN); // this determines the validation error of the current approximant
+void fillvector(double * adblX, CMyAln* paln); // this send a vector to training either from a file or from online.
 double	dblMinRMSE = 0;
-double  dblLearnRate = 0.3;
-int nNumberEpochs	= (int)floor(6.0 /dblLearnRate);
+double  dblLearnRate = 0.3; // the reciprocal of the learnrate tells how many passes through the data will be required to get close to a fit.
+int nNumberEpochs	= (int)floor(6.0 /dblLearnRate); // for example if the learnrate is 0.3, then one will need 20 passes roughtly to correct the errorre=
+
+#define dblFlimit 1.2
+// this says that splitting of a linear piece is prevented when the mean square training error
+// on it becomes less than 1.2 times the noise variance on it
 
 void ALNAPI dolinearregression() // routine
 {
   fprintf(fpProtocol,"\n****** Finding an upper bound on error begins *****\n");
-	// begin linear regression on a single ALN -- not a good method in general
+	// begin linear regression on a single ALN -- this algorithm is not a good method in general, but works here
 	CMyAln * pALN = NULL;
 	// Set up the ALN
 	pALN = new CMyAln;
-	if (!(pALN->Create(nDim, nDim-1)))
+	if (!(pALN->Create(nDim, nDim-1))) // nDim is the number of inputs to the ALN plus one for the output; the default output variable is nDim-1
 	{
 		fprintf(fpProtocol,"Stopping: linear regression ALN creation failed!\n");
     fflush(fpProtocol);
@@ -82,17 +86,20 @@ void ALNAPI dolinearregression() // routine
   fflush(fpProtocol);
   // We don't set this tree growable -- no splitting
 	// Set constraints on variables for the ALN	
-	for( int m = 0; m < nDim-1; m++)
+	for( int m = 0; m < nDim-1; m++) // note that loops that do m less than nDim-1 omit the output variable 
+		                               // (always the last ALN input, but maybe not the rightmost data file column)
 	{
-		pALN->SetEpsilon(adblEpsilon[m],m);
+		pALN->SetEpsilon(adblEpsilon[m],m); // adblEpsilon suggests the size along axis m of a box such that the boxes just cover the domain
+		// we input all but the output adblEpsilon (index nDim-1) into this ALN
     if(adblEpsilon[m] == 0)
     {
       fprintf(fpProtocol,"Stopping: Variable %d appears to be constant. Try removing it.\n",m);
       fflush(fpProtocol);
 			exit(0);
     }
-		pALN->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m);
+		pALN->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m); // we extend the domain a bit beyond the range of the data
 		pALN->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m);
+		// next we bound weights (partial derivatives) by noting it makes no sense to have a slope that jumps a lot between two data points
 		pALN->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // the range of output (for uniform dist.) divided by... 
 		pALN->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m 
     // impose the a priori bounds on weights
@@ -108,8 +115,8 @@ void ALNAPI dolinearregression() // routine
   createTrainValfiles();
   bTrainingAverage = FALSE;
 	double dblOldRmse = adblStdevVar[nDim - 1]; // this is a high initial value
-  dblTolerance = 0.001 * adblStdevVar[nDim - 1]; // doesn't matter as there is only one piece // changed 2009.11.04
-	pALN->SetEpsilon(dblTolerance,nDim -1);
+	//dblTolerance = 0; // 0.001 * adblStdevVar[nDim - 1]; // doesn't matter as there is only one piece // changed 2009.11.04 Oct 1 2018 
+	//pALN->SetEpsilon(0,nDim -1); //was set to dblTolerance -- can we use the output epsilon for something else?
  	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: value doesn't matter since there are no MAX or MIN nodes
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	// Tell the training algorithm the way to access the data using fillvector
@@ -118,14 +125,14 @@ void ALNAPI dolinearregression() // routine
 	//********* dolinearregression
 	// Quickstart: get centroids and weights in neighborhood of good values
 	dblMinRMSE =  0; //don't stop early
-	dblLearnRate = 0.2; // try to correct most of the error on the first few passes
-  nNumberEpochs	= (int)floor(6.0 /dblLearnRate); // doing 30 epochs at a 0.2 learning rate
-	if(!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
+	dblLearnRate = 0.2; // try to correct most of the error on the first few (5 for learning rate 0.2) passes
+  nNumberEpochs	= (int)floor(6.0 /dblLearnRate); // doing 30 epochs at a 0.2 learning rate, in other words six times what it should take to correct errors
+	if(!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, then slower so the linear piece stabilizes
 	{
 		 fprintf(fpProtocol,"Training failed!\n");
 	}	
 	//**********
-	dblLearnRate = 0.1;  //adjusted downwards after each iteration
+	dblLearnRate = 0.1;  //will be adjusted downwards after each iteration
 	nNumberEpochs	= (int)floor(6.0 /dblLearnRate); // linear regression -- no splitting
 	dblMinRMSE = 0;
 	nNumberLFNs = 1;  // this is always correct here
@@ -180,24 +187,24 @@ void ALNAPI dolinearregression() // routine
     {
   		fprintf(fpProtocol,"Linear regression weight on ALN input %s@lag%d is %f centroid is %f\n", varname[nInputCol[m]], nLag[m] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
     }
-		adblLRC[m] = ((pActiveLFN)->DATA.LFN.adblC)[m];
-		adblLRW[m+1] = ((pActiveLFN)->DATA.LFN.adblW)[m+1];
+		adblLRC[m] = ((pActiveLFN)->DATA.LFN.adblC)[m]; // centroid of linear piece for axis m
+		adblLRW[m+1] = ((pActiveLFN)->DATA.LFN.adblW)[m+1]; // weight of linear piece for axis m
   }
 	fprintf(fpProtocol,"Weight 0 is %f centroid %d is %f\n", ((pActiveLFN)->DATA.LFN.adblW)[0], nDim -1, ((pActiveLFN)->DATA.LFN.adblC)[nDim - 1] ); 
 
 	// now put the negative sum of weighted centroids into the 0 position
-	// compress the weighted centroid info into W[0]       
+	// compress the weighted centroid info into W[0], i.e. take the centroid out of  weight1*(x1-centroid1) + etc. to have just one number in W[0]
 	adblLRW[0] = adblLRC[nDim -1] = ((pActiveLFN)->DATA.LFN.adblC)[nDim -1];
   for (int m = 0; m < nDim - 1; m++)
   {
     adblLRW[0] -= adblLRW[m+1] * adblLRC[m];
   }
 	//adblLRW[nDim] = ((pActiveLFN)->DATA.LFN.adblW)[nDim]; // this is just to check that the -1 weight was still there
-	adblLRW[nDim] = -1.0;  // the -1 weight may make a difference somewhere, so we set it here
+	adblLRW[nDim] = -1.0;  // the -1 weight on the ALN output may make a difference somewhere, so we set it here
 	if(bEstimateRMSError)
 	{
 		validate(pALN);
-		fprintf(fpProtocol,"Linear regression final validation error = %f \n", dblValidationErr);
+		fprintf(fpProtocol,"Linear regression final validation error = %f \n", dblValidationErr); // obviously, allowing pieces to break will lower the error
 		dblLinRegErr = dblValidationErr;
 		pALN->Destroy();
 		// We are finished with that ALN and have destroyed it
@@ -210,27 +217,24 @@ void ALNAPI dolinearregression() // routine
 		dblLinRegErr = 0; // the error is not evaluated
 	}
 
-
 }
 
 void ALNAPI onealnfit() // this routine overfits one ALN with no smoothing so the ALNinterpolate the noisy data samples on the training set
 {
 	// begin fitting a single ALN using new training & validation sets
-  // the difference from approximation is that the tolerance is frequently
-  // adjusted in view of recent validation error, whereas in approximation
-  // the tolerance is set low to begin with and kept constant
+  // pieces are allowed to break instead of being constrained to have training error above the noise level as in approximation below
 	fprintf(fpProtocol,"\n*** Overtraining a single ALN to find low validation error begins***\n");
 	fprintf(fpProtocol,"Jitter is never used in this step \n");
-	CMyAln * pALN;
+	//  CMyAln * pOTTS is declared in the header so it can be used elsewhere including in split_ops.cpp
 	// Set up the ALN
-	pALN = new CMyAln;
-	if (!(pALN->Create(nDim, nDim-1)))
+	pOTTS = new CMyAln;
+	if (!(pOTTS->Create(nDim, nDim-1)))
 	{
 		fprintf(fpProtocol,"Stopping: noise estimation ALN creation failed!\n");
     fflush(fpProtocol);
     exit(0);
 	}
-  if (!pALN->SetGrowable(pALN->GetTree()))		
+  if (!pOTTS->SetGrowable(pOTTS->GetTree()))		
 	{
 	  fprintf(fpProtocol,"Setting ALN growable failed!\n"); 
     fflush(fpProtocol);
@@ -241,64 +245,57 @@ void ALNAPI onealnfit() // this routine overfits one ALN with no smoothing so th
 	{
     if(adblEpsilon[m] == 0)
     {
-	    fprintf(fpProtocol,"Stopping: Variable %d appears to be constant. Try removing it.\n",m); 
+	    fprintf(fpProtocol,"Stopping: Variable %d appears to have 0 variance, i.e. it's constant. Try removing it.\n",m); 
       fflush(fpProtocol);
       exit(0);
     }
-		pALN->SetEpsilon(adblEpsilon[m],m);
-		pALN->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m);
-		pALN->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m);
-		pALN->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // the range of output (for uniform dist.) divided by... 
-		pALN->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m 
+		pOTTS->SetEpsilon(adblEpsilon[m],m);
+		pOTTS->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m);
+		pOTTS->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m);
+		pOTTS->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // the range of output (for uniform dist.) divided by... 
+		pOTTS->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m 
     // impose the a priori bounds on weights
-    if(dblMinWeight[m] > pALN->GetWeightMin(m))
+    if(dblMinWeight[m] > pOTTS->GetWeightMin(m))
     {
-		  pALN->SetWeightMin(dblMinWeight[m],m);
+		  pOTTS->SetWeightMin(dblMinWeight[m],m);
     }
-    if(dblMaxWeight[m] < pALN->GetWeightMax(m))
+    if(dblMaxWeight[m] < pOTTS->GetWeightMax(m))
     {
-		  pALN->SetWeightMax(dblMaxWeight[m],m);
+		  pOTTS->SetWeightMax(dblMaxWeight[m],m);
     }
 	}
   createTrainValfiles(); // this means the validation results from linear regression and here can differ
 	bTrainingAverage = FALSE;
-	dblTolerance = 0.1 * dblValidationErr; // onealnfit: starts from 1/10 the linear regression validation error and gets smaller
-	pALN->SetEpsilon(dblTolerance,nDim -1);
-	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing should be zero so as not to interfere.
+	//dblTolerance = 0; // 0.1 * dblValidationErr; // onealnfit: starts from 1/10 the linear regression validation error and gets smaller (not used for variable noise)
+	pOTTS->SetEpsilon(0,nDim -1); // is this still needed? was set to dblTolerance
+	(pOTTS->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing should be zero so as not to interfere.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
-	fprintf(fpProtocol,"Initial validation error before onealnfit = %fl Tolerance = %f Smoothing = %f \n"
-					, dblValidationErr, dblTolerance, (pALN->GetRegion(0))->dblSmoothEpsilon);
+	fprintf(fpProtocol,"Initial validation error before onealnfit = %fl  Smoothing = %f \n"
+					, dblValidationErr, (pOTTS->GetRegion(0))->dblSmoothEpsilon);
 	// Tell the training algorithm the way to access the data using fillvector
 	int nEpochSize  = nDim * 100;
-	pALN->SetDataInfo(nEpochSize,nDim,NULL,NULL);
+	pOTTS->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	//********* initial onealnfit weight and centroid components
-	dblMinRMSE =  0; //don't stop early
+	dblMinRMSE =  0; //don't stop early because of reaching a low training error
 	dblLearnRate = 0.3; // try to correct all the error on first pass, one more pass to get better values
 	nNumberEpochs	= (int)floor(6.0 /dblLearnRate);  // doing just a few epochs at very high learning rate
 	// use the weights and centroids from linear regression
 	ALNNODE* pActiveLFN;
-	pActiveLFN = pALN->GetTree();
+	pActiveLFN = pOTTS->GetTree();
 	for(int m = 0; m < nDim -1; m++)
 	{
-		((pActiveLFN)->DATA.LFN.adblC)[m] = adblLRC[m];
+		((pActiveLFN)->DATA.LFN.adblC)[m] = adblLRC[m]; // LR just means for linear regression
 		((pActiveLFN)->DATA.LFN.adblW)[m+1] = adblLRW[m+1];
 		fprintf(fpProtocol,"Weight on %s is %f centroid is %f\n", varname[nInputCol[m]] , adblLRW[m+1] ,adblLRC[m] ); 
-
 	}
 	((pActiveLFN)->DATA.LFN.adblC)[nDim - 1] = adblLRC[nDim - 1];
 	((pActiveLFN)->DATA.LFN.adblW)[0] = adblLRW[0];
 	((pActiveLFN)->DATA.LFN.adblW)[nDim] = -1.0;
 	fprintf(fpProtocol,"Weight 0 is %f centroid %d is %f\n", adblLRW[0], nDim -1, adblLRC[nDim - 1] ); 
-	validate(pALN);
+	validate(pOTTS);
 	fprintf(fpProtocol,"\nInitial validation error after using LR results = %fl \n", dblValidationErr);
 	// We never skip validation for onealnfit()
-	splitcontrol(pALN, 500.0);
-		// if the validation error of a piece is a given
-		// factor (e.g. 1.25) times greater than the
-		// training error, splitting of that piece is stopped
-		// the greater this number is, the longer splitting continues
-		// we favor much more splitting in onealnfit() so we allow the validation error
-		// to be *many* times the training error, i.e. we can overtrain to any extent.
+	splitcontrol(pOTTS, 0.0); // this is now what we do for unrestricted splitting  Sept 30, 2018
 	dblLearnRate = 0.2; //this will be diminished as overfitting progresses  TBD!
   nNumberEpochs	= (int)floor(6.0 /dblLearnRate); // it takes longer to stabilize before split at a lower learning rate
 	nNumberLFNs = 1;  // starts at 1 and should grow quickly
@@ -309,8 +306,8 @@ void ALNAPI onealnfit() // this routine overfits one ALN with no smoothing so th
     if(iteration == 5)
     {
       dblLearnRate = 0.1;
-			(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used when estimating noise!
-			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pALN->GetRegion(0))->dblSmoothEpsilon);
+			(pOTTS->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used when estimating noise!
+			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pOTTS->GetRegion(0))->dblSmoothEpsilon);
     }
     if(iteration == 46)// getting near the end of noise estimation, slowing down learning
     {
@@ -326,15 +323,15 @@ void ALNAPI onealnfit() // this routine overfits one ALN with no smoothing so th
     }
 		// Jitter should never be used for onealnfit, so we set this to false, but leave a TRUE value for approximation
 		// call the training function
-		if(!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // onealnfit
+		if(!pOTTS->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // onealnfit
 		{
 		  fprintf(fpProtocol,"Training failed!\n");
 		}	
 		
-		validate(pALN); //calculates the validation error
-		splitcontrol(pALN, 500.0);
-		dblTolerance = 0.1 * dblValidationErr; // set new tolerance low compared to validation error -- changed WWA 2009.10.09
-		pALN->SetEpsilon(dblTolerance,nDim -1);
+		validate(pOTTS); //calculates the validation error
+		splitcontrol(pOTTS, 0.0); // unrestricted splitting allowed
+		//dblTolerance = 0; // 0.1 * dblValidationErr; // set new tolerance low compared to validation error -- changed WWA 2009.10.09 // Not used now??
+		pOTTS->SetEpsilon(0,nDim -1);//was dblTolerance
 		if((iteration >= 4) && ((double) nNumberLFNs < (double)nOldNumberLFNs * 0.8))
 		{
 			fprintf(fpProtocol,"\nStopping noise estimation: the number %d of active linear pieces has shrunk too much \n", nNumberLFNs );
@@ -343,23 +340,24 @@ void ALNAPI onealnfit() // this routine overfits one ALN with no smoothing so th
 			break;
 		}
 		nOldNumberLFNs = nNumberLFNs;
-		fprintf(fpProtocol,"Tolerance reduced to %f \n\n", dblTolerance);
+		fprintf(fpProtocol,"Tolerance reduced to %f \n\n", 0); // was dblTolerance
 		fflush(fpProtocol);
 	}
 	fprintf(fpProtocol,"\nNoise estimation training of single ALN: final validation error = %f \n", dblValidationErr);
 	double dblTempFraction = pow((nDim + 1.0) / (nDim + 3.0), 0.5);
-	dblTolerance = dblValidationErr * dblTempFraction;
-	fprintf(fpProtocol, "We set the tolerance for approximation to a dimension-dependent fraction %f of the validation error to limit\n", dblTempFraction);
-	fprintf(fpProtocol,"the splitting of linear pieces that fit better than this error level. \n");
-	fprintf(fpProtocol,"ESTIMATE OF RMS NOISE IN THE DATA = %f WHICH MAY BE APPLIED TO SIMILAR DATA.\n", dblTolerance);
-  fflush(fpProtocol);
-  pALN->Destroy();
-	// We are finished with that ALN and have destroyed it
+	//dblTolerance = 0;  dblValidationErr * dblTempFraction; // this is the way we did it for constant noise variance -- is it used now??
+	//fprintf(fpProtocol, "We set the tolerance for approximation to a dimension-dependent fraction %f of the validation error to limit\n", dblTempFraction);
+	//fprintf(fpProtocol,"the splitting of linear pieces that fit better than this error level. \n");
+	//fprintf(fpProtocol,"ESTIMATE OF RMS NOISE IN THE DATA = %f WHICH MAY BE APPLIED TO SIMILAR DATA.\n", dblTolerance);
+  //fflush(fpProtocol);
+  //pOTTS->Destroy();
+	// We are not finished with that ALN and keep it for the noise level determination.
+	// In future versions of the program we will create also OTVS and use all samples to determine noise, maybe even make a weight-bounded ALN to learn the noise
 }
 
 void ALNAPI approximate() // routine
 {
-	int nalns = nALNs;  // The number of ALNs over which we average
+	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
 	fprintf(fpProtocol,"\n**************Approximation with one or more ALNs begins ********\n");
 	fprintf(fpProtocol,"Training %d approximation ALNs starts, using noise to limit splitting\n", nalns);
 	if(bJitter)
@@ -378,7 +376,8 @@ void ALNAPI approximate() // routine
 	{
 		fprintf(fpProtocol, "Validation is skipped during approximation \n");
 	}
-	fprintf(fpProtocol,"Tolerance for training each approximation ALN is %f\n",dblTolerance);
+	//fprintf(fpProtocol,"Tolerance for training each approximation ALN is %f\n",dblTolerance); Is it used at all?
+
 	// ***************** SET UP THE ARRAY OF POINTERS TO ALNS FOR TRAINING ONLY *************************
 	if(bTrain)
 	{
@@ -430,7 +429,7 @@ void ALNAPI approximate() // routine
 		    apALN[n]->SetWeightMax(dblMaxWeight[m],m);
       }
 		} // end of loop over m
-    createTrainValfiles();  // we get different training sets at least for each ALN
+    createTrainValfiles();  // we get different training sets for each ALN
 		bTrainingAverage = FALSE;
 
     if(bClassify)
@@ -439,18 +438,21 @@ void ALNAPI approximate() // routine
       // so we have to put in an initial validation error estimate
       dblValidationErr = 0.288;
     }
-    if(bEstimateRMSError == FALSE) // we already have the tolerance if we have estimated the RMS error
-    {
-      dblTolerance = dblSetTolerance;
-    }
-    apALN[n]->SetEpsilon(dblTolerance,nDim -1);
+   // if(bEstimateRMSError == FALSE) // we already have the tolerance if we have estimated the RMS error
+    //{
+		//	dblTolerance = 0; // dblSetTolerance;
+    //}
+    apALN[n]->SetEpsilon(0,nDim -1); //  is this used at all? was dblTolerance
 		// Tell the training algorithm the way to access the data using fillvector
     int nEpochSize = nDim * 100; // changed 2009.11.06
 		apALN[n]->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 		// >>>>>>>>>>>>> HERE IS WHERE SMOOTHING IS SET TO 0.5 OF APPROXIMATION TOLERANCE OR TOZERO BY CHANGING WHICH IS COMMENTED OUT   <<<<<<<<<<<<<<<<<<<<<<<
-		(apALN[n]->GetRegion(0))->dblSmoothEpsilon = dblSmoothingFraction * dblTolerance;// approximation: we guess that smoothing, if used, should be about half the level of noise
-		// for DEEP LEARNING, sMOOTHING SHOULD BE SET TO ZERO
-		fprintf(fpProtocol, "The smoothing used for training each approximation ALN and the bagging average is %f\n", dblSmoothingFraction*dblTolerance);
+		// here is where Tolerance is used.  But maybe it should be determined by the noise!!!  The validation error can't be computed if we used the validation
+		// set for noise samples!  Lots of work here.
+		// (apALN[n]->GetRegion(0))->dblSmoothEpsilon = dblSmoothingFraction * dblTolerance;// approximation: we guess that smoothing, if used, should be about half the level of noise
+		// for DEEP LEARNING, SMOOTHING SHOULD BE SET TO ZERO
+		(apALN[n]->GetRegion(0))->dblSmoothEpsilon = 0.0;
+		fprintf(fpProtocol, "The smoothing used for training each approximation ALN and the bagging average is %f\n", 0.0); // dblSmoothingFraction*dblTolerance);
 		if(bEstimateRMSError)
 		{
 			// use the weights and centroids from linear regression
@@ -478,7 +480,9 @@ void ALNAPI approximate() // routine
 		}
 		dblLearnRate = 0.2;
 		nNumberEpochs	= (int)floor( 6.0/dblLearnRate);
-		dblMinRMSE =  0.7 * dblTolerance; // stop early only if the error is smaller than the tolerance
+		// dblMinRMSE =  0.7 * dblTolerance; // stop early only if the error is smaller than the tolerance
+		//  We should stop when all pieces don't allow more splitting!!!!
+		dblMinRMSE = 0.0; //temporary
     nNumberLFNs = 1;  // initialize at 1
 		int nOldNumberLFNs = 0; // for stopping criterion
     fprintf(fpProtocol,"----------  Training approximation ALN %d ------------------\n",n);
@@ -492,11 +496,11 @@ void ALNAPI approximate() // routine
 			  fprintf(fpProtocol,"Training failed!\n");
         exit(0);
 			}
-			splitcontrol(apALN[n],2.0);
-      if(bEstimateRMSError == FALSE)
+			splitcontrol(apALN[n], dblFlimit); // here is one place where the F-limit is set from F-tables 
+				if(bEstimateRMSError == FALSE)
       {
 				fprintf(fpProtocol,"Training RMSE = %f\n", dblTrainErr);
-				if(dblTrainErr < dblTolerance)
+				if(dblTrainErr < 0) // was dblTolerance 
 				{
 					fprintf(fpProtocol,"Stopping approximation: Training RMSE = %f less than tolerance\n", dblTrainErr);
 					fflush(fpProtocol);
@@ -507,7 +511,7 @@ void ALNAPI approximate() // routine
       {
 				validate(apALN[n]);
 				fprintf(fpProtocol,"Validation error = %f \nTraining RMSE = %f\n", dblValidationErr, dblTrainErr);
-				if(dblTrainErr < dblTolerance)
+				if(dblTrainErr < 0) // was dblTolerance
 				{
 					fprintf(fpProtocol,"Stopping approximation: Training RMSE = %f less than tolerance\n", dblTrainErr);
 					fflush(fpProtocol);
@@ -526,7 +530,7 @@ void ALNAPI approximate() // routine
 			}
 			else
 			{
-				splitcontrol(apALN[n], 0.1); // this will stop splitting
+				splitcontrol(apALN[n],dblFlimit); // here is one place where the F-limit is set from F-tables
 				if(iteration == 24) dblLearnRate = 0.05;
 				if(iteration == 29) dblLearnRate = 0.04;
 				if(iteration == 34) dblLearnRate = 0.03;
@@ -578,21 +582,23 @@ void ALNAPI trainaverage() // routine
 		  pAvgALN->SetWeightMax(dblMaxWeight[k],k);
     }
 	}
+	/*
 	if(bEstimateRMSError == FALSE)
   {
-    dblTolerance = 0.7 * dblSetTolerance/ sqrt((double)nalns);
+		//dblTolerance = 0; // 0.7 * dblSetTolerance / sqrt((double)nalns);
   }
   else
   {
-    dblTolerance = 0.7 * dblValidationErr/ sqrt((double)nalns); 
+		//dblTolerance = 0; // = 0.7 * dblValidationErr / sqrt((double)nalns);
 		                                     // we take the final approximation validation error
 		                                     // and correct for the expected increased accuracy of bagging
 		                                     // to get the tolerance for training the average ALN
                                          // it seems 0.66 is too small here, leading to overtraining
                                          // while over .75 leads to too few pieces.  This is why we try 0.7
   }
-	(pAvgALN)->SetEpsilon(dblTolerance,nDim -1); // small output tolerance based on validation error
-	fprintf(fpProtocol,"Tolerance for training the average ALN is %f\n",dblTolerance);
+	*/
+	(pAvgALN)->SetEpsilon(0,nDim -1); // small output tolerance based on validation error   was dblTolerance
+	//fprintf(fpProtocol,"Tolerance for training the average ALN is %f\n",dblTolerance);
 	fprintf(fpProtocol,"Smoothing epsilon for training the average ALN is set the same as for approximation\n\n");
 	// Tell the training algorithm the way to access the data using fillvector
 	int nEpochSize = nDim * 100;
@@ -632,7 +638,7 @@ void ALNAPI trainaverage() // routine
 		adblLRC = NULL; // set the pointers to NULL
 		adblLRW = NULL;
 	}
-	dblMinRMSE =  0.25 * dblTolerance; // stop if the error reaches 1/4 tolerance
+	dblMinRMSE = 0.0; //  0.25 * dblTolerance; // stop if the error reaches 1/4 tolerance
 	dblLearnRate = 0.2;
 	nNumberEpochs	= (int) floor( 6.0/dblLearnRate); //training average ALN
   nNumberLFNs = 1;  // initialize at 1
@@ -647,7 +653,7 @@ void ALNAPI trainaverage() // routine
       exit(0);
 	  }	
 		fprintf(fpProtocol,"\nIteration %d of training average ALN, RMSE = %f\n", iteration, dblTrainErr);
-		splitcontrol(pAvgALN, 10.0); // splitting is stopped if the training error of a piece times a factor 10 is less than tolerance
+		splitcontrol(pAvgALN, dblFlimit); // here is one place where the F-limit is set from F-tables
 		// we don't need to worry about overtraining because there is no noise
 		if((double) nNumberLFNs < (double)nOldNumberLFNs * 0.8)
 		{

@@ -78,7 +78,7 @@ extern int nColsNumericalValFile;
 extern CDataFile ALNinputValFile;
 extern long  nRowsALNinputValFile;
 extern double dblSetTolerance;
-extern double dblTolerance;   // The output tolerance below which a piece will not split
+//extern double dblTolerance;   // The output tolerance below which a piece will not split
 extern BOOL bEstimateRMSError; // if TRUE we use a onealnfit to estimate RMS error which needs a validation set
 extern double  dblValidationErr;    // Set equal to the rmse in the validation step
 extern double  dblSmoothingFraction; // When smoothing is done at approximation and later, this is the fraction of tolerance used

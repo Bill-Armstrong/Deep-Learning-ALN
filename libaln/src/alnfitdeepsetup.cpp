@@ -359,7 +359,7 @@ int nDim =0;
 int nOutputIndex = 0;
 long nRowsPP   = 0;          // The number of rows in the PreprocessedDataFile
 long nRowsTV   = 0;          // The number of rows in the TVfile (Training & Validation File)
-double dblTolerance = 0.1905255;   // The output tolerance below which a piece will not split (value shown is good for classification).
+//double dblTolerance = 0.1905255;   // The output tolerance below which a piece will not split (value shown is good for classification).
 double* adblEpsilon;         // An array of doubles holding the tolerances of the inputs.
 double* adblMinVar;          // Array of minima of the variables
 double* adblMaxVar;          // Array of maxima of the variables
@@ -1348,7 +1348,7 @@ void ALNAPI analyzeTV() // routine
 	// where sqrt(3) ~ 1.732. We start with using stdev units on each input axis.
 	// The volume is ,3.464^(nDim-1)and each point receives its share of the unit volume.
 	// The side of an nDim - 1 dimensional box with that per-point volume? 
-	double dblSide = 3.464 * pow(1.0/((double) nRowsTV), 1.0/((double) nDim - 1.0 ));  // changed WWA 2009.10.05
+	double dblSide = 3.464 * pow(1.0/((double) nRowsTV), 1.0/((double) nDim - 1.0 ));  // volume per TV point, side of above cube is the nDim -1 root.
 	fprintf(fpProtocol,"Side of cube per point in the TVset (in stdev units) = %lf\n" ,dblSide );
 	adblEpsilon = (double *) malloc((nDim) * sizeof(double));
   // we compute the variance of each column of TV,
@@ -1381,7 +1381,7 @@ void ALNAPI analyzeTV() // routine
       {
         bRegress = TRUE;
       }
-      if((k == nDim - 1) && (value >3.5 || value < -3.))
+      if((k == nDim - 1) && (value >3.5 || value < -3.)) // we cab only classify into classes numbered -3, -2, ...2, 3, if an output is outside this range...
       {
         bRegress = TRUE;
       }

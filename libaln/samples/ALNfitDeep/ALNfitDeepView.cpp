@@ -878,15 +878,15 @@ some limitations, into more classes  *****\n");
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
       onealnfit(); // at this point, we have an estimate of noise and a tolerance value
-			fprintf(fpProtocol, "Tolerance (desired RMS error on training set) has been estimated and is %f\n", dblTolerance);
+			//fprintf(fpProtocol, "Tolerance (desired RMS error on training set) has been estimated and is %f\n", dblTolerance);
     }
-    else // we are not doing error estimation but getting tolerance by setting it directly
-    {
+    //else // we are not doing error estimation but getting tolerance by setting it directly
+    //{
 			fprintf(fpProtocol, "Linear regression and overfitting an ALN to do RMS  noise estimation are skipped.\n");
       // for regression, when we skip validation we use the tolerance from the options dialog
-      dblTolerance = dblSetTolerance;
-			fprintf(fpProtocol, "Tolerance (desired RMS error on training set) is set directly and is %f\n", dblTolerance);
-    }
+      //dblTolerance = dblSetTolerance;
+			//fprintf(fpProtocol, "Tolerance (desired RMS error on training set) is set directly and is %f\n", dblTolerance);
+    //}
 		fflush(fpProtocol);
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
