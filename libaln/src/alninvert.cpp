@@ -54,7 +54,7 @@ void InvertConstraints(ALN* pALN, int nVar);
 
 ALNIMP int ALNAPI ALNInvert(ALN* pALN, int nVar)
 {
-  // parameter validation
+  // parameter variance
   if (pALN == NULL)
     return ALN_GENERIC;
 

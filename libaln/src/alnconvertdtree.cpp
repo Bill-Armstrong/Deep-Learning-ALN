@@ -53,7 +53,7 @@ static char THIS_FILE[] = __FILE__;
 ALNIMP int ALNAPI ALNConvertDtree(const ALN* pALN, int nMaxDepth,
                                   DTREE** ppDtree)
 {
-  // parameter validation
+  // parameter variance
   if (pALN == NULL)
     return ALN_GENERIC;
 

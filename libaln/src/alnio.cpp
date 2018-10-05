@@ -55,7 +55,7 @@ static int ALNAPI DoALNRead(FILE* pFile, ALN** ppALN);
 // returns ALN_* error code, (ALN_NOERROR on success)
 ALNIMP int ALNAPI ALNWrite(const ALN* pALN, const char* pszFileName)
 {
-   // parameter validation
+   // parameter variance
   if (pALN == NULL)
     return ALN_GENERIC;
 
@@ -87,7 +87,7 @@ ALNIMP int ALNAPI ALNWrite(const ALN* pALN, const char* pszFileName)
 // returns ALN_* error code, (ALN_NOERROR on success)
 ALNIMP int ALNAPI ALNRead(const char* pszFileName, ALN** ppALN)
 {
-  // parameter validation
+  // parameter variance
   if (ppALN == NULL)
     return ALN_GENERIC;
 

@@ -29,8 +29,8 @@
 // an ALN (adaptive logic network). ALNfit Pro is a sample program of the libaln library.
 //
 // An ALN is a piecewise linear continuous function (at least in theory)formed by
-// using linear functions (with a bias term, i.e. non-homogeneous) and maximum and minimum operators.
-// The linear functions are at the leaves of a tree of maximum and minimum operators.
+// using affine (i.e. non-homogeneous linear) functions input layer and two-input
+// maximum and minimum operators in all other layers of a neural network.
 // The single output is at the root.  All values are real (double precision floating
 // point in the computer representation).
 //
@@ -45,7 +45,7 @@
 // prior to 1995. If you take one of the above ALNs, representing a function f, and
 // ask what is the logical value of the comparison  f >= T for some fixed threshold value T.
 // Use the following transformations to transform the ALN into a pre-1995 ALN with ANDs and ORs
-// and Boolean-valued inputs computed by Perceptrons (a Perceptron compares a linear functions to a constant):
+// and Boolean-valued inputs computed by Perceptrons (a Perceptron compares an affine function to a constant):
 // MIN(g,h) >= T iff g >= T AND h >= T; MAX(g,h) >= T iff g >= T OR h >= T. Changing to
 // ALNs which processed real values instead of Booleans was a significant advance
 // because the training algorithm had an obvious way to solve the "credit assignment"
@@ -57,13 +57,14 @@
 // least-squares approach, and the tree of MAX and MIN operators adapts by growing to better fit the data.
 //
 // Classes in classification problems are always represented by 0 and 1 values
-// Problems with more than two classes are treated like regression problems,
+// Problems with more than two classes are treated like regression problems with integer outputs,
 // or must be reformulated as a sequence of two-class problems.
 // Input data files must be tab-separated text files.
 // The input data files must have no missing or extra fields,
 // and all fields must be numeric (integers or decimal numbers)
 // using only decimal points (.) or, optionally, commas (,) to indicate fractional parts.
-// Undefined inputs and outputs are represented by 99999 or -9999
+// Undefined inputs and outputs are represented by 99999 or -9999.
+// With undefined values represented in this way, the output "R" file replaces those values.
 // For evaluation files, the desired output field may be missing in all rows.
 
 // Training and testing mode
@@ -71,12 +72,12 @@
 // The user determines that either training or evaluation of a file using a
 // trained ALN will be done.
 // For training, the program normally uses the input data file and creates 
-// from it one file for training/validation ("TVfile.txt") and
-// one file ("ALNinputTestFile.txt") for testing. The latter file is a specified
+// from it one file for training/variance ("TVfile.txt") and
+// one file ("TSfile.txt") for testing. The latter file is a specified
 // part of the data (eg a randomly selected file consisting of 10% of the rows of
 // the input data file). The user can alternatively specify a testing file directly
-// which is evaluated using a pre-existing DTREE.
-// The testing file is set aside for making unbiased tests after the result of training is ready.
+// which is evaluated using a pre-existing DTREE. The testing file is 
+// held back for making unbiased tests after the result of training is ready.
 // The result of training is a single DTREE file of variable depth,
 // and this is written out as a text file with extension .dtr. 
 // The DTREE file can be viewed with a text-file viewer like MS Notepad.
@@ -89,96 +90,63 @@
 // obtaining an estimate of the RMS error in the training data.
 // Of course, looking at any set of data points where no input vector is
 // repeated, we can interpolate that data as accurately as we wish and say that the
-// error is 0.  However if we also look at a second "validation" set from the same
-// data source, then a perfect fit to the training data will have errors
-// when applied to the validation set. There is a procedure for estimating this
-// error, as follows.
+// error is 0.  However if we also look at a second  set from the same
+// data source, then it should define the same function. The difference of functions
+// defined by the two data sets can be used to measure the noise.
 // Linear regression is first used to fit the training set to determine its RMS error.
 // A good ALN fit must have no greater error, since an ALN can use more than one linear piece.
-// Then we try to fit the training data very closely, which could mean interpolation except
-// the procedure stops before that point.  This amounts to
+// Then we try to fit the training data very closely, which means something like interpolation. This amounts to
 // what is called "overtraining", and leads to poor "generalization". However
-// we overtrain precisely to compute, using the error of that fit on the 
-// validation set, an estimate of the error between the unknown ideal function
-// and the validation data values.  (If we had several data points at the exact same input vectors to compare,
-// the overfitted ALN would be unnecessary.) We arrive at a "tolerance", such that later
+// we use overtraining on one set of data to compare its values to the
+// values of other samples not used in overfitting. This gives us values we can use for
+// estimating the noise variance in a subregion. We arrive at a "noise variance function", such that subsequently
 // when we train ALNs on the same data for a good fit, we stop growing the tree (splitting linear
-// pieces into two) when the error is below this tolerance. In addition, we don't
-// split a piece if its error on the training set data is significantly lower than its error on
-// the validation set.  This doesn't prevent overtraining, but
-// limits the fitting of noise.
+// pieces into two) when the error is below the level of noise variance. 
 //
 // We assume that the RMS noise added to the
 // ideal function to get samples is equal everywhere in the input space.
-// Comparing the error of a linear piece on its
-// training points to the error on its validation points helps when this assumption doesn't hold.
 //
 //  If the noise in the samples varies proportionately to the value of the ideal function,
 //  then we should do the training on the logarithm of the output data points to get constant noise RMS. 
 //
 // Once we know how much RMS error there is in the training data, we can train one or more ALNs.
-// We can stop elaborating an ALN by splitting linear pieces into two, when the training error
-// becomes less than the because to continue would just be fitting the noise in the data.
-// The output error tolerance is set a bit smaller than that validation error,
-// and the smoothing constant used for fillets is set proportionally.
-// Several trainings are done to try to get a smaller validation error,
-// and the smallest validation error (reduced somewhat)
-// is adopted as the tolerance for the next step.
-
-// What does the output error tolerance mean?
-//
-// The tolerance is the rms error of a piece during training below which the
-// piece does not split. Ideally, a piece should split in order to fit
-// the ideal function better, but should not split to fit deviations from it due to noise.
-// The tolerance is set to a value somewhat less than the RMS error of an overtrained ALN on a validation set.
-// The validation RMS error contains not only the error of approximation due 
-// to noise, but the error due to a bad fit of the underlying function.
-// By minimizing the error of fit, we get a good value for the level of noise.
-
-// Tolerance used for classification tasks
-//
-// For classification, or where the noise in data is much larger than the
-// required accuracy of fit, the tolerance is set based on a model whereby
-// two classes have linear class conditional probabilities going from 0 to 1
-// in opposite directions on an interval.
-
+// We can stop elaborating an ALN by splitting linear pieces into two, when the training square error
+// becomes less than the noise variance because to continue would just be fitting the noise in the data.
+// The smoothing constant used for fillets is set proportionally.
+// Several trainings using the noise variance are done and the results averaged.
 // The approximation step
 //
-// The TVfile is used several (nALNs) times with different partitions into
-// a training set and a validation set, if a separate one is used, to create several ALNs whose average
-// will have good generalization performance.  The tolerance is set at the
-// level found by training one ALN.
+// The TVfile is used several (nALNs) times to create several ALNs whose average
+// will have good generalization performance.  The noise variance function for averaging is set at the
+// level found for training one ALN divided by the number of ALNs in the average.
 // This is called bagging (inventor: Leo Breimann).
 
 
 // Training ALNs
 //
 // Normally several ALNs, eg seven, are trained to get the final approximant.
-// Each ALN learns a piecewise linear approximant (with additional smoothing using  
+// Each ALN learns a piecewise linear approximant ( perhaps with additional smoothing using  
 // quadratic fillets) giving the output as a smooth function of the inputs.
 // During training, each linear piece changes coefficients (weights) to fit the data
 // points for which it is responsible. The fit takes account of the fillets.
-// If the error of a piece is still above the prescribed output error tolerance
+// If the error of a piece is still above the level of noise variance
 // after enough training has been given to move it into position,
 // the piece splits into two, initially equal to it, and those two linear pieces then adapt
 // their weights to fit their respective data points.  Splitting continues as required
 // to get the RMS training error below the output error tolerance on all pieces.
-// Each ALN is trained with a randomly chosen subset of the data points of
-// the TVset and the error is validated on the rest of the TVset.
-// Because of the double use of the TVset for training and validation, we
-// need more data than the minimum necessary to describe the function to be learned.
+// Each ALN is trained on the entire TVset. This is a departure from standard practise
+// which is being tested.
+
 // We also remove some (10%, or at least 10) samples for testing purposes
 // (they must never be used for training, just as the
 // training samples must never be used for testing if you want a good fit on as
 // yet unseen samples. 
 
-// If you have a low dimensional function, you can ask yourself using a graph how many
+// If you have a low dimensional function, you can ask yourself looking at a graph how many
 // linear pieces will be required to get an acceptable fit.  If that number is N, and there are
 // there are C columns in the data including the output column, then the number of samples
 // (ie rows) in the file must be at least S = 2 * N * C. You can think of it this way:
-// Of the S rows, you take away 10% leaving 0.9 * S.  Then of that you use say 70%
-// for training each ALN and 30% for measuring validation error.  So you are using 0.63 * S rows
-// for training.  That means for each linear piece, you have 1.26 * C data points.  The minimum you
+// Of the S rows, you take away 10% leaving 0.9 * S. That means for each linear piece, you have 1.8 * C data points.  The minimum you
 // need for defining a linear piece is C points.  If there is a lot of noise in the
 // data, you might need many times this number of rows. Using machine learning requires
 // plenty of samples.
@@ -257,11 +225,11 @@ int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
 void ALNAPI ALNfitSetup();
 int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given file 
 void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
-void ALNAPI createTVALNinputTestFiles();      // The PreprocessedDataFile is used to create TV (training only) and TS files, which are written out..
+void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to create TV (training only) and TS files, which are written out..
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();          // The TVfile created from the PreprocessedDataFile is read in
-void ALNAPI getALNinputTestFile();          // The ALNinputTestFile created from the PreprocessedDataFile is read in 
-void ALNAPI createTrainValfiles();
+void ALNAPI getTSfile();          // The TSfile created from the PreprocessedDataFile is read in 
+void ALNAPI createTrainVarianceFiles();
 void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void ALNAPI reportFunctions();      // reports on the trained function ALNs with stats and plots
@@ -316,7 +284,7 @@ char szResultMessage[128];    // Contains a summary of results presented in the 
 // Parameters used externally
 int nPercentForTest = 10;     // the percentage of the data file used for testing, between 0 and 50 percent
 int nMaxLag;                  // The maximum lag of any input is nMaxLag determined in preprocUniversalFile. 
-double dblFracTest = 0.1;     // The fraction of the PreprocessedDataFile used for ALNinputTestFile (default 10%) if no separate test file.
+double dblFracTest = 0.1;     // The fraction of the PreprocessedDataFile used for TSfile (default 10%) if no separate test file.
 CDataFile OutputData;         // The result of evaluation with a column added for the DTREE output
 
 
@@ -328,13 +296,13 @@ double dblSetTolerance;
 
 
 // Functions used only internally
-void splitcontrol(CMyAln*, double); // if average validation error of a piece is high, splitting is prevented
+void splitcontrol(CMyAln*, double); // if average variance error of a piece is high, splitting is prevented
 void dosplitcontrol(CMyAln*, ALNNODE*, double); //does the recursion of splitcontrol
 void dozerospliterror(CMyAln*, ALNNODE*);  // sets the square error to zero in each LFN
 void spliterrorsetTR(CMyAln*); // accumulates the training square error and number of hits on each linear piece
-void spliterrorsetVL(CMyAln*); // accumulates the validation square error and number of hits on each linear piece
+void spliterrorsetVAR(CMyAln*); // accumulates the variance square error and number of hits on each linear piece
 void dodivideTR(CMyAln*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
-void dodivideVL(CMyAln*, ALNNODE*); // divides the total square validation errors of the pieces by their hit count
+void dodivideVAR(CMyAln*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
 
 // thread procedures
 UINT TakeActionProc(LPVOID pParam);  // separate thread
@@ -346,11 +314,11 @@ int nNumberLFNs;  // used to control the epoch size, which should be proportiona
 char szVarName[100][3];
 //int nColsUniv = 0;
 //long nRowsUniv = 0;
-int nColsAuxValidation = 0;
+int nColsAuxVariance = 0;
 int nColsAuxTest = 0;
 long nRowsTR = 0; // size of training file
-long nRowsVL = 0; // size of validation file
-BOOL bEstimateRMSError = TRUE; // if TRUE we use onealnfit to estimate error and we have a validation set
+long nRowsVAR = 0; // size of variance file
+BOOL bEstimateRMSError = TRUE; // if TRUE we use onealnfit to estimate error and we have a variance set
 BOOL bDecimal = TRUE; // means numbers could have a decimal point
 BOOL bComma = TRUE;   // means numbers could have a comma
 //double dblSetTolerance; // this is the value of tolerance set in the options dialog
@@ -358,14 +326,13 @@ BOOL bComma = TRUE;   // means numbers could have a comma
 int nDim =0;
 int nOutputIndex = 0;
 long nRowsPP   = 0;          // The number of rows in the PreprocessedDataFile
-long nRowsTV   = 0;          // The number of rows in the TVfile (Training & Validation File)
-//double dblTolerance = 0.1905255;   // The output tolerance below which a piece will not split (value shown is good for classification).
+long nRowsTV   = 0;          // The number of rows in the TVfile (Training & Variance File)
 double* adblEpsilon;         // An array of doubles holding the tolerances of the inputs.
 double* adblMinVar;          // Array of minima of the variables
 double* adblMaxVar;          // Array of maxima of the variables
 double* adblStdevVar;        // Standard deviations of the variables
 double  dblTrainErr;         // Set in cmyaln.h at the end of training
-double  dblValidationErr;    // Set equal to the rmse in the validation step
+double  dblVarianceErr;    // Set equal to the rmse in the variance step
 double  dblLinRegErr;        // The error of linear regression for use in upper-bounding output tolerance
 
 
@@ -377,37 +344,37 @@ FILE *fpOutput = NULL;             // the output data file resulting from evalua
 FILE *fpReplacement;
 CDataFile UNfile;             // copy of the data file, but with missing values replaced by special number
 CDataFile PreprocessedDataFile;             // The preprocessed file created from the Universal file
-CDataFile NumericalTestFile;  // These CDataFiles are for preprocessing the test and validation files
+CDataFile NumericalTestFile;  // These CDataFiles are for preprocessing the test and variance files
 long nRowsNumericalTestFile;
 int nColsNumericalTestFile;
-CDataFile ALNinputTestFile;
-long nRowsALNinputTestFile;
+CDataFile TSfile;
+long nRowsTSfile;
 CDataFile NumericalValFile;
 long nRowsNumericalValFile;
 int nColsNumericalValFile;
-CDataFile ALNinputValFile;
-long  nRowsALNinputValFile;
-CDataFile TVfile;             // The file used for training and, if no separate file is given, for validation, with nDim columns and nRowsUniv - nRowsALNinputTestFile rows.
+CDataFile VarianceFile;
+long  nRowsVarianceFile;
+CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
 
 
 //static char szVarName[100][3];
 
 // this typedef allows a cast within ALNfit Pro of ALNLFNSPLIT in aln.h which uses
-// the variables in a different way than in the Dendronic Learning Engine SDK
-// when a comparison between the average errors on training and validation sets
-// is needed to decide whether or not to allow splitting of the hyperplane
+// the variables in a different way when a comparison between the average errors on training and noise variance sets
+// is needed to decide whether or not to allow splitting of a linear piece
 typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed before and after use
 {
   int nCount;                // Number of hits
   double dblSqErrorTrain;    // Squared error of a piece during training                      
-  double dblSqErrorVal;      // Squared error of a piece during validation
+  double dblSqErrorVal;      // Squared error of a piece during noise variance estimation
   double dblT_NotUsed;			 // Used in the SDK only
 } SPLIT;
 // now actually define the storage for weight and centroid values from linear regression
 double* adblLRW; // weight components
 double* adblLRC; // centroid components
 using namespace std;
+
 void ALNAPI ALNfitSetup() // routine
 {
   // we can now close the FileSetupProtocol file
@@ -481,7 +448,7 @@ void ALNAPI ALNfitSetup() // routine
 
 
 	// ***************** SET UP THE FILES *************************
-	// create the necessary files: UNfile PreprocessedDataFile, TVfile, ALNinputTestFile
+	// create the necessary files: UNfile PreprocessedDataFile, TVfile, TSfile
   // the UN file just copies the input file,EXCLUDING the header(if present)
   UNfile.Create(nRowsUniv,nColsUniv + 1); // we add an extra column for an evaluated output
 	for(int k = 0; k < nColsUniv; k++)
@@ -498,18 +465,9 @@ void ALNAPI ALNfitSetup() // routine
   }
 	fprintf(fpProtocol,"Starting to preprocess the data file\n");
 	preprocUniversalFile();
-	if(bTrain)fprintf(fpProtocol,"Creating the training/validation file\n");
+	if(bTrain)fprintf(fpProtocol,"Creating the training/variance file\n");
 	fprintf(fpProtocol,"Creating the test file\n");
-	createTVALNinputTestFiles();
-
-/*	// ***************** SET UP THE ARRAY OF POINTERS TO ALNS FOR TRAINING ONLY *************************
-	if(bTrain)
-	{
-		apALN = (CMyAln**) malloc(nALNs * sizeof(CMyAln*));
-	}
-	fflush(fpProtocol);
-
-*/
+	createTVTSfiles();
 }
 
 int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * prows, int * pcols, BOOL bPrint) // routine
@@ -706,209 +664,6 @@ int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * pr
 	return 1;
 }
 
-/*  removed auxiliary files for validation or test
-int ALNAPI analyzeauxiliaryfile(char* szAuxiliaryFileName, int * pAuxheaderlines, long * pAuxrows, int * pAuxcols, BOOL bPrint) // routine
-{
-  // this routine analyzes the validation or test file provided in the options dialog
-  ifstream ifs(szAuxiliaryFileName);
-	if (ifs)
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"\n\n************ Opening auxiliary file %s for analysis succeeded!\n", szAuxiliaryFileName);
-    if(bPrint)fflush(fpFileSetupProtocol);
-  }
-  else
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Stopping. Opening auxiliary file %s for analysis failed!\n", szAuxiliaryFileName);
-	  if(bPrint)fflush(fpFileSetupProtocol);
-    exit(0);
-  }
-  // we can't use the global values for the header buffer or the Decimal Point vs Comma flag
-  static char auxline[10][2000]; // this accumulates the header for the auxiliary file (Validation or Test)
-  // this routine accepts files with up to 101 columns
-  long linecount;
-	int  ncount, itemcount, nheaderlines, ncols;
-  char item[101][128];
-	float fitem[101];
-  // zero the input array for float items
-  for(itemcount = 0; itemcount < 101; itemcount++)
-  {
-    fitem[itemcount] = 0;
-  }
-	ncount = 2000; // maximum input line length
-	nheaderlines = 0; // current header line number, which finally indicates the number of header lines
-	linecount = 0; // current data row number, which finally indicates the number of data rows
-	itemcount = 0; // current item in the row
-	ncols = 0;
-  BOOL bStillHeader = TRUE; // we allow empty lines while still in the header, so we need this flag
-  BOOL bauxDecimal = TRUE;  // the current line hasn't been excluded as a number line with decimal points
-  BOOL bauxComma = TRUE;    // the current line hasn't been excluded as a number line with commas
-  // now start counting the lines and columns
-  // comments in input files are indicated by // at the start of the line
-  // comment lines are always ignored and empty lines are ignored in the header part
-  while(ifs.getline(auxline[nheaderlines], ncount,'\n'))
-	{
-    // just ignore any comment lines
-    if((auxline[nheaderlines][0] == '/')&&(auxline[nheaderlines][1] == '/')) continue;
-    // we allow empty lines in the header area, not in the data area
-		if(!bStillHeader && auxline[nheaderlines][0] == '\0') break; // if getline reads an empty line in the data part, the while is terminated
-    if(bStillHeader && (auxline[nheaderlines][0] == '\0'))
-    {
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is empty\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line is assumed to be a header line. Analysis continues.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      nheaderlineitems[nheaderlines]=0;
-      nheaderlines ++;
-      bauxDecimal = TRUE;
-      bauxComma = TRUE;
-      continue;
-    }
-    // at this point, we know the line is not empty
-    // look at the periods, commas and numbers 0-9 in the non-empty line 
-    int charcount = 0;
-    while(auxline[nheaderlines][charcount] != '\0') // process up to the null terminator
-    {
-      if((auxline[nheaderlines][charcount] != ' ') && (auxline[nheaderlines][charcount] != '\t'))
-      {
-        if(auxline[nheaderlines][charcount] == '.') 
-        {
-          bauxComma = FALSE; // this can't be a number line with commas
-        }
-        else if(auxline[nheaderlines][charcount] == ',')
-        {
-          bauxDecimal = FALSE; // this can't be a number line with decimal points
-        }
-        else if((auxline[nheaderlines][charcount] < '0' || auxline[nheaderlines][charcount] > '9')&&
-          (auxline[nheaderlines][charcount] != '-') && (auxline[nheaderlines][charcount] != 'E')
-          && (auxline[nheaderlines][charcount] != 'e'))
-        {
-          // in this case, the line does not consist of numbers only
-          // numbers like 1,234,567.89 and 1.234.567,89 are not allowed in data input
-          // and this is treated like a header line
-          bauxComma = FALSE;
-          bauxDecimal = FALSE;
-        }
-      }
-      charcount++;
-    }
-		itemcount = 0;
-    if(bauxComma == FALSE && bauxDecimal == FALSE)
-		{
-      // this is a header line
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is: \n %s \n" , auxline[nheaderlines]);
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line is assumed to be a header line. Analysis continues.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      itemcount = sscanf(auxline[nheaderlines],"%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-			item+0, item+1, item+2,item+3, item+4,	item+5, item+6, item+7, item+8, item+9,
-			item+10, item+11, item+12,item+13, item+14,	item+15, item+16, item+17, item+18, item+19,
-			item+20, item+21, item+22,item+23, item+24,	item+25, item+26, item+27, item+28, item+29,
-			item+30, item+31, item+32,item+33, item+34,	item+35, item+36, item+37, item+38, item+39,
-			item+40, item+41, item+42,item+43, item+44,	item+45, item+46, item+47, item+48, item+49,
-			item+50, item+51, item+52,item+53, item+54,	item+55, item+56, item+57, item+58, item+59,
-			item+60, item+61, item+62,item+63, item+64,	item+65, item+66, item+67, item+68, item+69,
-			item+70, item+71, item+72,item+73, item+74,	item+75, item+76, item+77, item+78, item+79,
-			item+80, item+81, item+82,item+83, item+84,	item+85, item+86, item+87, item+88, item+89,
-			item+90, item+91, item+92,item+93, item+94,	item+95, item+96, item+97, item+98, item+99, item+100);
-		  if((itemcount == EOF)||(nheaderlines > 8))
-		  {
-        if(bPrint)fprintf(fpFileSetupProtocol,"Too many (>9) headerlines or EOF encountered reading the header line\n");
-        if(bPrint)fflush(fpFileSetupProtocol);
-        exit(0);
-      }
-      else
-      {
-        nheaderlineitems[nheaderlines] = itemcount;
-        if(bPrint)fprintf(fpFileSetupProtocol,"There were %d items read in the header line\n",itemcount);
-        if(bPrint)fflush(fpFileSetupProtocol);
-      }
-      nheaderlines ++;
-      bauxDecimal = TRUE;
-      bauxComma = TRUE;
-      continue;
-		}
-    // when we reach this point, we should have seen the last of the header lines
-    // so we process this as a data line
-    bStillHeader = FALSE;
-    linecount++;
-    // auxline[nheaderlines] is used as a buffer below
-    if(bauxDecimal == FALSE) // but bauxComma is still TRUE because it's not a header line
-    {
-      charcount = 0;
-      while(auxline[nheaderlines][charcount] != '\0')
-      {
-        if(auxline[nheaderlines][charcount] == ',')
-        {
-          auxline[nheaderlines][charcount] = '.'; // convert the number to decimal points
-        }
-        charcount++;
-      }
-    }
-    // now read the numbers in the line, we use auxline[nheaderlines] as a buffer
-		itemcount = sscanf(auxline[nheaderlines],"%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f",
-			fitem+0, fitem+1, fitem+2,fitem+3, fitem+4,	fitem+5, fitem+6, fitem+7, fitem+8, fitem+9,
-			fitem+10, fitem+11, fitem+12,fitem+13, fitem+14,	fitem+15, fitem+16, fitem+17, fitem+18, fitem+19,
-			fitem+20, fitem+21, fitem+22,fitem+23, fitem+24,	fitem+25, fitem+26, fitem+27, fitem+28, fitem+29,
-			fitem+30, fitem+31, fitem+32,fitem+33, fitem+34,	fitem+35, fitem+36, fitem+37, fitem+38, fitem+39,
-			fitem+40, fitem+41, fitem+42,fitem+43, fitem+44,	fitem+45, fitem+46, fitem+47, fitem+48, fitem+49,
-			fitem+50, fitem+51, fitem+52,fitem+53, fitem+54,	fitem+55, fitem+56, fitem+57, fitem+58, fitem+59,
-			fitem+60, fitem+61, fitem+62,fitem+63, fitem+64,	fitem+65, fitem+66, fitem+67, fitem+68, fitem+69,
-			fitem+70, fitem+71, fitem+72,fitem+73, fitem+74,	fitem+75, fitem+76, fitem+77, fitem+78, fitem+79,
-			fitem+80, fitem+81, fitem+82,fitem+83, fitem+84,	fitem+85, fitem+86, fitem+87, fitem+88, fitem+89,
-			fitem+90, fitem+91, fitem+92,fitem+93, fitem+94,	fitem+95, fitem+96, fitem+97, fitem+98, fitem+99, fitem+100);
-
-    if(itemcount > 101)
-    {
-      if(bPrint)fprintf(fpFileSetupProtocol,"Error: too many input columns in this line.\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"Maximum is 100 ALN inputs (plus one more for the desired output) for this program.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      return 0;
-    }
-		if((itemcount == 1) && (linecount == 1))
-		{
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is: \n %s \n" , auxline[nheaderlines]);
-      if(bPrint)fprintf(fpFileSetupProtocol,"You have only one column, appropriate for a single time series.\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"You have to use delayed values taken from this column to train.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-		}
-		if(linecount == 1)
-		{
-			if(bPrint)fprintf(fpFileSetupProtocol,"First data line to help checking for correctness:\n%s\n",auxline[nheaderlines]);
-			ncols = itemcount; // the number of columns is set in the first data line
-			if(bPrint)fprintf(fpFileSetupProtocol,"Count of items in first data line = %d\n", itemcount);
-      if(bPrint)fflush(fpFileSetupProtocol);
-		}
-		else
-		{
-			if(itemcount != ncols)
-			{
-			if(bPrint)fprintf(fpFileSetupProtocol,"Inconsistent number of items in data line %d ", linecount);
-			if(bPrint)fprintf(fpFileSetupProtocol,"namely %d \n",itemcount);
-			if(bPrint)fprintf(fpFileSetupProtocol,"Please correct and make sure each input data file line \n");
-			if(bPrint)fprintf(fpFileSetupProtocol,"has the same number of items in it.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      return 0;
-			}
-		}
-  } // end of while loop that gets lines
-  if(bauxDecimal != bDecimal || bauxComma != bComma)
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Stopping: It appears that use of commas and decimal points is inconsistent with the data file");
-    if(bPrint)fflush(fpFileSetupProtocol);
-    exit(0);
-  }
-  if(ncols != nColsUniv)
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Stopping: The number of columns in this auxiliary file is not the same as for the data file.");
-    if(bPrint)fflush(fpFileSetupProtocol);
-    exit(0);
-  }
-	*pAuxheaderlines = nheaderlines; // transmit to the caller
-	*pAuxrows = linecount;
-	*pAuxcols = ncols;
-	if(bPrint)fflush(fpFileSetupProtocol);
-	return 1;
-}
-*/
-
 void ALNAPI preprocUniversalFile()  // routine
 {
   if ((fpData=fopen(szDataFileName,"r")) != NULL)
@@ -1044,20 +799,20 @@ void ALNAPI preprocUniversalFile()  // routine
 		// allocate arrays in the free store
 		adblLRC = new double[nDim]; // C has all nDim centroids that match weights of index one greater except for the last
 		adblLRW = new double[nDim +1]; // W has the output component which is -1, and uses the 0 component to speed things up
-		if(!FALSE) nRowsALNinputTestFile = (int) (dblFracTest * nRowsPP); // use e.g 10% of data file for test
+		if(!FALSE) nRowsTSfile = (int) (dblFracTest * nRowsPP); // use e.g 10% of data file for test
 		if(nRowsPP < 100)
 		{
 			fprintf(fpProtocol,"Stopping: There must be at least 100 rows in the data file\n");
       exit(0);
     }
-    if(!FALSE && ((nRowsPP - nRowsALNinputTestFile) <= nALNinputs))
+    if(!FALSE && ((nRowsPP - nRowsTSfile) <= nALNinputs))
     {
 			fprintf(fpProtocol,"Stopping: There must be at least as many rows in the data file (after removing a given percentage for testing) as there are ALN inputs.\n");
       exit(0);
 		}
 		if(!FALSE)
     {
-      nRowsTV = nRowsPP - nRowsALNinputTestFile;
+      nRowsTV = nRowsPP - nRowsTSfile;
     }
     else
     {
@@ -1066,12 +821,12 @@ void ALNAPI preprocUniversalFile()  // routine
 	}
 	else
 	{
-		nRowsALNinputTestFile = nRowsPP;
+		nRowsTSfile = nRowsPP;
 		nRowsTV = 0;
 		// the number of ALNs doesn't matter for evaluation since only a DTREE
     // is used for evaluation
 	}
-	fprintf(fpProtocol,"The number of rows in the test set is %d\n", nRowsALNinputTestFile );
+	fprintf(fpProtocol,"The number of rows in the test set is %d\n", nRowsTSfile );
 	if(bTrain)
 	{
 		fprintf(fpProtocol,"The number of ALNs to be averaged in bagging is %d\n", nALNs); 
@@ -1087,6 +842,7 @@ void ALNAPI preprocUniversalFile()  // routine
 
 void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxiliary,long nAuxRows, int nAuxCols, CDataFile & AuxNumericalFile)  // routine
 {
+	// the AuxNumericalFile consists of all the data lines with header and comments removed
   FILE * fpAux;
   if ((fpAux=fopen(szAuxiliaryFileName,"r")) != NULL)
   {
@@ -1212,42 +968,42 @@ void ALNAPI MakeAuxALNinputFile(const CDataFile & AuxNumericalFile, CDataFile & 
   *adnRowsAuxALNinputFile = k;
 }
 
-void ALNAPI createTVALNinputTestFiles()  // routine
+void ALNAPI createTVTSfiles()  // routine
 {
   // Taking the PreprocessedDataFile, this creates
-  // a file ALNinputTestFile.txt with a test set
-  // and a file TVfile.txt a training/validation set
+  // a file TSfile.txt with a test set
+  // and a file TVfile.txt a Training/noise_Variance set
   // formed by the remaining rows.
-  // The number of samples in ALNinputTestFile.txt
-  // nRowsALNinputTestFile is determined 
+  // The number of samples in TSfile.txt
+  // nRowsTSfile is determined 
   // elsewhere either by a fraction of the
   // data set size (default 10%) or by the size of the
   // size of the test file returned by the Options dialog
 	long i = 0,k = 0;
 	int* anInclude = (int*) malloc(nRowsPP * sizeof(int));
 
-  // select random rows from the PreprocessedDataFile for the test set ALNinputTestFile
-	// Training: choose from the PreprocessedDataFile randomly and without replacement nRowsALNinputTestFile rows
+  // select random rows from the PreprocessedDataFile for the test set TSfile
+	// Training: choose from the PreprocessedDataFile randomly and without replacement nRowsTSfile rows
 	// and put them into a file which is written to disk
-	// Evaluation: choose all of the PreprocessedDataFile to be the ALNinputTestFile.
+	// Evaluation: choose all of the PreprocessedDataFile to be the TSfile.
 
   // First we set up the Test file in all cases
   if(!FALSE)
   {
-    if(bTrain && (nRowsPP < (nRowsALNinputTestFile * 2))) // check for enough data in PP file in case of training
+    if(bTrain && (nRowsPP < (nRowsTSfile * 2))) // check for enough data in PP file in case of training
     {
-      fprintf(fpProtocol,"Not enough rows in the preprocessed file to make TV and ALNinputTestFile!");
+      fprintf(fpProtocol,"Not enough rows in the preprocessed file to make TV and TSfile!");
       fprintf(fpProtocol,"The preprocessed data file with deletions due to undefined values has %d rows,\n and some must be reserved for testing.\n",nRowsPP); 
     }
-    ALNinputTestFile.Create(nRowsALNinputTestFile,nALNinputs);
+    TSfile.Create(nRowsTSfile,nALNinputs);
 		if(bTrain)
 		{
-      // Set up the array that will track which ones are selected for ALNinputTestFile
+      // Set up the array that will track which ones are selected for TSfile
       for(i = 0; i < 	nRowsPP; i++)
       {
 	      anInclude[i] = 0;
       }
-      for(i = 0; i < nRowsALNinputTestFile; i++)
+      for(i = 0; i < nRowsTSfile; i++)
 	    {
 
 			  while(TRUE)
@@ -1262,30 +1018,30 @@ void ALNAPI createTVALNinputTestFiles()  // routine
 					   {
 						   double dblVal;
 						   dblVal =PreprocessedDataFile.GetAt(k,j,0);
-						   ALNinputTestFile.SetAt(i,j,dblVal,0);
+						   TSfile.SetAt(i,j,dblVal,0);
 					   }
-					   break; // stop the while loop when we have found an ith row for ALNinputTestFile
+					   break; // stop the while loop when we have found an ith row for TSfile
 				   }
 			  }
 		  }
     }
-	  else // if evaluation is being done, the ALNinputTestFile is all of the PP file
+	  else // if evaluation is being done, the TSfile is all of the PP file
     for(i = 0; i < 	nRowsPP; i++)
 		{
 			for(int j = 0; j < nALNinputs; j++)  // the output column may be left as zeros
 			{
 			 double dblVal;
 			 dblVal =PreprocessedDataFile.GetAt(i,j,0);
-			 ALNinputTestFile.SetAt(i,j,dblVal,0);
+			 TSfile.SetAt(i,j,dblVal,0);
 			}
 		}
   }
   // there is no else here, the separate test file is set up elsewhere
-	if(bPrint && bDiagnostics) ALNinputTestFile.Write("DiagnoseALNinputTestFile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseALNinputTestFile.txt written\n");
+	if(bPrint && bDiagnostics) TSfile.Write("DiagnoseTSfile.txt");
+	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTSfile.txt written\n");
 
   // Now we produce the TV file (only the the case of training)
-  // if training and there is not a separate validation file
+  // if training and there is not a separate variance file
 	// get the remaining rows of the PreprocessedDataFile and produce the TVfile
 	// which is written to disk
 	if(bTrain) // TVfile is created only when training
@@ -1309,8 +1065,8 @@ void ALNAPI createTVALNinputTestFiles()  // routine
     else
     {
       // there is no separate test file, so we get the PPfile except what went to the test file
-      TVfile.Create(nRowsPP - nRowsALNinputTestFile,nALNinputs);
-      nRowsTV = nRowsPP - nRowsALNinputTestFile;
+      TVfile.Create(nRowsPP - nRowsTSfile,nALNinputs);
+      nRowsTV = nRowsPP - nRowsTSfile;
 		  k = 0;
 			double dblVal;
 		  for(i = 0; i < nRowsPP; i++)
@@ -1327,13 +1083,13 @@ void ALNAPI createTVALNinputTestFiles()  // routine
 		  }
       ASSERT(nRowsTV == k);
 		}
-    // the TVfile is just the training set if a separate validation file is present
+    // the TVfile is just the training set if a separate variance file is present
 	  if(bPrint && bDiagnostics) TVfile.Write("DiagnoseTVfile.txt");
 	  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTVfile.txt written with %d rows.\n", k);    
 	}
   free(anInclude);
 	fflush(fpProtocol);
-} // end of createTVALNinputTestFiles
+} // end of createTVTSfiles
 
 void ALNAPI analyzeTV() // routine
 {
@@ -1425,9 +1181,9 @@ void ALNAPI analyzeTV() // routine
 
 /*
 
-void getTVfile() // routine -- not currently used
+void getTVfile() // routine -- not currently used, but this and getTSfile() may be useful for diagnosis
 {
-	fprintf(fpProtocol,"Opening TAB separated training/validation data file.\n");
+	fprintf(fpProtocol,"Opening TAB separated Training/noise_Variance data file.\n");
   if (!TVfile.Read("TVfile.txt"))
   {
 		fprintf(fpProtocol,"Reading TVfile failed!\n");
@@ -1442,48 +1198,51 @@ void getTVfile() // routine -- not currently used
 
 }
 
-void getALNinputTestFile()
+void getTSfile()
 {
 	fprintf(fpProtocol,"Opening TAB separated test data file.\n");
-  if (!ALNinputTestFile.Read("ALNinputTestFile.txt"))
+  if (!TSfile.Read("TSfile.txt"))
   {
-		fprintf(fpProtocol,"Reading ALNinputTestFile failed!\n");
+		fprintf(fpProtocol,"Reading TSfile failed!\n");
   }
   else
   {
-		fprintf(fpProtocol,"Reading ALNinputTestFile succeeded!\n");
+		fprintf(fpProtocol,"Reading TSfile succeeded!\n");
   }
-  ASSERT(!bTrain ||(ALNinputTestFile.ColumnCount() == nDim) && ((ALNinputTestFile.ColumnCount() == nDim)||(ALNinputTestFile.ColumnCount() == nDim-1)));
-	fprintf(fpProtocol,"ALNinputTestFile has %d rows.\n",ALNinputTestFile.RowCount());
-  ASSERT(ALNinputTestFile.RowCount() == nRowsALNinputTestFile);
+  ASSERT(!bTrain ||(TSfile.ColumnCount() == nDim) && ((TSfile.ColumnCount() == nDim)||(TSfile.ColumnCount() == nDim-1)));
+	fprintf(fpProtocol,"TSfile has %d rows.\n",TSfile.RowCount());
+  ASSERT(TSfile.RowCount() == nRowsTSfile);
 	fflush(fpProtocol);
 }
 */
-void ALNAPI createTrainValfiles() // routine
+
+void ALNAPI createTrainVarianceFiles() // routine
 {
   // Done only if bTrain is TRUE and we are training.
-  // Creates separate training and validation files in all cases.
+  // Creates separate training and noise variance files in all cases.
   // The TVfile is defined as all of the PreprocessedDataFile which is not used for testing.
-  // Training: TR implements bagging on the TVfile
-  // the fraction of TV that goes into TR each time is 0.7 if more than one ALN is trained
-  // Validation: If no separate validation file is given, it uses the whole TV file to make
-  // a training file TRfile of about 50% of the samples, and a validation file
-  // ALNinputValFile of the rest, chosen randomly.
-  nRowsTR = nRowsVL = 0;
+  // There are four types of training:
+	// 1. Linear regression does not allow tree growth, the one linear piece does linear regression to get information
+	// 2. Two overtrainings are done to create overtrained files on disjoint sets of the TVfile for noise estimation.
+	// 3. Several trainings are done on the whole TVfile using the noise variance information obtained in 2.
+	// 4. An average ALN is trained on the ALNs trained in step 3. This is made into a DTREE.
+  // A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
+  // VarianceFile of the rest, chosen randomly.
+  nRowsTR = nRowsVAR = 0;
   double dblFracTR, dblFracBag,value; // fractions of TV file used for TRfile
                                       // and fraction of 
-  dblFracTR = bEstimateRMSError?0.5:1.0; // about half of the TVfile is used for training, the rest for validation
+  dblFracTR = bEstimateRMSError?0.5:1.0; // about half of the TVfile is used for training, the rest for variance
   dblFracBag = (nALNs == 1)?1.0:0.7; // should also be 1 if doing linear regression
   int * anInclude	= (int*) malloc(nRowsPP * sizeof(int));
-  if(bEstimateRMSError) // changed since we have eliminated the possibility of a validation file which is not part of the original data
+  if(bEstimateRMSError) // changed since we have eliminated the possibility of a variance file which is not part of the original data
   {
     // Use part of the TVfile, chosen randomly, for training
-		// saving the rest for validation.
+		// saving the rest for variance.
     // Bagging is done automatically by this process if this routine is called before
     // each call to Train.
     // Decide in advance where each row of TVfile will be copied
-    // and calculate the sizes of TR and VL files.
-    // We set nRowsTR and nRowsVL here
+    // and calculate the sizes of TR and VAR files.
+    // We set nRowsTR and nRowsVAR here
     for(long i=0; i < nRowsTV;i++)
     {
     	if(ALNRandFloat() < dblFracTR)
@@ -1494,16 +1253,16 @@ void ALNAPI createTrainValfiles() // routine
       else
       {
         anInclude[i] = 0;
-        nRowsVL++;
+        nRowsVAR++;
       }
     }
     TRfile.Destroy(); // get rid of the old one
-    TRfile.Create(nRowsTR,nALNinputs); // if this file is less than the TVfile, we waste some space
-    ALNinputValFile.Destroy(); // get rid of the old one
-    if(nRowsVL > 0) ALNinputValFile.Create(nRowsVL,nALNinputs);
-    nRowsALNinputValFile = nRowsVL;
-    long tempTR, tempVL;
-    tempTR = tempVL = 0;
+    TRfile.Create(nRowsTV,nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
+    VarianceFile.Destroy(); // get rid of the old one
+    if(nRowsVAR > 0) VarianceFile.Create(nRowsVAR,nALNinputs);
+    nRowsVarianceFile = nRowsVAR;
+    long tempTR, tempVAR;
+    tempTR = tempVAR = 0;
     for(int i=0; i < nRowsTV;i++)
 	  {
       if(anInclude[i] == 1)
@@ -1518,21 +1277,21 @@ void ALNAPI createTrainValfiles() // routine
       }
       else
       {
-        //copy the row from the TVfile to the ALNinputValFile
+        //copy the row from the TVfile to the VarianceFile
         for(int j = 0; j < nDim; j++)
         {
           value = TVfile.GetAt(i,j,0);
-          ALNinputValFile.SetAt(tempVL,j,value,0);
+          VarianceFile.SetAt(tempVAR,j,value,0);
         }
-        tempVL++;          
+        tempVAR++;          
       }
 	  }
-    ASSERT((nRowsTR == tempTR) && (nRowsVL == tempVL));
-    ASSERT((nRowsTR + nRowsVL) == nRowsTV);
+    ASSERT((nRowsTR == tempTR) && (nRowsVAR == tempVAR));
+    ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
   }
   else
   {
-    // there is a separate validation file
+    // there is a separate variance file
     // we use dblFracBag of the TVset for training
     long tempTR = 0;
     for(long i = 0; i < nRowsTV;i++)
@@ -1549,7 +1308,7 @@ void ALNAPI createTrainValfiles() // routine
     }
     nRowsTR = tempTR;
     TRfile.Destroy(); // get rid of the old one
-    TRfile.Create(nRowsTR,nALNinputs); // if this file is less than the TVfile, we waste some space
+    TRfile.Create(nRowsTV,nALNinputs); // if this file is less than the TVfile, we waste some space
     // now we know the numbers of rows, do it again to create the TRfile
     int k = 0;
     for(int i=0; i < nRowsTV;i++)
@@ -1567,13 +1326,13 @@ void ALNAPI createTrainValfiles() // routine
       }
     }
     ASSERT(k == nRowsTR);
-    // in this case, validation is done using the separate file ALNinputValFile
+    // in this case, variance is done using the separate file VarianceFile
   }
   free(anInclude);
 	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
   if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
-	if(bPrint&& bDiagnostics) ALNinputValFile.Write("DiagnoseALNinputValFile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseALNinputValFile.txt written\n");
+	if(bPrint&& bDiagnostics) VarianceFile.Write("DiagnoseVarianceFile.txt");
+	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseVarianceFile.txt written\n");
 }
 
 void ALNAPI evaluate() // routine
@@ -1613,7 +1372,7 @@ void ALNAPI evaluate() // routine
   // now look at the data file
 
 	int ncols = nALNinputs; // during evaluation this may be different from nDim
-	int nrows = nRowsALNinputTestFile;
+	int nrows = nRowsTSfile;
   /* compare the output variable index and nDim -- use ncols from analyzeinputfile*/
 	if((nALNinputs != pDtree->nOutputIndex+1) && (nALNinputs != pDtree->nOutputIndex))
 	{
@@ -1671,20 +1430,20 @@ void ALNAPI evaluate() // routine
   {
 		for( k = 0; k < ncols; k++)
 		{
-			value = ALNinputTestFile.GetAt(j,k,0);
+			value = TSfile.GetAt(j,k,0);
 			OutputData.SetAt(j,k,value,0);
 		}
 	}
 	int nCountMisclassifications = 0;
 	double dblSE = 0, dblMAE = 0, dblMAXE = 0; // three error accumulators  N.B. this local dblSE has nothing to do with the SmoothingEpsilon abbreviation used elsewhere. 
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
-  for(int j = 0; j < nRowsALNinputTestFile; j++)
+  for(int j = 0; j < nRowsTSfile; j++)
   {
 		/* get DTREE evaluation (dblOutput) */
 		for( k = 0; k < nDim - 1; k++)
 		{
 				 /* get inputs*/
-			adblX[k] = ALNinputTestFile.GetAt(j,k,0);
+			adblX[k] = TSfile.GetAt(j,k,0);
 		}
 		adblX[nDim - 1] = 0; // File value not used 
 		if ((nErrCode = EvalDtree(pDtree, adblX, &dblOutput, NULL)) != DTR_NOERROR)
@@ -1709,7 +1468,7 @@ void ALNAPI evaluate() // routine
 		{
 			// we compute the square error the absolute error and the maximum of the latter
 			double dblAbsErr;
-			dblAbsErr = fabs(dblOutput -ALNinputTestFile.GetAt(j,nDim -1,0));
+			dblAbsErr = fabs(dblOutput -TSfile.GetAt(j,nDim -1,0));
 			dblMAE += dblAbsErr;
 			dblSE += dblAbsErr * dblAbsErr;
 			if(dblAbsErr > dblMAXE) dblMAXE = dblAbsErr;
@@ -1721,27 +1480,27 @@ void ALNAPI evaluate() // routine
 			if(floor(dblOutput + 0.5) != floor(OutputData.GetAt(j,nDim - 1,0) + 0.5)) nCountMisclassifications++;
 		}
   }
-	fprintf(fpProtocol,"The following is based on a test set with %d samples\n",nRowsALNinputTestFile);
+	fprintf(fpProtocol,"The following is based on a test set with %d samples\n",nRowsTSfile);
 	fprintf(fpProtocol,"Please be careful interpreting the results for small numbers of samples!\n");
 	if(bClassify && ncols == nDim)
 	{
     fprintf(fpProtocol,"The number of misclassifications on the test set is %d\n",
 			nCountMisclassifications);
     nEvalMisclassifications = nCountMisclassifications;
-    dblEvalMisclassificationPercent = 100.0*(double) nCountMisclassifications/(double)nRowsALNinputTestFile;
-    sprintf(szResultMessage,"Samples misclassified = %5.2f percent of test set",100.0*(double) nCountMisclassifications/(double)nRowsALNinputTestFile);
+    dblEvalMisclassificationPercent = 100.0*(double) nCountMisclassifications/(double)nRowsTSfile;
+    sprintf(szResultMessage,"Samples misclassified = %5.2f percent of test set",100.0*(double) nCountMisclassifications/(double)nRowsTSfile);
     fprintf(fpProtocol,szResultMessage);
     fprintf(fpProtocol,"\n");
 	}
 	else
 	{
-    dblEvalRMSError = sqrt(dblSE/(double)nRowsALNinputTestFile); // put into global value
+    dblEvalRMSError = sqrt(dblSE/(double)nRowsTSfile); // put into global value
     sprintf(szResultMessage,"RMS deviation of DTREE output from desired\n(or from 0 if output column not present) is %f ",
         dblEvalRMSError  );
     fprintf(fpProtocol,szResultMessage);
     fprintf(fpProtocol,"\n");
 		fprintf(fpProtocol,"Mean absolute deviation of DTREE output from desired is %f\n",
-			dblMAE/(double)nRowsALNinputTestFile);
+			dblMAE/(double)nRowsTSfile);
 		fprintf(fpProtocol,"Maximum absolute deviation of DTREE output from desired is %f\n",dblMAXE);
 	}
 	// write out the evaluation file
@@ -1794,7 +1553,7 @@ void ALNAPI evaluate() // routine
 	double dblValue;
   char szValue[32];
   int charcount;
-  for( int linenum = 0; linenum < nRowsALNinputTestFile; linenum++)
+  for( int linenum = 0; linenum < nRowsTSfile; linenum++)
   {
 		for( k = 0; k < nDim + 1; k++)
 		{

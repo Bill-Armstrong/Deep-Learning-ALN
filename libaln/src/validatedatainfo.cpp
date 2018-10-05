@@ -50,7 +50,7 @@ int ALNAPI ValidateALNDataInfo(const ALN* pALN,
                                const ALNDATAINFO* pDataInfo,
                                const ALNCALLBACKINFO* pCallbackInfo)
 {
-  // parameter validation
+  // parameter variance
   if (pDataInfo == NULL)
   {
     return ALN_GENERIC;

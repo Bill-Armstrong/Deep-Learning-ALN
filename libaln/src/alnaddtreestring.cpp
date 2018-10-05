@@ -116,7 +116,7 @@ static int BuildParseTree(ALN* pALN, ALNNODE* pParent, ALNPARSE* pParse);
 ALNIMP int ALNAPI ALNAddTreeString(ALN* pALN, ALNNODE* pParent, 
                                    const char* pszTreeString, int* pnParsed)
 {
-  // param validation
+  // param variance
   if (pALN == NULL || pALN->pTree == NULL)
     return ALN_GENERIC;
   if (!NODE_ISLFN(pALN->pTree))

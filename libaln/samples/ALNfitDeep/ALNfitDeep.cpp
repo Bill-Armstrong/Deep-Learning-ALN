@@ -176,7 +176,7 @@ void CALNfitDeepApp::OnAppAbout()
 
 void CAboutDlg::OnOK() 
 {
-	// TODO: Add extra validation here
+	// TODO: Add extra variance here
 	
 	CDialog::OnOK();
 }

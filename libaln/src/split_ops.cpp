@@ -51,19 +51,19 @@ extern double dblMax;
 extern int nDim;
 extern double dblSetTolerance;
 extern long nRowsTR;
-extern long nRowsALNinputValFile;
+extern long nRowsVarianceFile;
 extern BOOL bEstimateRMSError;
 extern CDataFile TRfile;
-extern CDataFile ALNinputValFile;
+extern CDataFile VarianceFile;
 
 void dozerospliterror(CMyAln* pALN, ALNNODE* pNode);
 void splitcontrol(CMyAln* pALN, double dblLimit);
 void dozerospliterror(CMyAln* pALN, ALNNODE* pNode);
 void dodivideTR(CMyAln* pALN, ALNNODE* pNode);
-void dodivideVL(CMyAln* pALN, ALNNODE* pNode);
+void dodivideVAR(CMyAln* pALN, ALNNODE* pNode);
 void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit);
 void spliterrorsetTR(CMyAln * pALN);
-void spliterrorsetVL(CMyAln * pALN);
+void spliterrorsetVAR(CMyAln * pALN);
 
 
 
@@ -77,13 +77,13 @@ void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
 	spliterrorsetTR(pALN);
 	// divide the training errors of the pieces by the hit counts, set counts to zero
 	dodivideTR(pALN,pALN->GetTree());
-	// get square errors of the pieces on the validation set
+	// get square errors of the pieces on the variance set
 	if(bEstimateRMSError) 
 	{
-		// there is a validation set
-		spliterrorsetVL(pALN);
-		// divide the validation errors of the pieces by the hit count
-		dodivideVL(pALN,pALN->GetTree());
+		// there is a variance set
+		spliterrorsetVAR(pALN);
+		// divide the variance errors of the pieces by the hit count
+		dodivideVAR(pALN,pALN->GetTree());
 	}
   dosplitcontrol(pALN, pALN->GetTree(), dblLimit);
   // reset the SPLIT components to zero
@@ -93,8 +93,8 @@ void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
 // We use the first three fields in ALNLFNSPLIT (declared in aln.h)
 // in two different ways: in between intervals in which the hyperplanes
 // in leaf nodes change weights, there is an analysis of the errors of
-// each piece on the training and validation sets.  If the training
-// error is less than a specified fraction of the validation error,
+// each piece on the training and variance sets.  If the training
+// error is less than a specified fraction of the variance error,
 // the piece is not split.
 #define DBLSQERRORVAL dblRespTotal
 void dozerospliterror(CMyAln* pALN, ALNNODE* pNode) // routine
@@ -132,7 +132,7 @@ void dodivideTR(CMyAln* pALN, ALNNODE* pNode) // routine
 			(pNode->DATA.LFN.pSplit)->dblSqError /=
 										 (pNode->DATA.LFN.pSplit)->nCount;
 			(pNode->DATA.LFN.pSplit)->nCount =0;  // inserted WWA 2009.10.06 IMPORTANT ERROR WAS HERE
-			// this is zeroed in order to use nCount for spliterrorsetVL
+			// this is zeroed in order to use nCount for spliterrorsetVAR
 
 		}
 		else
@@ -145,14 +145,14 @@ void dodivideTR(CMyAln* pALN, ALNNODE* pNode) // routine
 }
 
 
-void dodivideVL(CMyAln* pALN, ALNNODE* pNode) // routine
+void dodivideVAR(CMyAln* pALN, ALNNODE* pNode) // routine
 {
 	// divides the total square errors of the pieces by their hit count
   ASSERT(pNode);
   if (NODE_ISMINMAX(pNode))
   {
-    dodivideVL(pALN, MINMAX_LEFT(pNode));
-    dodivideVL(pALN, MINMAX_RIGHT(pNode));
+    dodivideVAR(pALN, MINMAX_LEFT(pNode));
+    dodivideVAR(pALN, MINMAX_RIGHT(pNode));
   }
   else
   {
@@ -164,7 +164,7 @@ void dodivideVL(CMyAln* pALN, ALNNODE* pNode) // routine
 		}
     else
     {
-      // if there are too few or no validation samples, make sure we don't divide
+      // if there are too few or no variance samples, make sure we don't divide
       (pNode->DATA.LFN.pSplit)->DBLSQERRORVAL = dblMax;
     } 
 	}
@@ -175,7 +175,7 @@ void dodivideVL(CMyAln* pALN, ALNNODE* pNode) // routine
 void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 {
 	// this routine visits all the leaf nodes and determines whether the
-	// training error is below a certain limit related to validation error or tolerance
+	// training error is below a certain limit related to variance error or tolerance
 	double dblSqErrorPieceTrain;
 	double dblSqErrorPieceVal;
 	ASSERT(pNode);
@@ -194,11 +194,11 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 		}
 		else
 		{
-			dblSqErrorPieceVal = dblSetTolerance * dblSetTolerance; // no validation set! // this should be replaced by a known noise variance function sometime
+			dblSqErrorPieceVal = dblSetTolerance * dblSetTolerance; // no variance set! // this should be replaced by a known noise variance function sometime
 		}
 		if (dblSqErrorPieceTrain < dblSqErrorPieceVal * dblLimit)
-			// if the training average square error of the piece times dblLimit^2 (> 1.0) is less than the square validation error 
-			// or, if we are skipping validation,
+			// if the training average square error of the piece times dblLimit^2 (> 1.0) is less than the square variance error 
+			// or, if we are skipping variance,
 			// the training average square error times dblLimit is less than tolerance squared
 		{
 			// stop all future splitting of the piece
@@ -209,7 +209,7 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 
 void spliterrorsetTR(CMyAln * pALN) // routine
 {
-	// assign the square errors on the validation set to the leaf nodes of the ALN
+	// assign the square errors on the variance set to the leaf nodes of the ALN
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
 	double desired = 0;
 	double predict = 0;
@@ -232,30 +232,30 @@ void spliterrorsetTR(CMyAln * pALN) // routine
 } // END of spliterrorsetTR
 
 
-void spliterrorsetVL(CMyAln * pALN) // routine
+void spliterrorsetVAR(CMyAln * pALN) // routine
 {
-	// assign the square errors on the validation set to the leaf nodes of the ALN
+	// assign the square errors on the variance set to the leaf nodes of the ALN
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
 	double desired = 0;
 	double predict = 0;
   double      se = 0; // square error added to LFN DBLSQERRORVAL
 	ALNNODE* pActiveLFN;
-	for(int j=0; j<nRowsALNinputValFile; j++)   // this is expensive using the whole validation set, but more accurate
+	for(int j=0; j<nRowsVarianceFile; j++)   // this is expensive using the whole variance set, but more accurate
   {
     for(int i=0; i<nDim; i++)
 		{
-			adblX[i] = ALNinputValFile.GetAt(j,i,0); // the value at nDim - 1 is used only for desired
+			adblX[i] = VarianceFile.GetAt(j,i,0); // the value at nDim - 1 is used only for desired
 		}
 		desired = adblX[nDim - 1];
 		adblX[nDim - 1] = 0; // not used by QuickEval WWA 2009.10.06
 		// Review, Sept 30, 2018
 		//Here is where we use the OTTS (overtrained on the training set) function to compare with desired
-		// NOTE this is VER inefficient -- it should be done once for the validation data and OTTS
+		// NOTE this is VER inefficient -- it should be done once for the variance data and OTTS
 		predict = pOTTS->QuickEval(adblX, &pActiveLFN);  // Just one line changed!!!!
     se = (predict - desired) * (predict - desired);
 		// now correct for the dimension. the average variance of predict - desired is !+ 2/(nDim+2), so we have to divide se by this
 		(pActiveLFN->DATA.LFN.pSplit)->nCount++;
 		(pActiveLFN->DATA.LFN.pSplit)->DBLSQERRORVAL += se / (1.0 + 2.0 / (nDim + 2.0));
-  } // end loop over VLfile
+  } // end loop over VARfile
 	free(adblX);
-} // END of spliterrorsetVL
+} // END of spliterrorsetVAR

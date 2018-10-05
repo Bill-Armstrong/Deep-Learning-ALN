@@ -333,8 +333,8 @@ void CALNfitDeepView::OnButtonStart()
 	{
 		if(nPercentForTest > 0)
 		{
-			ALNinputTestFile.Destroy(); // make sure this is deleted before making a new one 
-			ALNinputTestFile.Create(nRowsNumericalTestFile, nALNinputs);
+			TSfile.Destroy(); // make sure this is deleted before making a new one 
+			TSfile.Create(nRowsNumericalTestFile, nALNinputs);
 			/*
 			for (i = 0; i < nRowsNumericalTestFile; i++)
 			{
@@ -342,39 +342,39 @@ void CALNfitDeepView::OnButtonStart()
 				{
 					double dblVal;
 					dblVal = PreprocessedDataFile.GetAt(i, j, 0);
-					ALNinputTestFile.SetAt(i, j, dblVal, 0);
+					TSfile.SetAt(i, j, dblVal, 0);
 				}
 			}
 			*/  //  WHERE DO WE FILL THE TEST FILE?
 
 
-			MakeAuxALNinputFile(NumericalTestFile, ALNinputTestFile, nRowsNumericalTestFile, &nRowsALNinputTestFile);
+			MakeAuxALNinputFile(NumericalTestFile, TSfile, nRowsNumericalTestFile, &nRowsTSfile);
 			// write out the results to check
 			if (bPrint && bDiagnostics)
 			{
-				ALNinputTestFile.Write("DiagnoseALNinputTestFile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseALNinputTestFile.txt written\n");
+				TSfile.Write("DiagnoseTSfile.txt");
+				fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written\n");
 			}
 			if (bPrint)fflush(fpFileSetupProtocol);
 		}
 	}
-  if(m_nTrain == 0) // changed to remove the separate validation file possibility
+  if(m_nTrain == 0) // changed to remove the separate variance file possibility
   {
-    ALNinputValFile.Destroy(); // make sure this is deleted before making a new one 
+    VarianceFile.Destroy(); // make sure this is deleted before making a new one 
     if(bEstimateRMSError)
     {
-      ALNinputValFile.Create(nRowsNumericalValFile,nALNinputs);
-      MakeAuxALNinputFile(NumericalValFile, ALNinputValFile, nRowsNumericalValFile, &nRowsALNinputValFile);
+      VarianceFile.Create(nRowsNumericalValFile,nALNinputs);
+      MakeAuxALNinputFile(NumericalValFile, VarianceFile, nRowsNumericalValFile, &nRowsVarianceFile);
 			if (bPrint && bDiagnostics)    // write out the results to check
 			{
-				ALNinputValFile.Write("DiagnoseALNinputValFile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseALNinputValFile.txt written\n");
+				VarianceFile.Write("DiagnoseVarianceFile.txt");
+				fprintf(fpFileSetupProtocol, "DiagnoseVarianceFile.txt written\n");
 			}
     }
     else
     {
       // we set the tolerance directly without RMS noise stimation
-  	  if(bPrint && bDiagnostics) fprintf(fpFileSetupProtocol,"ALNinputValFile.txt was NOT created -- tolerance set directly in options.\n");
+  	  if(bPrint && bDiagnostics) fprintf(fpFileSetupProtocol,"VarianceFile.txt was NOT created -- tolerance set directly in options.\n");
     }
 		fflush(fpFileSetupProtocol);
   }
@@ -878,16 +878,8 @@ some limitations, into more classes  *****\n");
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
       onealnfit(); // at this point, we have an estimate of noise and a tolerance value
-			//fprintf(fpProtocol, "Tolerance (desired RMS error on training set) has been estimated and is %f\n", dblTolerance);
     }
-    //else // we are not doing error estimation but getting tolerance by setting it directly
-    //{
-			fprintf(fpProtocol, "Linear regression and overfitting an ALN to do RMS  noise estimation are skipped.\n");
-      // for regression, when we skip validation we use the tolerance from the options dialog
-      //dblTolerance = dblSetTolerance;
-			//fprintf(fpProtocol, "Tolerance (desired RMS error on training set) is set directly and is %f\n", dblTolerance);
-    //}
-		fflush(fpProtocol);
+ 		fflush(fpProtocol);
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
     approximate();
@@ -1447,7 +1439,7 @@ void CALNfitDeepView::OnButtonoptions()
 			if (dlg.m_nEstimateRMSError == 1)
 			{
 				// we have highlighted the radiobutton to set the tolerance without
-				// using a validation set, we convert the field to a double and
+				// using a variance set, we convert the field to a double and
 				// transmit that to the doc and its global variable
 				pDoc->m_dblSetTolerance = dblSetTolerance = atof(LPCTSTR(dlg.m_strSetTolerance));
 				bEstimateRMSError = FALSE;

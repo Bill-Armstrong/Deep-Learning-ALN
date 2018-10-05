@@ -52,7 +52,7 @@ static char THIS_FILE[] = __FILE__;
 // returns ALN_* error code, (ALN_NOERROR on success)
 ALNIMP int ALNAPI ALNVarMono(const ALN* pALN, int nVar, int* pnMono)
 {
-  // parameter validation
+  // parameter variance
   if (pALN == NULL)
     return ALN_GENERIC;
 
