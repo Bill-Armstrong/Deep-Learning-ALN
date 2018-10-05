@@ -209,7 +209,7 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 
 void spliterrorsetTR(CMyAln * pALN) // routine
 {
-	// assign the square errors on the variance set to the leaf nodes of the ALN
+	// assign the square errors on the training set to the leaf nodes of the ALN
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
 	double desired = 0;
 	double predict = 0;
@@ -237,25 +237,21 @@ void spliterrorsetVAR(CMyAln * pALN) // routine
 	// assign the square errors on the variance set to the leaf nodes of the ALN
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
 	double desired = 0;
-	double predict = 0;
-  double      se = 0; // square error added to LFN DBLSQERRORVAL
+	double value = 0;
 	ALNNODE* pActiveLFN;
+  double      se = 0; // square error added to LFN DBLSQERRORVAL
 	for(int j=0; j<nRowsVarianceFile; j++)   // this is expensive using the whole variance set, but more accurate
   {
     for(int i=0; i<nDim; i++)
 		{
 			adblX[i] = VarianceFile.GetAt(j,i,0); // the value at nDim - 1 is used only for desired
 		}
-		desired = adblX[nDim - 1];
-		adblX[nDim - 1] = 0; // not used by QuickEval WWA 2009.10.06
-		// Review, Sept 30, 2018
-		//Here is where we use the OTTS (overtrained on the training set) function to compare with desired
-		// NOTE this is VER inefficient -- it should be done once for the variance data and OTTS
-		predict = pOTTS->QuickEval(adblX, &pActiveLFN);  // Just one line changed!!!!
-    se = (predict - desired) * (predict - desired);
+		// pAln has to be the current approximant! Is this correct?
+		value = pALN->QuickEval(adblX, &pActiveLFN);  // this is the piece of the current approximant that the X-vector lies on.
+    //se = (predict - desired) * (predict - desired);
 		// now correct for the dimension. the average variance of predict - desired is !+ 2/(nDim+2), so we have to divide se by this
 		(pActiveLFN->DATA.LFN.pSplit)->nCount++;
-		(pActiveLFN->DATA.LFN.pSplit)->DBLSQERRORVAL += se / (1.0 + 2.0 / (nDim + 2.0));
+		(pActiveLFN->DATA.LFN.pSplit)->DBLSQERRORVAL += adblX[nDim - 1]; 
   } // end loop over VARfile
 	free(adblX);
 } // END of spliterrorsetVAR

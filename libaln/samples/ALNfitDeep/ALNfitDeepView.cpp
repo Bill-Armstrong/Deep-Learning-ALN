@@ -47,7 +47,9 @@ static char THIS_FILE[] = __FILE__;
 #include <datafile.h>
 #include "alnextern.h"
 
-
+extern CMyAln * pOTTS;
+extern CMyAln * pOTVS;
+extern CMyAln * pALN;
 #define INPUTDEC      0
 #define INPUT         1
 #define INPUTINC      2
@@ -877,7 +879,12 @@ some limitations, into more classes  *****\n");
       dolinearregression();
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-      onealnfit(); // at this point, we have an estimate of noise and a tolerance value
+			createTrainVarianceFiles(0);
+			pALN = pOTTS;
+      overtrain(pOTTS);
+			createTrainVarianceFiles(1);
+			pALN = pOTVS;
+			overtrain(pOTVS);
     }
  		fflush(fpProtocol);
     PassBackStatus(3,30);  

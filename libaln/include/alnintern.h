@@ -63,6 +63,7 @@ extern double* adblMaxVar;          // Array of maxima of the variables
 extern double* adblStdevVar;        // Standard deviations of the variables
 extern double  dblTrainErr;         // Set in cmyaln.h at the end of training
 extern double  dblLinRegErr;        // The error of linear regression for use in upper-bounding output tolerance
+extern int* anInclude;
 
 
 // Files used only internally

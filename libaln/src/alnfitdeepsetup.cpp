@@ -229,16 +229,17 @@ void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to creat
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();          // The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();          // The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI createTrainVarianceFiles();
+//void ALNAPI createTrainVarianceFiles(int nChooseTR); // this is a second declaration ERROR!
 void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
+void computeNoiseVariance();  // This uses OTTS and OTVS and the samples in the Variance file to compute noise variance samples
 void ALNAPI reportFunctions();      // reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();			       // Evaluate an existing DTREE on the data file after preprocessing
 void ALNAPI cleanup();
 void ALNAPI outputtrainingresults();
-void ALNAPI validate(CMyAln * pALN);// Used to compute the error of the ALN on samples not used in training
+//void ALNAPI validate(CMyAln * pALN);// Used to compute the error of the ALN on samples not used in training
 void fillvector(double *, CMyAln*); // Used to input a data vector under program control
-void ALNAPI onealnfit();            // Does a fit using a single ALN and splitcontrol
+void ALNAPI overtrain(CMyAln * pOT);            // Does a fit using a single ALN and splitcontrol
 void ALNAPI trainaverage();
 void ALNAPI constructDTREE(int);
 // global variables used externally
@@ -356,8 +357,9 @@ CDataFile VarianceFile;
 long  nRowsVarianceFile;
 CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
-
-
+int* anInclude; // this creates an array that persists between calls to create TR and Variance files.
+extern CMyAln * pOTTS; // needed for temporary calculation of noise variance
+extern CMyAln * pOTVS; // needed for temporary calculation of noise variance
 //static char szVarName[100][3];
 
 // this typedef allows a cast within ALNfit Pro of ALNLFNSPLIT in aln.h which uses
@@ -980,7 +982,7 @@ void ALNAPI createTVTSfiles()  // routine
   // data set size (default 10%) or by the size of the
   // size of the test file returned by the Options dialog
 	long i = 0,k = 0;
-	int* anInclude = (int*) malloc(nRowsPP * sizeof(int));
+	int* anInTest = (int*) malloc(nRowsPP * sizeof(int));
 
   // select random rows from the PreprocessedDataFile for the test set TSfile
 	// Training: choose from the PreprocessedDataFile randomly and without replacement nRowsTSfile rows
@@ -1001,7 +1003,7 @@ void ALNAPI createTVTSfiles()  // routine
       // Set up the array that will track which ones are selected for TSfile
       for(i = 0; i < 	nRowsPP; i++)
       {
-	      anInclude[i] = 0;
+	      anInTest[i] = 0;
       }
       for(i = 0; i < nRowsTSfile; i++)
 	    {
@@ -1011,9 +1013,9 @@ void ALNAPI createTVTSfiles()  // routine
 					   k = (long)floor(ALNRandFloat()* (double) nRowsPP);
 
 
-				   if((k < nRowsPP) && (anInclude[k] == 0))
+				   if((k < nRowsPP) && (anInTest[k] == 0))
 				   {
-					   anInclude[k] = 1; // prevents replacement during selection
+					   anInTest[k] = 1; // prevents replacement during selection
 					   for(int j = 0; j < nALNinputs; j++)
 					   {
 						   double dblVal;
@@ -1041,8 +1043,7 @@ void ALNAPI createTVTSfiles()  // routine
 	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTSfile.txt written\n");
 
   // Now we produce the TV file (only the the case of training)
-  // if training and there is not a separate variance file
-	// get the remaining rows of the PreprocessedDataFile and produce the TVfile
+ 	// get the remaining rows of the PreprocessedDataFile and produce the TVfile
 	// which is written to disk
 	if(bTrain) // TVfile is created only when training
 	{
@@ -1071,7 +1072,7 @@ void ALNAPI createTVTSfiles()  // routine
 			double dblVal;
 		  for(i = 0; i < nRowsPP; i++)
 		  {
-			  if(anInclude[i] == 0)
+			  if(anInTest[i] == 0)
 			  {
 				  for(int j = 0; j < nALNinputs; j++)
 				  {
@@ -1087,7 +1088,7 @@ void ALNAPI createTVTSfiles()  // routine
 	  if(bPrint && bDiagnostics) TVfile.Write("DiagnoseTVfile.txt");
 	  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTVfile.txt written with %d rows.\n", k);    
 	}
-  free(anInclude);
+  free(anInTest);
 	fflush(fpProtocol);
 } // end of createTVTSfiles
 
@@ -1216,8 +1217,11 @@ void getTSfile()
 }
 */
 
-void ALNAPI createTrainVarianceFiles() // routine
+void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 {
+	// The parameter value 0 means randomly create a training set and a noise variance file about equal in size
+	// The parameter value 1 means create the complement training set and augment the noise variance set with the previous training set
+	// The parameter value 2 means put the entire TVfile into the TRfile.
   // Done only if bTrain is TRUE and we are training.
   // Creates separate training and noise variance files in all cases.
   // The TVfile is defined as all of the PreprocessedDataFile which is not used for testing.
@@ -1228,38 +1232,65 @@ void ALNAPI createTrainVarianceFiles() // routine
 	// 4. An average ALN is trained on the ALNs trained in step 3. This is made into a DTREE.
   // A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
   // VarianceFile of the rest, chosen randomly.
-  nRowsTR = nRowsVAR = 0;
-  double dblFracTR, dblFracBag,value; // fractions of TV file used for TRfile
-                                      // and fraction of 
-  dblFracTR = bEstimateRMSError?0.5:1.0; // about half of the TVfile is used for training, the rest for variance
-  dblFracBag = (nALNs == 1)?1.0:0.7; // should also be 1 if doing linear regression
-  int * anInclude	= (int*) malloc(nRowsPP * sizeof(int));
-  if(bEstimateRMSError) // changed since we have eliminated the possibility of a variance file which is not part of the original data
-  {
-    // Use part of the TVfile, chosen randomly, for training
-		// saving the rest for variance.
-    // Bagging is done automatically by this process if this routine is called before
-    // each call to Train.
-    // Decide in advance where each row of TVfile will be copied
-    // and calculate the sizes of TR and VAR files.
-    // We set nRowsTR and nRowsVAR here
-    for(long i=0; i < nRowsTV;i++)
-    {
-    	if(ALNRandFloat() < dblFracTR)
-      {
-        anInclude[i] = 1;
-        nRowsTR++;
-      }
-      else
-      {
-        anInclude[i] = 0;
-        nRowsVAR++;
-      }
-    }
-    TRfile.Destroy(); // get rid of the old one
-    TRfile.Create(nRowsTV,nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
-    VarianceFile.Destroy(); // get rid of the old one
-    if(nRowsVAR > 0) VarianceFile.Create(nRowsVAR,nALNinputs);
+	long nOffset;
+	if(nChooseTR==0)
+	{
+		TRfile.Create(nRowsTV, nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
+		VarianceFile.Create(nRowsTV, nALNinputs); // this will store first all the tuples of TV but with the original training data after its complement
+		//VarianceFile.Destroy(); // get rid of the old one MOVE THIS!!!
+		// TRfile.Destroy(); // get rid of the old one MOVE SOMEWHERE !!!!
+	  //free(anInclude); This has to be cleaned up somewhere
+		nRowsTR = nRowsVAR = nOffset = 0;
+		double dblFracTR, dblFracBag,value; // fractions of TV file used for TRfile
+																				// and fraction of 
+		dblFracTR = bEstimateRMSError?0.5:1.0; // about half of the TVfile is used for training, the rest for variance
+		dblFracBag = (nALNs == 1)?1.0:0.7; // should also be 1 if doing linear regression
+		anInclude	= (int*) malloc(nRowsPP * sizeof(int)); // this array can persist between calls
+		if (bEstimateRMSError)
+		{
+			// Use part of the TVfile, chosen randomly, for training
+			// saving the rest for estimating noise variance.
+			// Bagging is done automatically by this process if this routine is called before
+			// each call to Train.
+			// Decide in advance where each row of TVfile will be copied
+			// and calculate the sizes of TR and VAR files.
+			// We set nRowsTR and nRowsVAR here
+			for (long i = 0; i < nRowsTV; i++)
+			{
+				if (ALNRandFloat() < dblFracTR)
+				{
+					anInclude[i] = 1;
+					nRowsTR++;
+				}
+				else
+				{
+					anInclude[i] = 0;
+					nRowsVAR++;
+				}
+			}
+		}
+		if (nChooseTR == 1) // we train on the complement and shift the original TRfile data by nRowsVAR into the variance set
+		{
+			for (long i = 0; i < nRowsTV; i++)
+			{
+				anInclude[i] = 1 - anInclude[i];
+			}
+			nOffset = nRowsVAR; // this fills the varance file with the original training set tuples after the complement set
+			int temp;
+			temp = nRowsVAR;
+			nRowsVAR = nRowsTR;
+			nRowsTR = temp;
+
+		}
+		if (nChooseTR == 2)
+		{
+			for (long i = 0; i < nRowsTV; i++)
+			{
+				anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VarianceFile unchanged.				
+			}
+			nRowsTR = nRowsTV;
+			nRowsVAR = 0;
+		}
     nRowsVarianceFile = nRowsVAR;
     long tempTR, tempVAR;
     tempTR = tempVAR = 0;
@@ -1281,7 +1312,7 @@ void ALNAPI createTrainVarianceFiles() // routine
         for(int j = 0; j < nDim; j++)
         {
           value = TVfile.GetAt(i,j,0);
-          VarianceFile.SetAt(tempVAR,j,value,0);
+          VarianceFile.SetAt(tempVAR+nOffset,j,value,0);
         }
         tempVAR++;          
       }
@@ -1289,46 +1320,8 @@ void ALNAPI createTrainVarianceFiles() // routine
     ASSERT((nRowsTR == tempTR) && (nRowsVAR == tempVAR));
     ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
   }
-  else
-  {
-    // there is a separate variance file
-    // we use dblFracBag of the TVset for training
-    long tempTR = 0;
-    for(long i = 0; i < nRowsTV;i++)
-    {
-    	if(ALNRandFloat() < dblFracBag)
-      {
-        anInclude[i] = 1;
-        tempTR++;
-      }
-      else
-      {
-        anInclude[i] = 0;
-      }
-    }
-    nRowsTR = tempTR;
-    TRfile.Destroy(); // get rid of the old one
-    TRfile.Create(nRowsTV,nALNinputs); // if this file is less than the TVfile, we waste some space
-    // now we know the numbers of rows, do it again to create the TRfile
-    int k = 0;
-    for(int i=0; i < nRowsTV;i++)
-	  {
-      // Take the TVfile samples into TRfile which have anInclude[i] == 1 to do bagging.
-      //copy the row from the TVfile to the TRfile
-      if(anInclude[i] == 1)
-      {
-        for(int j = 0; j < nDim; j++)
-        {
-          value = TVfile.GetAt(i,j,0);
-          TRfile.SetAt(k,j,value,0);
-        }
-        k++;
-      }
-    }
-    ASSERT(k == nRowsTR);
-    // in this case, variance is done using the separate file VarianceFile
-  }
-  free(anInclude);
+ 
+
 	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
   if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
 	if(bPrint&& bDiagnostics) VarianceFile.Write("DiagnoseVarianceFile.txt");
@@ -1735,3 +1728,35 @@ void ALNAPI evaluate() // routine
 	OutputData.Destroy();
 } // end evaluate
 
+void computeNoiseVariance()
+{
+	// this routine uses the TRfile and the Variance file to replace the values of the samples in the variance file with estimators of the noise variance
+	long i;
+	double value;
+	double * adblX = (double *)malloc((nDim) * sizeof(double));
+	double dblDimFactor;
+	ALNNODE* pActiveLFN;
+	dblDimFactor = (1.0 + 2.0 / (nDim + 2.0));
+	for (i = 0; i < nRowsTV; i++)
+	{
+		if (i < nRowsVAR)
+		{
+			for (int j = 0; j < nDim; j++)
+			{
+				adblX[i] = VarianceFile.GetAt(i, j, 0);
+			}
+			value = adblX[nDim -1] - pOTTS->QuickEval(adblX,&pActiveLFN);
+			VarianceFile.SetAt(i, nDim -1, value*value/dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
+		}
+		else
+		{
+			for (int j = 0; j < nDim; j++)
+			{
+				adblX[i] = VarianceFile.GetAt(i, j, 0);
+			}
+			value = adblX[nDim - 1] - pOTVS->QuickEval(adblX, &pActiveLFN);
+			VarianceFile.SetAt(i, nDim - 1, value*value / dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
+		}
+	}
+
+}
