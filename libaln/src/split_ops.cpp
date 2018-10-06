@@ -51,7 +51,7 @@ extern double dblMax;
 extern int nDim;
 extern double dblSetTolerance;
 extern long nRowsTR;
-extern long nRowsVarianceFile;
+extern long nRowsVAR;
 extern BOOL bEstimateRMSError;
 extern CDataFile TRfile;
 extern CDataFile VarianceFile;
@@ -240,7 +240,7 @@ void spliterrorsetVAR(CMyAln * pALN) // routine
 	double value = 0;
 	ALNNODE* pActiveLFN;
   double      se = 0; // square error added to LFN DBLSQERRORVAL
-	for(int j=0; j<nRowsVarianceFile; j++)   // this is expensive using the whole variance set, but more accurate
+	for(int j=0; j<nRowsVAR; j++)   // this is expensive using the whole variance set, but more accurate
   {
     for(int i=0; i<nDim; i++)
 		{

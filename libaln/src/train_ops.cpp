@@ -216,7 +216,7 @@ void ALNAPI dolinearregression() // routine
 		fprintf(fpProtocol, "Linear regression variance error not determined\n");
 		dblLinRegErr = 0; // the error is not evaluated
 	}
-
+	fflush(fpProtocol);
 }
 
 void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data in pOT and the complement in pOTVS
@@ -420,7 +420,7 @@ void ALNAPI approximate() // routine
 		    apALN[n]->SetWeightMax(dblMaxWeight[m],m);
       }
 		} // end of loop over m
-    createTrainVarianceFiles(0);  // we get different training sets for each ALN
+    createTrainVarianceFiles(2);  // we get different training sets for each ALN
 		bTrainingAverage = FALSE;
 
     if(bClassify)
@@ -755,6 +755,7 @@ void ALNAPI outputtrainingresults() // routine
   fprintf(fpProtocol,"Abs imp is numerical and indicates ups and downs in output when the given input varies.\n");
   fprintf(fpProtocol,"For example a sawtooth function with six teeth would have importance 12.\n");
   fprintf(fpProtocol,"First we have to compute the standard deviation of the output variable.\n");
+	fflush(fpProtocol);
   //compute the average of the output variable in the TVset
   k = nDim - 1; 
   desired = 0;
@@ -879,9 +880,9 @@ void ALNAPI validate(CMyAln * pALN) // routine
   int n128TimesOversampled = nNumberLFNs * nDim * 128;
   int nSamplesUsed = n128TimesOversampled;
   BOOL b128TimesOversampled = TRUE; // indicates which sample size we are using
-  if(n128TimesOversampled > 0.5 * nRowsVarianceFile)
+  if(n128TimesOversampled > 0.5 * nRowsVAR)
   {
-    nSamplesUsed = nRowsVarianceFile;
+    nSamplesUsed = nRowsVAR;
     b128TimesOversampled = FALSE;
   }
   dblVarianceErr = 0; // makes sure we don't use an old value
@@ -891,7 +892,7 @@ void ALNAPI validate(CMyAln * pALN) // routine
 	 for(long j = 0; j < nSamplesUsed; j++)
 	 {
       // this could be done without replacement too
-      k = (long)( ALNRandFloat()* (double) nRowsVarianceFile);
+      k = (long)( ALNRandFloat()* (double) nRowsVAR);
       for(int i = 0; i < nDim; i++)
       {
 	      adblX[i] = VarianceFile.GetAt(k,i,0);

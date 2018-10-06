@@ -362,11 +362,10 @@ void CALNfitDeepView::OnButtonStart()
 	}
   if(m_nTrain == 0) // changed to remove the separate variance file possibility
   {
-    VarianceFile.Destroy(); // make sure this is deleted before making a new one 
     if(bEstimateRMSError)
     {
       VarianceFile.Create(nRowsNumericalValFile,nALNinputs);
-      MakeAuxALNinputFile(NumericalValFile, VarianceFile, nRowsNumericalValFile, &nRowsVarianceFile);
+      MakeAuxALNinputFile(NumericalValFile, VarianceFile, nRowsNumericalValFile, &nRowsVAR);
 			if (bPrint && bDiagnostics)    // write out the results to check
 			{
 				VarianceFile.Write("DiagnoseVarianceFile.txt");
@@ -877,14 +876,19 @@ some limitations, into more classes  *****\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
       dolinearregression();
+			fflush(fpProtocol);
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			createTrainVarianceFiles(0);
+			fflush(fpProtocol);
 			pALN = pOTTS;
       overtrain(pOTTS);
+			fflush(fpProtocol);
 			createTrainVarianceFiles(1);
+			fflush(fpProtocol);
 			pALN = pOTVS;
 			overtrain(pOTVS);
+			fflush(fpProtocol);
     }
  		fflush(fpProtocol);
     PassBackStatus(3,30);  

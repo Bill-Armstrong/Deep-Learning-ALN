@@ -76,7 +76,7 @@ extern CDataFile NumericalValFile;
 extern long nRowsNumericalValFile;
 extern int nColsNumericalValFile;
 extern CDataFile VarianceFile;
-extern long  nRowsVarianceFile;
+extern long  nRowsVAR;
 extern double dblSetTolerance;
 extern BOOL bEstimateRMSError; // if TRUE we use a onealnfit to estimate RMS error which needs a variance set
 extern double  dblVarianceErr;    // Set equal to the rmse in the variance step

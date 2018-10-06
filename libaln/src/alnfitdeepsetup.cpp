@@ -354,7 +354,6 @@ CDataFile NumericalValFile;
 long nRowsNumericalValFile;
 int nColsNumericalValFile;
 CDataFile VarianceFile;
-long  nRowsVarianceFile;
 CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
 int* anInclude; // this creates an array that persists between calls to create TR and Variance files.
@@ -1222,30 +1221,23 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 	// The parameter value 0 means randomly create a training set and a noise variance file about equal in size
 	// The parameter value 1 means create the complement training set and augment the noise variance set with the previous training set
 	// The parameter value 2 means put the entire TVfile into the TRfile.
-  // Done only if bTrain is TRUE and we are training.
-  // Creates separate training and noise variance files in all cases.
-  // The TVfile is defined as all of the PreprocessedDataFile which is not used for testing.
-  // There are four types of training:
+	// Done only if bTrain is TRUE and we are training.
+	// Creates separate training and noise variance files in all cases.
+	// The TVfile is defined as all of the PreprocessedDataFile which is not used for testing.
+	// There are four types of training:
 	// 1. Linear regression does not allow tree growth, the one linear piece does linear regression to get information
 	// 2. Two overtrainings are done to create overtrained files on disjoint sets of the TVfile for noise estimation.
 	// 3. Several trainings are done on the whole TVfile using the noise variance information obtained in 2.
 	// 4. An average ALN is trained on the ALNs trained in step 3. This is made into a DTREE.
-  // A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
-  // VarianceFile of the rest, chosen randomly.
+	// A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
+	// VarianceFile of the rest, chosen randomly.
 	long nOffset;
-	if(nChooseTR==0)
+	if (nChooseTR == 0)
 	{
 		TRfile.Create(nRowsTV, nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
 		VarianceFile.Create(nRowsTV, nALNinputs); // this will store first all the tuples of TV but with the original training data after its complement
-		//VarianceFile.Destroy(); // get rid of the old one MOVE THIS!!!
-		// TRfile.Destroy(); // get rid of the old one MOVE SOMEWHERE !!!!
-	  //free(anInclude); This has to be cleaned up somewhere
-		nRowsTR = nRowsVAR = nOffset = 0;
-		double dblFracTR, dblFracBag,value; // fractions of TV file used for TRfile
-																				// and fraction of 
-		dblFracTR = bEstimateRMSError?0.5:1.0; // about half of the TVfile is used for training, the rest for variance
-		dblFracBag = (nALNs == 1)?1.0:0.7; // should also be 1 if doing linear regression
-		anInclude	= (int*) malloc(nRowsPP * sizeof(int)); // this array can persist between calls
+   	nRowsTR = nRowsVAR = nOffset = 0;
+		anInclude = (int*)malloc(nRowsPP * sizeof(int)); // this array can persist between calls
 		if (bEstimateRMSError)
 		{
 			// Use part of the TVfile, chosen randomly, for training
@@ -1257,7 +1249,7 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 			// We set nRowsTR and nRowsVAR here
 			for (long i = 0; i < nRowsTV; i++)
 			{
-				if (ALNRandFloat() < dblFracTR)
+				if (ALNRandFloat() < 0.5) // we use about half the TVfile for training
 				{
 					anInclude[i] = 1;
 					nRowsTR++;
@@ -1269,59 +1261,59 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 				}
 			}
 		}
-		if (nChooseTR == 1) // we train on the complement and shift the original TRfile data by nRowsVAR into the variance set
+		nOffset = 0;
+	}
+	if (nChooseTR == 1) // we train on the complement and shift the original TRfile data by nRowsVAR into the variance set
+	{
+		for (long i = 0; i < nRowsTV; i++)
 		{
-			for (long i = 0; i < nRowsTV; i++)
-			{
-				anInclude[i] = 1 - anInclude[i];
-			}
-			nOffset = nRowsVAR; // this fills the varance file with the original training set tuples after the complement set
-			int temp;
-			temp = nRowsVAR;
-			nRowsVAR = nRowsTR;
-			nRowsTR = temp;
-
+			anInclude[i] = 1 - anInclude[i];
 		}
-		if (nChooseTR == 2)
+		nOffset = nRowsVAR; // this fills the varance file with the original training set tuples after the complement set
+		int temp = nRowsVAR;
+		nRowsVAR = nRowsTR;
+		nRowsTR = temp;
+
+	}
+	if (nChooseTR == 2)
+	{
+		for (long i = 0; i < nRowsTV; i++)
 		{
-			for (long i = 0; i < nRowsTV; i++)
-			{
-				anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VarianceFile unchanged.				
-			}
-			nRowsTR = nRowsTV;
-			nRowsVAR = 0;
+			anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VarianceFile unchanged.				
 		}
-    nRowsVarianceFile = nRowsVAR;
-    long tempTR, tempVAR;
-    tempTR = tempVAR = 0;
-    for(int i=0; i < nRowsTV;i++)
-	  {
-      if(anInclude[i] == 1)
-      {
-        //copy the row from the TVfile to the TRfile
-        for(int j = 0; j < nDim; j++)
-        {
-          value = TVfile.GetAt(i,j,0);
-          TRfile.SetAt(tempTR,j,value,0);
-        }
-        tempTR++;
-      }
-      else
-      {
-        //copy the row from the TVfile to the VarianceFile
-        for(int j = 0; j < nDim; j++)
-        {
-          value = TVfile.GetAt(i,j,0);
-          VarianceFile.SetAt(tempVAR+nOffset,j,value,0);
-        }
-        tempVAR++;          
-      }
-	  }
-    ASSERT((nRowsTR == tempTR) && (nRowsVAR == tempVAR));
-    ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
-  }
- 
+		nRowsVAR = nRowsTV; // the Variance file still has the noise variance samples, nRowsTR below should be a chech on filling the file
+		nOffset = 0; // this is not used, but we still set it
+	}
 
+	long tempTR, tempVAR;
+	tempTR = tempVAR = 0;
+	double value_temp = 0;
+	for (int i = 0; i < nRowsTV; i++)
+	{
+		if (anInclude[i] == 1)
+		{
+			//copy the row from the TVfile to the TRfile
+			for (int j = 0; j < nDim; j++)
+			{
+				value_temp = TVfile.GetAt(i, j, 0);
+				TRfile.SetAt(tempTR, j, value_temp, 0);
+			}
+			tempTR++;
+		}
+		else
+		{
+			//copy the row from the TVfile to the VarianceFile
+			for (int j = 0; j < nDim; j++)
+			{
+				value_temp = TVfile.GetAt(i, j, 0);
+				VarianceFile.SetAt(tempVAR + nOffset, j, value_temp, 0);
+			}
+			tempVAR++;
+		}
+	}
+	nRowsTR = tempTR;
+	//ASSERT(nRowsTR == nRowsTV);
+	//ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
 	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
   if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
 	if(bPrint&& bDiagnostics) VarianceFile.Write("DiagnoseVarianceFile.txt");
