@@ -1,5 +1,5 @@
 // ALN Library
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -71,11 +71,9 @@ static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode)
   // The number depends on the learning rate, so splitting should occur about every
 	// 1/(learning rate) epochs. Since the error of a piece is not changed by a split
 	// because the two pieces are duplicated and adjusted for fillets, the error should decrease after a split.
-  // There have to be enough total adaptations ( taking account of responsibility)
-	// to equal the dimension of the problem multiplied by 4 to have pieces be determined after the split.
-	// A higher factor, e.g. 4 allows the split to be unequal and still have both parts determined,
-	// Another review on Sept 30,2018.  We have to allow splitting if there are only nDim + 1 hits but on different points;
-	// that is if the piece is overdetermined, it can split. We replace 4.0 * pALN-> nDim by pALN -> nDim +1 in two places
+  // There have to be enough total adaptations ( taking account of responsibility) so we have more than
+	// dimension of the domain the problem plus 1 different points.
+	// 
 	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > pALN->nDim + 1)
 		&& (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim + 1 ))  // more experimentation would be good
   {

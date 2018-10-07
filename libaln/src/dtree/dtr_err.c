@@ -1,6 +1,6 @@
 // dtr_err.c
-// Dendronic Learning Engine for approximation of functions defined by samples.
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// ALNfit Learning Engine for approximation of functions defined by samples.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public

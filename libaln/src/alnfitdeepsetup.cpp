@@ -1,6 +1,6 @@
 //libaln
 // ALN Library
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -18,7 +18,6 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
@@ -26,10 +25,11 @@
 //
 // ALNfit Pro for MS-Windows is a data analysis program for predicting one column
 // in a given data file from values in other columns.  The result is expressed as
-// an ALN (adaptive logic network). ALNfit Pro is a sample program of the libaln library.
+// an ALN (adaptive logic network). The logic is not Boolean Logic, but rather
+// so-called fuzzy logic using minimum and maximum operators instead of AND and OR.
 //
-// An ALN is a piecewise linear continuous function (at least in theory)formed by
-// using affine (i.e. non-homogeneous linear) functions input layer and two-input
+// An ALN computes a piecewise linear continuous function (at least in theory)formed by
+// using affine (i.e. non-homogeneous linear) functions in the input layer and two-input
 // maximum and minimum operators in all other layers of a neural network.
 // The single output is at the root.  All values are real (double precision floating
 // point in the computer representation).
@@ -42,9 +42,9 @@
 // since that is the desired output value.
 //
 // Caution: The above description of an ALN is not the same as was used in the literature
-// prior to 1995. If you take one of the above ALNs, representing a function f, and
+// prior to 1995. There is a strong connection. If you take one of the above ALNs, representing a function f, and
 // ask what is the logical value of the comparison  f >= T for some fixed threshold value T.
-// Use the following transformations to transform the ALN into a pre-1995 ALN with ANDs and ORs
+// You can use the following transformations to transform the ALN into a pre-1995 ALN with ANDs and ORs
 // and Boolean-valued inputs computed by Perceptrons (a Perceptron compares an affine function to a constant):
 // MIN(g,h) >= T iff g >= T AND h >= T; MAX(g,h) >= T iff g >= T OR h >= T. Changing to
 // ALNs which processed real values instead of Booleans was a significant advance
@@ -53,7 +53,7 @@
 // values is the one that should get credit for a good or bad output. Except in
 // the rare case of ties, this leads to a single linear function whose weights should adapt,
 // and the way to do that is well-known.  One can view today's ALNs as using fuzzy logic,
-// hence the name has been kept from the Boolean case.  The linear functions adapt by an iterative
+// hence the name has been kept from the Boolean case.  The linear functions adapt by an iterative,
 // least-squares approach, and the tree of MAX and MIN operators adapts by growing to better fit the data.
 //
 // Classes in classification problems are always represented by 0 and 1 values
@@ -93,8 +93,8 @@
 // error is 0.  However if we also look at a second  set from the same
 // data source, then it should define the same function. The difference of functions
 // defined by the two data sets can be used to measure the noise.
-// Linear regression is first used to fit the training set to determine its RMS error.
-// A good ALN fit must have no greater error, since an ALN can use more than one linear piece.
+// Linear regression is first used to fit the training set to determine its mean square error.
+// A good ALN fit should have much smaller error, since an ALN can use more than one linear piece.
 // Then we try to fit the training data very closely, which means something like interpolation. This amounts to
 // what is called "overtraining", and leads to poor "generalization". However
 // we use overtraining on one set of data to compare its values to the
@@ -103,19 +103,20 @@
 // when we train ALNs on the same data for a good fit, we stop growing the tree (splitting linear
 // pieces into two) when the error is below the level of noise variance. 
 //
-// We assume that the RMS noise added to the
-// ideal function to get samples is equal everywhere in the input space.
+// We assume that the RMS noise added to the ideal function to get samples is slowly varying oner the input space.
+// This gives the possibility to learn fine detail in the unknown function when the noise variance is small.
 //
 //  If the noise in the samples varies proportionately to the value of the ideal function,
-//  then we should do the training on the logarithm of the output data points to get constant noise RMS. 
+//  then we should probably do the training on the logarithm of the output data points to get constant noise variance. 
+//
+// The approximation step
 //
 // Once we know how much RMS error there is in the training data, we can train one or more ALNs.
 // We can stop elaborating an ALN by splitting linear pieces into two, when the training square error
 // becomes less than the noise variance because to continue would just be fitting the noise in the data.
 // The smoothing constant used for fillets is set proportionally.
 // Several trainings using the noise variance are done and the results averaged.
-// The approximation step
-//
+
 // The TVfile is used several (nALNs) times to create several ALNs whose average
 // will have good generalization performance.  The noise variance function for averaging is set at the
 // level found for training one ALN divided by the number of ALNs in the average.
@@ -143,7 +144,7 @@
 // yet unseen samples. 
 
 // If you have a low dimensional function, you can ask yourself looking at a graph how many
-// linear pieces will be required to get an acceptable fit.  If that number is N, and there are
+// linear pieces will be required to get an acceptable fit.  If that number is N, and
 // there are C columns in the data including the output column, then the number of samples
 // (ie rows) in the file must be at least S = 2 * N * C. You can think of it this way:
 // Of the S rows, you take away 10% leaving 0.9 * S. That means for each linear piece, you have 1.8 * C data points.  The minimum you
@@ -165,21 +166,20 @@
 // The computation can be greatly speeded up by a process referred to as resampling,
 // The average of the ALNs computed at many input points, and those new 
 // artificially generated "samples" are used to train a single ALN at a lesser
-// error tolerance used before.  The tolerance can be smaller because there is
-// no noise.  The factor of reduction of the tolerance is the square root of the
-// number of ALNs in the bagged average.  We are just fitting a known function.
+// noise variance before.   
 // The average ALN is converted to a DTREE for speed. The DTREE is strictly piecewise
-// linear (ie it has no quadratic fillets).  It is also smooth because it is fitting
+// linear (ie it has no quadratic or quartic fillets).  It is also smooth because it is fitting
 // a smooth function.  It is also very fast, particularly if one splits the input space
 // into blocks where only a few linear pieces are required to compute the output.
-// NB currently DTREEs are restricted to one level, ie there is no division of
+// NB currently DTREEs are restricted to one level in this program, ie there is no division of
 // the input space into pieces.
 
 // Report of the results of the trial:
 //
 // A report is generated that gives the RMS error of the DTREE approximant on
-// the test set. The output file is generated with the original data file with
+// the test set. An output file is generated with the original data file with
 // an additional column at the right containing the DTREE prediction of the output.
+// This is the "E" file, and rightmost column can be compared to others in a spreadsheet.
 // If the data file is missing the output during evaluations without training,
 // then a zero column takes the place of the missing output column and the DTREE
 // output column is to the right.
@@ -229,7 +229,6 @@ void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to creat
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();          // The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();          // The TSfile created from the PreprocessedDataFile is read in 
-//void ALNAPI createTrainVarianceFiles(int nChooseTR); // this is a second declaration ERROR!
 void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void computeNoiseVariance();  // This uses OTTS and OTVS and the samples in the Variance file to compute noise variance samples
@@ -251,7 +250,7 @@ BOOL bReplaceUndefined = FALSE; // Makes a new column at right if FALSE, otherwi
 BOOL bDiagnostics = FALSE;  // For controlling printout of diagnostic files
 BOOL bTimePrefixes = TRUE;
 BOOL bPrint = TRUE;  // controls printing of the input files, may be changed in options
-int nALNs = 7;
+int nALNs = 3; // since we train on all of the TVfile now, there is no point to doing a lot of bagging
 int nMessageNumber =8;
 int nPercentProgress = 0;
 int nDTREEDepth = 1;
@@ -353,7 +352,7 @@ long nRowsTSfile;
 CDataFile NumericalValFile;
 long nRowsNumericalValFile;
 int nColsNumericalValFile;
-CDataFile VarianceFile;
+CDataFile VARfile;
 CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
 int* anInclude; // this creates an array that persists between calls to create TR and Variance files.
@@ -367,8 +366,8 @@ extern CMyAln * pOTVS; // needed for temporary calculation of noise variance
 typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed before and after use
 {
   int nCount;                // Number of hits
-  double dblSqErrorTrain;    // Squared error of a piece during training                      
-  double dblSqErrorVal;      // Squared error of a piece during noise variance estimation
+  double dblSqErrorTrain;    // Squared error of a piece after training                      
+  double dblRespTotal;      // Used during training and noise variance estimation
   double dblT_NotUsed;			 // Used in the SDK only
 } SPLIT;
 // now actually define the storage for weight and centroid values from linear regression
@@ -387,7 +386,7 @@ void ALNAPI ALNfitSetup() // routine
 	if ((fpProtocol=fopen(szProtocolFileName,"w")) != NULL)
   {
     fprintf(fpProtocol,"***********************************************************************\n");
-    fprintf(fpProtocol,"ALNfit Pro Automatic Regression and Classification Program by Dendronic\n");
+    fprintf(fpProtocol,"ALNfit Pro Automatic Regression and Classification Program\n");
     fprintf(fpProtocol,"ALNfit Pro is an open-source program -- see LGPL license in source files\n");
     fprintf(fpProtocol,"********************** ALNfit setting up the run **********************\n");
   }
@@ -1216,7 +1215,7 @@ void getTSfile()
 }
 */
 
-void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
+void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 {
 	// The parameter value 0 means randomly create a training set and a noise variance file about equal in size
 	// The parameter value 1 means create the complement training set and augment the noise variance set with the previous training set
@@ -1230,12 +1229,12 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 	// 3. Several trainings are done on the whole TVfile using the noise variance information obtained in 2.
 	// 4. An average ALN is trained on the ALNs trained in step 3. This is made into a DTREE.
 	// A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
-	// VarianceFile of the rest, chosen randomly.
+	// VARfile of the rest, chosen randomly.
 	long nOffset;
 	if (nChooseTR == 0)
 	{
 		TRfile.Create(nRowsTV, nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
-		VarianceFile.Create(nRowsTV, nALNinputs); // this will store first all the tuples of TV but with the original training data after its complement
+		VARfile.Create(nRowsTV, nALNinputs); // this will store first all the tuples of TV but with the original training data after its complement
    	nRowsTR = nRowsVAR = nOffset = 0;
 		anInclude = (int*)malloc(nRowsPP * sizeof(int)); // this array can persist between calls
 		if (bEstimateRMSError)
@@ -1279,7 +1278,7 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 	{
 		for (long i = 0; i < nRowsTV; i++)
 		{
-			anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VarianceFile unchanged.				
+			anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VARfile unchanged.				
 		}
 		nRowsVAR = nRowsTV; // the Variance file still has the noise variance samples, nRowsTR below should be a chech on filling the file
 		nOffset = 0; // this is not used, but we still set it
@@ -1302,11 +1301,11 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 		}
 		else
 		{
-			//copy the row from the TVfile to the VarianceFile
+			//copy the row from the TVfile to the VARfile
 			for (int j = 0; j < nDim; j++)
 			{
 				value_temp = TVfile.GetAt(i, j, 0);
-				VarianceFile.SetAt(tempVAR + nOffset, j, value_temp, 0);
+				VARfile.SetAt(tempVAR + nOffset, j, value_temp, 0);
 			}
 			tempVAR++;
 		}
@@ -1316,8 +1315,8 @@ void ALNAPI createTrainVarianceFiles(int nChooseTR) // routine
 	//ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
 	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
   if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
-	if(bPrint&& bDiagnostics) VarianceFile.Write("DiagnoseVarianceFile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseVarianceFile.txt written\n");
+	if(bPrint&& bDiagnostics) VARfile.Write("DiagnoseVARfile.txt");
+	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseVARfile.txt written\n");
 }
 
 void ALNAPI evaluate() // routine
@@ -1735,19 +1734,19 @@ void computeNoiseVariance()
 		{
 			for (int j = 0; j < nDim; j++)
 			{
-				adblX[i] = VarianceFile.GetAt(i, j, 0);
+				adblX[i] = VARfile.GetAt(i, j, 0);
 			}
 			value = adblX[nDim -1] - pOTTS->QuickEval(adblX,&pActiveLFN);
-			VarianceFile.SetAt(i, nDim -1, value*value/dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
+			VARfile.SetAt(i, nDim -1, value*value/dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
 		}
 		else
 		{
 			for (int j = 0; j < nDim; j++)
 			{
-				adblX[i] = VarianceFile.GetAt(i, j, 0);
+				adblX[i] = VARfile.GetAt(i, j, 0);
 			}
 			value = adblX[nDim - 1] - pOTVS->QuickEval(adblX, &pActiveLFN);
-			VarianceFile.SetAt(i, nDim - 1, value*value / dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
+			VARfile.SetAt(i, nDim - 1, value*value / dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
 		}
 	}
 

@@ -1,5 +1,5 @@
 // ALN Library
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -340,7 +340,7 @@ ALNIMP int ALNAPI ALNAddRegion(ALN* pALN, int nParentRegion,
 //   - apLFNs = array of pointers to all LFN children created
 // LFN parent automatically converted to minmax (and vectors freed)
 // all new children are LFNs... vectors are automatically allocated, child
-//   parent regions are the same as the parent node
+// parent regions are the same as the parent node
 ALNIMP int ALNAPI ALNAddLFNs(ALN* pALN, ALNNODE* pParent, 
                              int nParentMinMaxType, int nLFNs,
                              ALNNODE** apLFNs)
@@ -423,12 +423,10 @@ ALNIMP int ALNAPI ALNAddLFNs(ALN* pALN, ALNNODE* pParent,
         memcpy(LFN_W(pChild), LFN_W(pParent), (pALN->nDim + 1) * sizeof(double));
         memcpy(LFN_C(pChild), LFN_C(pParent), pALN->nDim * sizeof(double));
         memcpy(LFN_D(pChild), LFN_D(pParent), pALN->nDim * sizeof(double));
-        memcpy(LFN_P(pChild), LFN_P(pParent), pALN->nDim * sizeof(double)); // added 2009.12.25
+        memcpy(LFN_P(pChild), LFN_P(pParent), pALN->nDim * sizeof(double));
         // shift LFN up or down depending on parent minmax type
 				// the shifts are different but close so the two children differentiate
 				// and the combined effect is not to change the value of the single LFN
-				// New: we forgot to change the centroid by the same amount
-				// Problem corrected March 15, 2001 WWA
         double dblSE = pALN->aRegions[pChild->nParentRegion].dblSmoothEpsilon;
 				int nOutput = pALN->nOutput;
 				double dblChange;

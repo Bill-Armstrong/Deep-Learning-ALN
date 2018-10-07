@@ -1,7 +1,7 @@
 // dtr_io.c
 // DTREE I/O routines
-// Dendronic Learning Engine for approximation of functions defined by samples.
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// ALNfit Learning Engine for approximation of functions defined by samples.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -1144,7 +1144,7 @@ int ExportDtreeFile(FILE* pFile, const char* pszFileName, DTREE* pDtree)
   int i;        
   
   static char _szHeader[] = "// %s exported on %s\n"
-                            "// ALN Decision Tree file format v1.0 (C) 1995 - 2010 William W. Armstrong\n\n";
+                            "// ALN Decision Tree file format v1.0 (C) 2018 William W. Armstrong\n\n";
                                         
   static char _szVersion[] = "VERSION = 1.0;\n";                                        
   static char _szVarDefs[] = "VARIABLES = %ld;\n";

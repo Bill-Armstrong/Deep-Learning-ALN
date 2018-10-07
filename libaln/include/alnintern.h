@@ -1,5 +1,5 @@
 // ALN Library (libaln)
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // file: alnintern.h
 //
 // This library is free software; you can redistribute it and/or
@@ -18,7 +18,6 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
@@ -30,7 +29,7 @@ void dozerospliterror(CMyAln*, ALNNODE*);  // sets the square error to zero in e
 void spliterrorsetTR(CMyAln*); // accumulates the training square error and number of hits on each linear piece
 void spliterrorsetVAR(CMyAln*); // accumulates the variance square error and number of hits on each linear piece
 void dodivideTR(CMyAln*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
-void dodivideVAR(CMyAln*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
+void dodivideVAR(CMyAln*, ALNNODE*); // divides the sum of noise variance samples of the pieces by their respective hit counts
 
 // thread procedures
 UINT TakeActionProc(LPVOID pParam);  // separate thread
@@ -78,16 +77,3 @@ extern CDataFile TRfile;             // Training file.  This file is setup separ
 
 extern double* adblLRW; // stores an ALN weight approximation from linear regression
 extern double* adblLRC; // ditto for centroids
-
-// this typedef allows a cast within ALNfit Pro of ALNLFNSPLIT in aln.h which uses
-// the variables in a different way than in the Dendronic Learning Engine SDK
-// when a comparison between the average errors on training and variance sets
-// is needed to decide whether or not to allow splitting of the hyperplane
-/*typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed before and after use
-{
-  int nCount;                // Number of hits
-  double dblSqErrorTrain;    // Squared error of a piece during training                      
-  double dblSqErrorVal;      // Squared error of a piece during variance
-  double dblT_NotUsed;			 // Used in the SDK only
-} SPLIT;
-*/

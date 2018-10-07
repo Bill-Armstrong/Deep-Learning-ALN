@@ -1,5 +1,5 @@
 // ALN Library (libaln)
-// Copyright (C) 1995 - 2010 William W. Armstrong
+// Copyright (C) 2018 William W. Armstrong
 // file: alnextern.h
 // 
 // This library is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ void ALNAPI createTVTSfiles();	// The PreprocessedDataFile is used to create TV 
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI createTrainVarianceFiles(int nChooseTR);	// creates training and variance files (several times for bagging)
+void ALNAPI createTS_VARfiles(int nChooseTR);	// creates training and variance files (several times for bagging)
 void ALNAPI dolinearregression();	// This does a truncated linear regression fit to get an upper bound on noise
 void ALNAPI approximate();	// This creates the final approximant using the weight bounds found above
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
@@ -75,7 +75,7 @@ extern long nRowsTSfile;
 extern CDataFile NumericalValFile;
 extern long nRowsNumericalValFile;
 extern int nColsNumericalValFile;
-extern CDataFile VarianceFile;
+extern CDataFile VARfile;
 extern long  nRowsVAR;
 extern double dblSetTolerance;
 extern BOOL bEstimateRMSError; // if TRUE we use a onealnfit to estimate RMS error which needs a variance set

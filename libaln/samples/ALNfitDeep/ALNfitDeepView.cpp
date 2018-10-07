@@ -1,6 +1,6 @@
 // ALNfitDeepView.cpp : implementation of the CALNfitDeepView class
 //
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -364,18 +364,18 @@ void CALNfitDeepView::OnButtonStart()
   {
     if(bEstimateRMSError)
     {
-      VarianceFile.Create(nRowsNumericalValFile,nALNinputs);
-      MakeAuxALNinputFile(NumericalValFile, VarianceFile, nRowsNumericalValFile, &nRowsVAR);
+      VARfile.Create(nRowsNumericalValFile,nALNinputs);
+      MakeAuxALNinputFile(NumericalValFile, VARfile, nRowsNumericalValFile, &nRowsVAR);
 			if (bPrint && bDiagnostics)    // write out the results to check
 			{
-				VarianceFile.Write("DiagnoseVarianceFile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseVarianceFile.txt written\n");
+				VARfile.Write("DiagnoseVARfile.txt");
+				fprintf(fpFileSetupProtocol, "DiagnoseVARfile.txt written\n");
 			}
     }
     else
     {
       // we set the tolerance directly without RMS noise stimation
-  	  if(bPrint && bDiagnostics) fprintf(fpFileSetupProtocol,"VarianceFile.txt was NOT created -- tolerance set directly in options.\n");
+  	  if(bPrint && bDiagnostics) fprintf(fpFileSetupProtocol,"VARfile.txt was NOT created -- tolerance set directly in options.\n");
     }
 		fflush(fpFileSetupProtocol);
   }
@@ -879,12 +879,12 @@ some limitations, into more classes  *****\n");
 			fflush(fpProtocol);
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createTrainVarianceFiles(0);
+			createTS_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVflie
 			fflush(fpProtocol);
 			pALN = pOTTS;
       overtrain(pOTTS);
 			fflush(fpProtocol);
-			createTrainVarianceFiles(1);
+			createTS_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
 			fflush(fpProtocol);
 			pALN = pOTVS;
 			overtrain(pOTVS);

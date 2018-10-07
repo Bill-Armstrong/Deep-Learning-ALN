@@ -1,5 +1,5 @@
 // ALN Library
-// Copyright (C) 1995 - 2010 William W. Armstrong.
+// Copyright (C) 2018 William W. Armstrong.
 // 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -49,44 +49,9 @@ static char THIS_FILE[] = __FILE__;
 inline
 double ALNAPI Noise()
 {
-/*
-   Generate point in triangular distribution from -1 to 1
-
-   We could do this by generating two random uniformly distributed
-   points x, y in [-1, 1] and rejecting any |x|+|y| > 1.
-   On average this method will reject half the points we pick!
-
-   Instead, we generate points x, y in [-1/(sqrt(2)), 1/(sqrt(2))]
-  
-   if r1 and r2 are uniform random numbers in [0, 1], then
-  
-   x = (2/sqrt(2))(r1 - 1/2) -> x in [-1/sqrt(2), 1/sqrt(2)]
-   y = (2/sqrt(2))(r2 - 1/2) -> y in [-1/sqrt(2), 1/sqrt(2)]
-  
-   Now rotate 45 degrees...
-   
-   1/sqrt(2) |  1  -1  | | x | = | x' |
-             |  1   1  | | y | = | y' |
-  
-   x' = (1/sqrt(2))(x - y)  
-   y' = (1/sqrt(2))(x + y)  
-  
-   substituting for x and y
-  
-   x' = (1/sqrt(2))(((2/sqrt(2))(r1 - 1/2)) - ((2/sqrt(2))(r2 - 1/2)))
-      = r1 - r2
-  
-   y' = (1/sqrt(2))(((2/sqrt(2))(r1 - 1/2)) + ((2/sqrt(2))(r2 - 1/2)))
-      = r1 + r2 - 1
-*/
-
-#ifdef _DEBUG
-  double dbl = ALNRandFloat() - ALNRandFloat();
-  ASSERT(dbl >= -1.0 && dbl <= 1.0);
-  return dbl;
-#else
-  return ALNRandFloat() - ALNRandFloat();
-#endif
+//   This generates a random value with a triangular distribution from -1 to 1
+//   This by subtracting two random uniformly distributed values in (0, 1).
+	return ALNRandFloat() - ALNRandFloat();
 }
 
 void ALNAPI Jitter(ALN* pALN, double* adblX)

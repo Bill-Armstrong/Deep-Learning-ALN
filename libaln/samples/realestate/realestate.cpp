@@ -1,8 +1,7 @@
 // ALN Library sample
 // A sample giving the same values as LINEST in MS Excel (TM).
-// Dendronic Learning Engine for approximation of functions defined by samples.
-// Copyright (C) Dendronic Decisions Limited 1995 - 2007.
-// 
+// ALNfit Learning Engine for approximation of functions defined by samples.
+// Copyright (C) 2018 William W. Armstrong 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
@@ -19,13 +18,12 @@
 // 
 // For further information contact 
 // William W. Armstrong
-// Dendronic Decisions Limited
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // realestate.cpp
 // This program does not involve learning. Its purpose is to compare statistics
-// produced by the Dendronic Learning Engine to the values output by Microsoft (R)
+// produced by the ALNfit Learning Engine to the values output by Microsoft (R)
 // Excel in a realestate example in the Excel help file for linear regression
 // (index term: LINEST). An ALN with a single linear piece is constructed
 // having weights given in that example.  The output values are very close.
@@ -50,7 +48,7 @@
 #include <iomanip>
 
 static char szInfo[] = "ALN Library RealEstate sample\n"
-                       "Copyright (C) 1995 2007 Dendronic Decisions Limited\n"
+                       "Copyright (C)  2018 William W. Armstrong\n"
                        "Licensed under LGPL\n\n";
 using namespace std;
 class CMyAln : public CAln

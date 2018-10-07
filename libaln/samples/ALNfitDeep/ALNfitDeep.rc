@@ -156,11 +156,11 @@ FONT 8, "MS Sans Serif", 700, 0, 0x0
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,7,7,18,20
     LTEXT           "ALNfitDeep - open source Version 1.0 for MS Windows (R)",IDC_STATIC,38,7,195,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2016 W W Armstrong. License: LGPL open source - see files.",IDC_STATIC,13,38,279,11
+    LTEXT           "Copyright (C) 2018 W W Armstrong. License: LGPL open source - see files.",IDC_STATIC,13,38,279,11
     DEFPUSHBUTTON   "OK",IDOK,313,7,32,14,WS_GROUP
     LTEXT           "Please see the User Guide for the most recent information.",IDC_STATIC_HELP_MESSAGE,14,55,325,10
-    LTEXT           "Dendronic Decisions Limited made this software available to the open-source community",IDC_STATIC,14,91,310,14
-    LTEXT           "Based on the Dendronic Learning Engine and ALNfit Pro",IDC_STATIC,39,22,209,11
+    LTEXT           "Dendronic Decisions Limited made an early version open-source before 2008",IDC_STATIC,14,91,310,14
+    LTEXT           "Based on the ALNfit and ALNfit Pro",IDC_STATIC,39,22,209,11
     LTEXT           "You can develop your own machine learning applications based on ALNfitDeep.",IDC_STATIC,13,71,324,20
 END
 
@@ -279,12 +279,12 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "Comments", "This application is based on the Dendronic Learning Engine SDK and ALNfitPro"
+            VALUE "Comments", "This application is based on the ALNfit Learning Engine SDK and ALNfitPro"
             VALUE "CompanyName", "None"
             VALUE "FileDescription", "ALNfitDeep Open source deep learning application"
             VALUE "FileVersion", "1, 0, 0, 0"
             VALUE "InternalName", "ALNfitDeep"
-            VALUE "LegalCopyright", "Copyright (C) 2016 W W Armstrong.  License LGPL -- see source files."
+            VALUE "LegalCopyright", "Copyright (C) 2018 W W Armstrong.  License LGPL -- see source files."
             VALUE "OriginalFilename", "ALNfitDeep.exe"
             VALUE "ProductName", "ALNfitDeep Application"
             VALUE "ProductVersion", "1, 0, 0, 0"
