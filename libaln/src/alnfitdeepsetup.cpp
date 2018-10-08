@@ -1094,7 +1094,7 @@ void ALNAPI analyzeTV() // routine
 {
   fprintf(fpProtocol,"\n************** Analysis of TV file begins ********\n");
   fflush(fpProtocol);
-	// This is done for training to set up the properties of the TVset and the input Tolerances
+	// This is done for training to set up the properties of the TVset
 	ASSERT(TVfile.RowCount() >= nRowsTV);
   fprintf(fpProtocol,"Dimension nDim is %d, nRowsTV is %d\n", nDim, nRowsTV);
   fflush(fpProtocol);
@@ -1113,10 +1113,10 @@ void ALNAPI analyzeTV() // routine
 		// initialize the min and max variables
 		adblMinVar[k] = adblMaxVar[k] = TVfile.GetAt(0,k,0);
 	}
-  bRegress = FALSE;
+  bRegress = FALSE; // if it can't be a classification problem, it must be regression
   for(int k = 0; k < nDim; k++) // do each variable k
   {
-    //compute the average of variable k in TVset
+    //compute the max and min and average of variable k in TVfile
     double desired = 0,se  = 0, value = 0;
 
     for(int j = 0; j < nRowsTV; j++) 
@@ -1131,12 +1131,12 @@ void ALNAPI analyzeTV() // routine
 			{
 				adblMinVar[k] = value;
 			}
-      // we want to see whether the output variable forces a regression
+      // we want to see whether the output variable forces a regression since it is not an integer or an integer but out of range
       if((k == nDim - 1) && (fabs(floor(value + 0.5) - value)  > 1e-10))
       {
         bRegress = TRUE;
       }
-      if((k == nDim - 1) && (value >3.5 || value < -3.)) // we cab only classify into classes numbered -3, -2, ...2, 3, if an output is outside this range...
+      if((k == nDim - 1) && (value >3.5 || value < -3.)) // we can only classify into classes numbered -3, -2, ...2, 3
       {
         bRegress = TRUE;
       }

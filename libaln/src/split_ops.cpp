@@ -46,6 +46,7 @@ static char THIS_FILE[] = __FILE__;
 #include ".\cmyaln.h" 
 
 extern double dblMax;
+extern double* adblEpsilon;
 extern int nDim;
 extern double dblSetTolerance;
 extern long nRowsTR;
@@ -212,7 +213,7 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 			}
 			else
 			{
-				dblPieceNoiseVariance = dblSetTolerance * dblSetTolerance; // useless; this should be replaced by a known noise variance function sometime
+				dblPieceNoiseVariance = adblEpsilon[nDim - 1]*adblEpsilon[nDim -1]; // This is used for linear regression and overtraining
 			}
 			if (dblSqErrorPieceTrain < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
 			{
