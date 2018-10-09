@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25402.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2003
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "alnpp", "alnpp.vcxproj", "{79E5138E-D1CB-4143-9F07-4ECFF90001C2}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -73,10 +73,14 @@ Global
 		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Debug|Win32.Build.0 = Debug|Win32
 		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release MT DLL|Win32.ActiveCfg = Release|Win32
 		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release MT|Win32.ActiveCfg = Release|Win32
+		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release MT|Win32.Build.0 = Release|Win32
 		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release|Win32.ActiveCfg = Release|Win32
 		{E8BA4E0E-251A-48C9-8C4D-A0ABBE197B41}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4380D613-C0EA-4606-ABDF-6413A6D9234E}
 	EndGlobalSection
 EndGlobal

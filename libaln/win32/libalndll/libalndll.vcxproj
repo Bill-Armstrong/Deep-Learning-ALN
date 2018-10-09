@@ -18,7 +18,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CLRSupport>false</CLRSupport>
   </PropertyGroup>
@@ -213,6 +213,7 @@
     <ClInclude Include="..\..\include\ql\qldefines.hpp" />
     <ClInclude Include="..\..\include\ql\types.hpp" />
     <ClInclude Include="..\..\include\ql\userconfig.hpp" />
+    <ClInclude Include="..\..\include\targetver.h" />
     <ClInclude Include="..\..\src\dtree\DTR_PRIV.H" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

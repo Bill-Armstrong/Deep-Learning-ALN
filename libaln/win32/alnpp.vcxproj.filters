@@ -27,5 +27,8 @@
     <ClInclude Include="..\include\datafile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

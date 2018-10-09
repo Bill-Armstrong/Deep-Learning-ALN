@@ -256,6 +256,9 @@
     <ClInclude Include="..\include\boost\config\user.hpp">
       <Filter>Header Files\boost\config</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\docs\libaln.doc">
