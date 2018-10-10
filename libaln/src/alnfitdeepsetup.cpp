@@ -373,6 +373,7 @@ typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed b
 // now actually define the storage for weight and centroid values from linear regression
 double* adblLRW; // weight components
 double* adblLRC; // centroid components
+double computeGlobalNoiseVariance(); // this uses the TVfile in different ways for linear regression, overtraining, approximation, and averaging ALNs
 using namespace std;
 
 void ALNAPI ALNfitSetup() // routine
@@ -1217,8 +1218,10 @@ void getTSfile()
 
 void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 {
-	// The parameter value 0 means randomly create a training set and a noise variance file about equal in size
-	// The parameter value 1 means create the complement training set and augment the noise variance set with the previous training set
+	// For noise variance estimation, we have to split the TVfile into two about equal parts we call training set and complement
+
+	// The parameter value 0 means randomly create samples in TRfile about half the size of TVfile, the rest is the "complement" set. Train OTTS
+	// The parameter value 1 means train OTVS on the complement and append the to the noise variance set the previous TRfile content
 	// The parameter value 2 means put the entire TVfile into the TRfile.
 	// Done only if bTrain is TRUE and we are training.
 	// Creates separate training and noise variance files in all cases.
@@ -1233,18 +1236,17 @@ void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 	long nOffset;
 	if (nChooseTR == 0)
 	{
-		TRfile.Create(nRowsTV, nALNinputs); // we use this as a buffer for *all* training, so it must be long enough for all possibilities
-		VARfile.Create(nRowsTV, nALNinputs); // this will store first all the tuples of TV but with the original training data after its complement
+		TRfile.Create(nRowsTV, nALNinputs);  // we use this as a buffer for *all* training, so it must be long enough for all possibilities
+		VARfile.Create(nRowsTV, nALNinputs); // VARfile contains tuples of TV in a different order with the original training data following its complement
+																				 // this is converted later so that samples of function values are converted into noise variance samples
    	nRowsTR = nRowsVAR = nOffset = 0;
-		anInclude = (int*)malloc(nRowsPP * sizeof(int)); // this array can persist between calls
+		anInclude = (int*)malloc(nRowsPP * sizeof(int)); // we must call with nChoose 0, then 1, then several 2's; this array can persist between calls
 		if (bEstimateRMSError)
 		{
 			// Use part of the TVfile, chosen randomly, for training
-			// saving the rest for estimating noise variance.
-			// Bagging is done automatically by this process if this routine is called before
-			// each call to Train.
-			// Decide in advance where each row of TVfile will be copied
-			// and calculate the sizes of TR and VAR files.
+			// placing the rest into VARfile
+			// anInclude determines where each row of TVfile will be copied
+			// and calculates the sizes of TRfile and VARfile.
 			// We set nRowsTR and nRowsVAR here
 			for (long i = 0; i < nRowsTV; i++)
 			{
@@ -1260,27 +1262,26 @@ void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 				}
 			}
 		}
-		nOffset = 0;
+		nOffset = 0; // there is zero offset used to place samples of the complement of TRfile in VARfile
 	}
-	if (nChooseTR == 1) // we train on the complement and shift the original TRfile data by nRowsVAR into the variance set
+	if (nChooseTR == 1) // we move the data in VARfile into TRfile and move the original TRfile data, shifted by nRowsVAR into VARfile
 	{
 		for (long i = 0; i < nRowsTV; i++)
 		{
-			anInclude[i] = 1 - anInclude[i];
+			anInclude[i] = 1 - anInclude[i]; // changing 1's to 0's and vice-versa (in effect) moves the data
 		}
-		nOffset = nRowsVAR; // this fills the varance file with the original training set tuples after the complement set
-		int temp = nRowsVAR;
+		nOffset = nRowsVAR; // this fills VAR file with the original training set samples, placed following the complement set
+		int temp = nRowsVAR; // now we interchange the sized of files to be processed
 		nRowsVAR = nRowsTR;
 		nRowsTR = temp;
-
 	}
 	if (nChooseTR == 2)
 	{
 		for (long i = 0; i < nRowsTV; i++)
 		{
-			anInclude[i] = 1; // This should put all TVfile data into TRfile and leave	the VARfile unchanged.				
+			anInclude[i] = 1; // This should put all TVfile data into TRfile and leavethe VARfile unchanged.				
 		}
-		nRowsVAR = nRowsTV; // the Variance file still has the noise variance samples, nRowsTR below should be a chech on filling the file
+	// the VARfile has now all the function value samples that are in the TVfile, but in a different order, to be processed by computeGlobalNoiseVariance()
 		nOffset = 0; // this is not used, but we still set it
 	}
 
@@ -1291,7 +1292,7 @@ void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 	{
 		if (anInclude[i] == 1)
 		{
-			//copy the row from the TVfile to the TRfile
+			//copy the row from the TVfile to the TRfile and leave the VARfile unchanged
 			for (int j = 0; j < nDim; j++)
 			{
 				value_temp = TVfile.GetAt(i, j, 0);
@@ -1301,7 +1302,7 @@ void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 		}
 		else
 		{
-			//copy the row from the TVfile to the VARfile
+			//copy the row from the TVfile to the VARfile with an offset the second time around
 			for (int j = 0; j < nDim; j++)
 			{
 				value_temp = TVfile.GetAt(i, j, 0);
@@ -1310,15 +1311,38 @@ void ALNAPI createTS_VARfiles(int nChooseTR) // routine
 			tempVAR++;
 		}
 	}
-	nRowsTR = tempTR;
-	//ASSERT(nRowsTR == nRowsTV);
 	//ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
+	nRowsTR = nRowsTV; // now we use the whole TVset for training
+	// we cheat and use now useless nOffset to temporarily hold nRowsVAR
+	nOffset = nRowsVAR;
+	VARfile.Write("DiagnoseVARfile.txt");
+	nRowsVAR = nOffset;
+	nOffset = 0;
 	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
   if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
 	if(bPrint&& bDiagnostics) VARfile.Write("DiagnoseVARfile.txt");
 	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseVARfile.txt written\n");
 }
+double computeGlobalNoiseVariance()
+{
+	// All of the samples in TVfile are used in training from now on
+	// The sample noise variances are in VARfile
+	double samplevalue, accumulate;
+	long nCount;
+	accumulate = 0;
+	nCount = 0;
+	for (int j = 0; j < nRowsVAR; j++)
+	{
+		{
+			samplevalue = VARfile.GetAt(j, nDim - 1, 0);
+		}
+		accumulate += samplevalue;
+		nCount++;
+	}
+	return accumulate / nCount;
+}
 
+// Why is this here? it is to do with training and processing not setup
 void ALNAPI evaluate() // routine
 {
 	// loads the named DTREE file, determines nDim from it and accordingly
@@ -1727,27 +1751,22 @@ void computeNoiseVariance()
 	double * adblX = (double *)malloc((nDim) * sizeof(double));
 	double dblDimFactor;
 	ALNNODE* pActiveLFN;
-	dblDimFactor = (1.0 + 2.0 / (nDim + 2.0));
+	dblDimFactor = 1.0/(1.0 + 2.0 / (nDim + 1.0)); // the dimension of the domain is nDim - 1
+	// we have to change from using OTTS to OTVS at the old value of nRowsVAR
 	for (i = 0; i < nRowsTV; i++)
 	{
-		if (i < nRowsVAR)
+		for (int j = 0; j < nDim; j++)
 		{
-			for (int j = 0; j < nDim; j++)
+			adblX[i] = VARfile.GetAt(i, j, 0);
+			if (i < nRowsVAR) //MISTAKE???
 			{
-				adblX[i] = VARfile.GetAt(i, j, 0);
+				value = adblX[nDim - 1] - pOTTS->QuickEval(adblX, &pActiveLFN);
 			}
-			value = adblX[nDim -1] - pOTTS->QuickEval(adblX,&pActiveLFN);
-			VARfile.SetAt(i, nDim -1, value*value/dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
-		}
-		else
-		{
-			for (int j = 0; j < nDim; j++)
+			else // i is between nRowsVAR and nRowsTV-1
 			{
-				adblX[i] = VARfile.GetAt(i, j, 0);
+				value = adblX[nDim - 1] - pOTVS->QuickEval(adblX, &pActiveLFN);
 			}
-			value = adblX[nDim - 1] - pOTVS->QuickEval(adblX, &pActiveLFN);
-			VARfile.SetAt(i, nDim - 1, value*value / dblDimFactor, 0); // This adds the variance estimator to the particular linear piece		// se ;
+			VARfile.SetAt(i, nDim - 1, value*value*dblDimFactor, 0); // This replaces what was a function value by a noise variance sample
 		}
 	}
-
 }

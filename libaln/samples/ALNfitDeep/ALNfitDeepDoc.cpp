@@ -133,7 +133,7 @@ BOOL CALNfitDeepDoc::OnNewDocument()
 	m_strDataFileName = "";
 	m_nFit = 0;   // 0 indicates regression, 1 classification
 	m_nTrain = 0; // 0 indicates training, 1 evaluation
-	m_nALNs = 7;  // default
+	m_nALNs = 3;  // default
 	m_nMessage = 8; // asks to set up parameters then click on Start
   GenerateReportString();
 	CString m_strProtocolFileName = "";   // set up by start button
@@ -245,7 +245,7 @@ void CALNfitDeepDoc::DeleteContents()
 	m_strReport = "";
 	m_nFit = 0;   // 0 indicates regression, 1 classification
 	m_nTrain = 0; // 0 indicates training, 1 evaluation
-	m_nALNs = 7;  // default
+	m_nALNs = 3;  // default
 	m_nMessage = 0; // asks to set up parameters then click on Start
 	m_nPercentProgress = 0; // integer value for progress indicator
   m_nColsUniv = 101;
@@ -532,7 +532,7 @@ void CALNfitDeepDoc::EditClearall()
 { 
  	m_strDataFileName = ".txt";
 	m_strDTREEFileName = ".dtr";
-	m_nALNs = 7;
+	m_nALNs = 3;
 	m_nFit = 0;
 	m_nTrain = 0;
 	m_nMessage = 8;

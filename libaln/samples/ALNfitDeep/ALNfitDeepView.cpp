@@ -50,6 +50,8 @@ static char THIS_FILE[] = __FILE__;
 extern CMyAln * pOTTS;
 extern CMyAln * pOTVS;
 extern CMyAln * pALN;
+extern double computeGlobalNoiseVariance();
+
 #define INPUTDEC      0
 #define INPUT         1
 #define INPUTINC      2
@@ -893,6 +895,8 @@ some limitations, into more classes  *****\n");
  		fflush(fpProtocol);
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
+		createTS_VARfiles(2);
+		computeGlobalNoiseVariance(); // this sets up the files for training with noise variance control of stopping
     approximate();
     PassBackStatus(7,75);   
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
