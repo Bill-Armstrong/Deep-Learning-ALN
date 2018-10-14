@@ -119,7 +119,7 @@ void ALNAPI dolinearregression() // routine
 		  pALN->SetWeightMax(dblMaxWeight[m],m);
     }
 	}
-  createTS_VARfiles(0); // we pick as a training set about 50% of the TVfile
+  createTR_VARfiles(0); // we pick as a training set about 50% of the TVfile
   bTrainingAverage = FALSE;
 	double dblOldRmse = adblStdevVar[nDim - 1]; // this is a high initial value of error
  	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: value doesn't matter since there are no MAX or MIN nodes, hence nothing to smooth
@@ -265,17 +265,16 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
     }
 	}
 	bTrainingAverage = FALSE;
-	//pOT->SetEpsilon(dblLinRegErr/1000.0,nDim -1); // We try setting the noise variance at 1/1000 of the  ????????????????????????????????????????
 	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing should be zero so as not to interfere.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n"
 					, dblLinRegErr, (pOT->GetRegion(0))->dblSmoothEpsilon);
 	// Tell the training algorithm the way to access the data using fillvector
-	int nEpochSize  = nDim * nRowsTR;
+	int nEpochSize  = nRowsTR;
 	pOT->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	//********* initial weight and centroid components for overtraining
 	dblMinRMSE = dblLinRegErr / 1000.0; //we stop overtraining when reaching a low training error which is 1/1000 of the linear regression eror
-	dblLearnRate = 0.2; // try to correct all the error on first pass, one more pass to get better values
+	dblLearnRate = 0.3; // try to correct all the error on first pass, one more pass to get better values
 	nNumberEpochs	= (int)floor(1.99 /dblLearnRate);  // doing just a few epochs at very high learning rate
 	// use the weights and centroids from linear regression
 	ALNNODE* pActiveLFN;
@@ -290,31 +289,27 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	((pActiveLFN)->DATA.LFN.adblW)[0] = adblLRW[0];
 	((pActiveLFN)->DATA.LFN.adblW)[nDim] = -1.0;
 	fprintf(fpProtocol,"Weight 0 is %f centroid %d is %f\n", adblLRW[0], nDim -1, adblLRC[nDim - 1] ); 
-	// We never skip variance for overtrain(CMyAln * pOT)
-	splitcontrol(pOT, 0.0); // this is now what we do for unrestricted splitting  Sept 30, 2018
-  nNumberEpochs	= (int)floor(1.99 /dblLearnRate); // it takes longer to stabilize before split at a lower learning rate
-	nNumberLFNs = 1;  // starts at 1 and should grow quickly
-	double nOldNumberLFNs = 1; // for stopping criterion  IMPLEMENT NEW STOPPING CRITERION!!!!
-
-	for(int iteration = 0; iteration <20; iteration++)  // assume 20 to speed up
+	dblFlimit = 0.001; // tiny value
+	splitcontrol(pOT, dblFlimit); // using a tiny value is what we do for unrestricted splitting  Oct 14, 2018
+ 	nNumberLFNs = 1;  // starts at 1 and should grow quickly
+	for(int iteration = 0; iteration <40; iteration++)  // assume 20 to speed up
 	{
-		fprintf(fpProtocol,"Iteration %d of overtraining continues\n", iteration);
-    if(iteration ==15)
+    if(iteration == 10)
     {
-      dblLearnRate = 0.1;
+      dblLearnRate = 0.2;
 			nNumberEpochs = (int)floor(1.99 / dblLearnRate);
 			(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used when estimating noise!
 			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
     }
-    if(iteration == 18)// getting near the end of noise estimation, slowing down learning //was 46
+    if(iteration == 38)// getting near the end of noise estimation, slowing down learning //was 46
     {
-      dblLearnRate = 0.05;
+      dblLearnRate = 0.1;
 			nNumberEpochs	= (int)floor(1.99 /dblLearnRate);
 			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
     }
-		if(iteration == 19)// the two last epochs are for stabilizing // was 48
+		if(iteration == 39)// the last epoch is for stabilizing 
     {
-      dblLearnRate = 0.02;
+      dblLearnRate = 0.05;
 			nNumberEpochs	= (int)floor(1.99 /dblLearnRate);
 			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
     }
@@ -325,29 +320,21 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 		{
 		  fprintf(fpProtocol,"Overtraining failed!\n");
 		}
+		//fprintf(fpProtocol, "Iteration %d of overtraining continues. RMS Error %f\n", iteration, dblTrainErr);
 		if (bTrainingContinues == FALSE)
 		{
 			fprintf(fpProtocol, "This overtraining stopped because all leaf nodes have stopped changing!\n");
 			fprintf(fpProtocol, "\nOvertraining of an ALN completed at iteration %d \n", iteration);
 			break;
 		}
-		splitcontrol(pOT, 0.1); // unrestricted splitting allowed  WHAT DOES THIS DO??????
+		splitcontrol(pOT, 0.0); // unrestricted splitting allowed  WHAT DOES THIS DO??????
 		pOT->SetEpsilon(0,nDim -1);
-		if((iteration >= 4) && ((double) nNumberLFNs < (double)nOldNumberLFNs * 0.8))
-		{
-			fprintf(fpProtocol,"\nStopping noise estimation: the number %d of active linear pieces has shrunk too much \n", nNumberLFNs );
-			fflush(fpProtocol);
-			break;
-		}
-		nOldNumberLFNs = nNumberLFNs;
 		fflush(fpProtocol);
 	}
-	fprintf(fpProtocol,"\nOvertraining of an ALN completed normally \n");
-	fprintf(fpProtocol, "Training RMSE = %f\n", dblTrainErr);
-	double dblTempFraction = pow((nDim + 1.0) / (nDim + 3.0), 0.5);
-	// We are not finished with OTTS and keep it for the noise level determination.
-	// In future versions of the program we will create also OTVS and use all samples to determine noise,
-	// maybe even make a weight-bounded ALN to learn the noise
+	fprintf(fpProtocol,"\nOvertraining of an ALN completed. Training RMSE = %f \n",dblTrainErr);
+	// We are not finished with OTTS , we add OTVS and keep them for the noise level determination.
+	// In future versions of the program we will create a weight-bounded ALN to learn the noise and store it for future evaluations
+	// At present, there is no way to pass on the noise variance information
 }
 
 void ALNAPI approximate() // routine
@@ -356,7 +343,7 @@ void ALNAPI approximate() // routine
 	fflush(fpProtocol);
 	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
 	double dblNoiseVariance = 0;
-	createTS_VARfiles(2);  // 2 prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
+	createTR_VARfiles(2);  // 2 prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
 	dblNoiseVariance = computeGlobalNoiseVariance();
 	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to limit splitting\n", nalns);
 	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblNoiseVariance);
@@ -368,16 +355,38 @@ void ALNAPI approximate() // routine
 	{
 		fprintf(fpProtocol, "Jitter is not used during approximation\n");
 	}
-	if(bEstimateRMSError)
-	{
-		fprintf(fpProtocol, "Variance done during approximation \n");
-	}
-	else
-	{
-		fprintf(fpProtocol, "Variance is skipped during approximation \n");
-	}
-	dblFlimit = 5.39; // This can determine splitting for linear pieces that have at least 3 training and 3 noise variance hits
-	fprintf(fpProtocol, "The F-limit used for stopping splitting is %f \n", dblFlimit);
+	const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
+	int dofIndex;
+	dofIndex = nDim - 2; // the lowest possible nDim is 2 for one ALN input and one ALN output
+	if(nDim > 10) dofIndex = 8;
+	if(nDim > 20) dofIndex = 9;
+	if(nDim > 30) dofIndex = 10;
+	if(nDim > 40) dofIndex = 11;
+	if(nDim > 60) dofIndex = 12;
+
+	dblFlimit = adblFconstant[dofIndex]; // This can determine splitting for linear pieces that
+	dblFlimit = 1.4;  // temporary until we can compute the dof for the pieces
+	// have enough training samples and noise variance samples.
+	// other values for dblFlimit with other numbers of samples, i.e. degrees of freedom, are:
+	// n dblFlimit
+	// 2 9.00
+	// 3 5.39
+	// 4 4.11
+	// 5 3.45
+	// 6 3.05
+	// 7 2.78
+	// 8 2.59
+	// 9 2.44
+	// 10 2.32
+	// 20 1.79
+	// 30 1.61
+	// 40 1.51
+	// 60 1.40
+	// 120 1.26
+	// Note: pieces don't split if they have enough training hits to determine them, so choose n >= nDim = number of ALN inputs plus 1 for the output.
+  // REQUIRED IMPROVEMENT  We have to take into account the actual numbers of samples of TSfile and VARfile per linear piece of approximant.
+	// As training of the approximant progresses, the dof decreases and dblFlimit should increase, depending on the minimum of samples per piece
+	fprintf(fpProtocol, "nDim is %d and the F-limit used for stopping splitting is %f \n", nDim, dblFlimit);
 
 	// ***************** SET UP THE ARRAY OF POINTERS TO ALNS FOR TRAINING ONLY *************************
 	if(bTrain)

@@ -78,7 +78,7 @@ void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
 	// divide the training errors of the pieces by the hit counts, set counts to zero
 	dodivideTR(pALN,pALN->GetTree());
 	// get the values in VARfile which estimate the local noise variance
-	if(bEstimateRMSError)
+	if(bEstimateRMSError && (dblLimit < 1.0)) // if dblLimit is small then ve may be doing overtraining
 	{
 		// there is a variance set
 		spliterrorsetVAR(pALN);
@@ -138,7 +138,7 @@ void dodivideTR(CMyAln* pALN, ALNNODE* pNode) // routine
   else
   {
     ASSERT(NODE_ISLFN(pNode));
-		if (LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
+		if (!LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
 		{
 			if ((pNode->DATA.LFN.pSplit)->nCount > nDim)  // the piece is overdetermined (if points are distict) 
 			{
@@ -171,7 +171,7 @@ void dodivideVAR(CMyAln* pALN, ALNNODE* pNode) // routine
   else
   {
     ASSERT(NODE_ISLFN(pNode));
-		if (LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
+		if (!LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
 		{
 			if((pNode->DATA.LFN.pSplit)->nCount > nDim) // we need at more than nDim samples to do stats
 			{
@@ -204,21 +204,23 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		if(LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
+		if(!LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
 		{
 			dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TRfile
 			if (bEstimateRMSError)
 			{
-				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; // this is normally what decides on splitting in the case of variable noise variance
+				// if we are evaluating noise variance (which we always do in training until we store a noise variance ALN)
+				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; 
 			}
 			else
 			{
-				dblPieceNoiseVariance = adblEpsilon[nDim - 1]*adblEpsilon[nDim -1]; // This is used for linear regression and overtraining
+				dblPieceNoiseVariance = 1.0; // old value adblEpsilon[nDim - 1] * adblEpsilon[nDim - 1]; // This is used for linear regression and overtraining
 			}
 			if (dblSqErrorPieceTrain < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
 			{
 				// stop all future splitting of this leaf node (LFN)
 				LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
+				LFN_FLAGS(pNode) &= ~LF_INIT; // undo the initialization
 				bTrainingContinues = TRUE; // since this piece still not fitted well enough, training contiues
 			}
 		}
@@ -242,7 +244,7 @@ void spliterrorsetTR(CMyAln * pALN) // routine
 		desired = adblX[nDim - 1]; // get the desired result
 		adblX[nDim - 1] = 0; // not used in evaluation by QuickEval
 		predict = pALN->QuickEval(adblX, &pActiveLFN);
-		if (LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
+		if (!LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
 		{
 			se = (predict - desired) * (predict - desired);
 			(pActiveLFN->DATA.LFN.pSplit)->nCount++;
@@ -270,7 +272,7 @@ void spliterrorsetVAR(CMyAln * pALN) // routine
 			}
 			// pAln has to be the current approximant! Is this correct?
 			value = pALN->QuickEval(adblX, &pActiveLFN);  // this is the piece of the current approximant that the X-vector lies on.
-			if (LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
+			if (!LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
 			{
 				//se = (predict - desired) * (predict - desired);
 				// now correct for the dimension. the average variance of predict - desired is !+ 2/(nDim+2), so we have to divide se by this

@@ -1216,7 +1216,7 @@ void getTSfile()
 }
 */
 
-void ALNAPI createTS_VARfiles(int nChooseTR) // routine
+void ALNAPI createTR_VARfiles(int nChooseTR) // routine
 {
 	// For noise variance estimation, we have to split the TVfile into two about equal parts we call training set and complement
 

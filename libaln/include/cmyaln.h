@@ -45,13 +45,11 @@ class CMyAln : public CAln
 
   virtual BOOL OnEpochEnd(EPOCHINFO* pEpochInfo, void* pvData) 
   {
-    //cerr << "  Estimated RMSE: " << pEpochInfo->dblEstRMSErr <<
-    //  "\t" << pEpochInfo->nActiveLFNs << "/" << pEpochInfo->nLFNs <<endl;
 		if(pEpochInfo->nEpoch == (nNumberEpochs -1))
 		{
       nNumberLFNs = pEpochInfo->nActiveLFNs;
-		  fprintf(fpProtocol,"Active/Total LFNs %d/%d\n",
-			        pEpochInfo->nActiveLFNs,pEpochInfo->nLFNs);
+		  fprintf(fpProtocol,"Estimated RMSE %f Active/Total LFNs %d/%d\n", pEpochInfo->dblEstRMSErr,
+			        pEpochInfo->nActiveLFNs, pEpochInfo->nLFNs);
 			fflush(fpProtocol);
 		}
 	  return TRUE;

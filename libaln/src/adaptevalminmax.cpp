@@ -51,7 +51,7 @@ static char THIS_FILE[] = __FILE__;
 //  - sets the distance, active and goal surfaces, and eval flag
 // NOTE: cutoff always passed on stack!
 
-double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX,	CEvalCutoff cutoff, ALNNODE** ppActiveLFN)
+double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX, CEvalCutoff cutoff, ALNNODE** ppActiveLFN)
 {
 	ASSERT(NODE_ISMINMAX(pNode));
 
@@ -91,7 +91,7 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX,	CE
 	double dbl0 = AdaptEval(pChild0, pALN, adblX, cutoff, &pActiveLFN0);
 
 	// see if we can cutoff...
-	if(Cutoff(dbl0, pNode, cutoff, region.dbl4SE))
+	if (Cutoff(dbl0, pNode, cutoff, region.dbl4SE))
 	{
 		*ppActiveLFN = pActiveLFN0;
 		MINMAX_ACTIVE(pNode) = pChild0;
@@ -108,10 +108,10 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX,	CE
 	{
 		// calc active child, active child response, and distance
 		int nActive = CalcActiveChild(MINMAX_RESPACTIVE(pNode),
-		NODE_DISTANCE(pNode),
-		dbl0, dbl1, pNode,
-		region.dblSmoothEpsilon,
-		region.dbl4SE, region.dblOV16SE);
+			NODE_DISTANCE(pNode),
+			dbl0, dbl1, pNode,
+			region.dblSmoothEpsilon,
+			region.dbl4SE, region.dblOV16SE);
 
 		if (nActive == 0)
 		{

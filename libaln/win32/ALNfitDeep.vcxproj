@@ -77,7 +77,7 @@
     <TargetName>ALNfitDeepDebug</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
-    <OutDir>..\samples\ALNfitDeep\Release\</OutDir>
+    <OutDir>..\..\..\ALN2018tests</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeep</TargetName>

@@ -766,21 +766,20 @@ void CALNfitDeepView::OnButtonHelp()
 3. In the latter case, use the Previous and Next connection buttons to get to the original connection to the the desired output column and Remove that connection as an input. Also Remove columns which are constant or useless (e.g. sample numbers).\n\
 4. Click the start button, save the .fit file for later use on new data files and wait for output.  The files belonging to the same run have the same time prefix. Examine the ... TrainProtocol.txt file, noting the estimated RMS noise level for future use.\n\
 4. The ALN-estimated output is in the right-hand column in the ...E.txt output file, which extends the data file on the right.\n\
-5. The Scatterplot output file is like the E file, but is based on the test set. Use a spreadsheet to make a scatterplot of the two rightmost columns.\n\
+5. The Scatterplot output file is like the E file, but is for the test set. Use a spreadsheet to make a scatterplot of the two rightmost columns.\n\
 \n\
    Additional things to try:\n\
-A. The tolerance is the RMS error level below which a flat piece won't split into two. It is set to the estimated RMS noise level to control overtraining by limiting tree growth. Use the Processing options dialog to set it.\n\
+A. The tolerance (options dialog) used to be the constant RMS error level below which a flat piece won't split into two. It is now not used since the noise variance need not be constant. It is determined with the help of overtraining.\n\
 B. You can maybe improve results on new data sets by averaging over more ALNs (bagging up to 10).\n\
 C. You can use an earlier setup by opening a .fit file (menu Open). Then choose a data file from the same source. Click Start to evaluate the new file using the previous training.\n\
-D. If you want to classify samples into two classes (with IDs 0 and 1 as output), skip noise estimation in the Options dialog, accepting the tolerance value shown.\n\
+D. This program is not optimized for classification, which is done by regression with integer outputs. If you try it, it may work.\n\
 E. If the data samples are a time series, you can select appropriate columns and lags for multiple time series analysis.\n\
 F. If you don't know which connections are useful for computing a certain output, remove some connections with the lowest importance values after training. \n\
-G. If the ideal function to be learned must be monotonic in some input variable(s), move to that connection and enter the constraint which is shown by a slash or backslash.\
-More generally, enter a known bound on the rate of change of the ideal function with respect to any input variable (connection) as a weight (i.e. partial derivative) constraint.\n\
-H. From a set of samples (rows of the data file), a percentage specified in Processing options will be removed and half of the rest will be used for determining the noise level)\
-If you don't have enough samples, set 0% for test, estimate the RMS noise in the data in a run, then do another run with that level set. In a third run, test on all your samples. (The RMS error rate is overly optimistic)\n\
+G. If theory says the function to be learned must be monotonic in some input variable(s), move to that connection and enter the constraint which is shown by a slash or backslash.\
+More generally, enter a known bound on the rate of change with respect to any input variable (connection) as a weight (i.e. partial derivative) constraint.\n\
+H. From the set of samples (rows of the data file), a percentage specified in Processing options will be removed for testing.  All of the rest will be used for determining the noise level and training.\n\
 I. If there are missing values in some column of the the data, represent them by 99999 or -9999 and train on some columns without missing values to replace them by ALN-computed values in the R output file. (Options dialog check Replace) Browse to the R file as the data file to replace missing values another column.\n\
-J. Smoothing allows fewer flat pieces to be used to fit a function to a given accuracy.  It allows analysis of the learned function.  Specify the option of zero smoothing to greatly increase speed and allow DEEP LEARNING with an ALN of many layers.\n\
+J. Smoothing with quadratic fillets allows fewer flat pieces to be used to fit a function to a given accuracy. This program uses the option of zero smoothing to greatly increase speed and allow DEEP LEARNING with an ALN of many layers.\n\
 K. To check linear regression and stats using ALNfitDeep, look at the How to .. spreadsheet in the libaln\\samples\\realestate folder.");
 }
 
@@ -881,12 +880,12 @@ some limitations, into more classes  *****\n");
 			fflush(fpProtocol);
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createTS_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVflie
+			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVflie
 			fflush(fpProtocol);
 			pALN = pOTTS;
       overtrain(pOTTS);
 			fflush(fpProtocol);
-			createTS_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
+			createTR_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
 			fflush(fpProtocol);
 			pALN = pOTVS;
 			overtrain(pOTVS);
@@ -895,7 +894,7 @@ some limitations, into more classes  *****\n");
  		fflush(fpProtocol);
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-		createTS_VARfiles(2);
+		createTR_VARfiles(2);
 		computeGlobalNoiseVariance(); // this sets up the files for training with noise variance control of stopping
     approximate();
     PassBackStatus(7,75);   

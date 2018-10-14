@@ -34,18 +34,11 @@ void dodivideVAR(CMyAln*, ALNNODE*); // divides the sum of noise variance sample
 // thread procedures
 UINT TakeActionProc(LPVOID pParam);  // separate thread
 
-
 //global variables used only internally
-
 extern CMyAln** apALN;       // an array of pointers to ALNs
-//extern CMyAln** apValALN;    // an array of pointers to ALNs to be used on the variance set
-//extern static CMyAln* pAvgALN;      // an ALN representing the bagged average
 extern BOOL bTrainingAverage;// Switch to tell fillvector whether get a training vector or compute an average
 extern int nNumberEpochs;
 extern int nNumberLFNs;  // used to control the epoch size, which should be proportional to this
-//extern static char szVarName[100][3];
-//int nColsUniv = 0;
-//long nRowsUniv = 0;
 extern int nColsAuxVariance;
 extern int nColsAuxTest;
 extern long nRowsTR; // size of training file
@@ -62,18 +55,16 @@ extern double* adblMaxVar;          // Array of maxima of the variables
 extern double* adblStdevVar;        // Standard deviations of the variables
 extern double  dblTrainErr;         // Set in cmyaln.h at the end of training
 extern double  dblLinRegErr;        // The error of linear regression for use in upper-bounding output tolerance
-extern int* anInclude;
-
+extern double* adblLRW; // stores an ALN weight approximation from linear regression
+extern double* adblLRC; // ditto for centroids
+extern int* anInclude; // an array of 0 and 1 for dividing the TVfile into two parts in different ways.  The value is 1 for samples going into the training set.
 
 // Files used only internally
 extern FILE *fpData;                 // The data file which contains all data.
 extern FILE *fpProtocol;             // the file to record the results of the experiment. Rename to save.
-//FILE *fpOutput = NULL;             // the output data file resulting from evaluation (now in ALNfit.cpp)
 extern FILE *fpReplacement;
 extern CDataFile UNfile;             // copy of the data file, but with missing values replaced by special number
-extern CDataFile PreprocessedDataFile;             // The preprocessed file created from the Universal file
-extern CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
-extern CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
+extern CDataFile PreprocessedDataFile; // The preprocessed file created from the Universal file
+extern CDataFile TVfile;             // The file used for training approximants.  It is split in two to determine noise variance
+extern CDataFile TRfile;             // Training file.  This file is set up separately for each ALN training. Contains all TVfile for approximation and bagging
 
-extern double* adblLRW; // stores an ALN weight approximation from linear regression
-extern double* adblLRC; // ditto for centroids
