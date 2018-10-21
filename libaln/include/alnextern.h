@@ -28,8 +28,8 @@
 // functions used externally
 void ALNAPI ALNfitSetup();  // sets up automatic noise measurement, bagging and evaluation
 int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint);	// Analyzes the given input data file 
-void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
-void ALNAPI createTVTSfiles();	// The PreprocessedDataFile is used to create the TVfile (for training only) and TSfiles
+//void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
+//void ALNAPI createTVTSfiles();	// The PreprocessedDataFile is used to create the TVfile (for training only) and TSfiles
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
@@ -63,20 +63,11 @@ extern double dblEvalRMSError;
 extern int nEvalMisclassifications;
 extern double dblEvalMisclassificationPercent;
 extern void fillvector(double *, CMyAln*); // inputs a training data vector, which can be obtained by averaging several ALNs in bagging
-	// this callback routine allows users to get reports of results during training
 extern CDataFile AuxALNinputFile;
-extern CDataFile NumericalTestFile;  // This CDataFile is used in preprocessing
-extern long nRowsNumericalTestFile;
-extern int nColsNumericalTestFile;
 extern CDataFile TSfile; // the test file with data that have not been used in training
-extern long nRowsTSfile;
+extern long nRowsTS;
 extern CDataFile VARfile;  // initially holds about half of the TVfile, the part not being used in training, and later contains noise variance samples
 extern long  nRowsVAR;
-extern CDataFile NumericalValFile; // this and next two rows inserted as test
-extern long nRowsNumericalValFile;
-extern int nColsNumericalValFile;
-
-
 extern double dblSetTolerance; // This used to be for setting the noise variance level when it was constant.  Now it is not used.
 extern BOOL bEstimateRMSError; // if TRUE we use overtraining to estimate RMS error which splits the TVfile into two parts - training and noise variance sets
 extern double  dblVarianceErr;    // Set equal to the rmse in the variance step

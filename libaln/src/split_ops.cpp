@@ -47,6 +47,7 @@ static char THIS_FILE[] = __FILE__;
 
 extern double dblMax;
 extern double* adblEpsilon;
+extern double dblFlimit;
 extern int nDim;
 extern double dblSetTolerance;
 extern long nRowsTR;
@@ -78,9 +79,9 @@ void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
 	// divide the training errors of the pieces by the hit counts, set counts to zero
 	dodivideTR(pALN,pALN->GetTree());
 	// get the values in VARfile which estimate the local noise variance
-	if(bEstimateRMSError && (dblLimit < 1.0)) // if dblLimit is small then ve may be doing overtraining
+	if(bEstimateRMSError && (dblLimit > 1.0)) // dblLimit is set to 0 for overtraining
 	{
-		// there is a variance set
+		// there is a set of noise variance samples
 		spliterrorsetVAR(pALN);
 		// divide the sum of local noise estimates on each piece by its count of hits
 		dodivideVAR(pALN,pALN->GetTree());
@@ -192,7 +193,8 @@ void dodivideVAR(CMyAln* pALN, ALNNODE* pNode) // routine
 void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 {
 	// this routine visits all the leaf nodes and determines whether the
-	// training error is below a certain limit related to noise variance
+	// training error is below dblLimit times the noise variance
+	// During linear regression and during overtraining the dblLimit is less than 1.0 which causes lots of splitting
 	double dblSqErrorPieceTrain;
 	double dblPieceNoiseVariance;
 	ASSERT(pNode);
@@ -204,8 +206,8 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		if(!LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
-		{
+		//if(LFN_ISINIT(pNode)) // do this if it hasn't stopped training
+		//{
 			dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TRfile
 			if (bEstimateRMSError)
 			{
@@ -220,10 +222,10 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 			{
 				// stop all future splitting of this leaf node (LFN)
 				LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
-				LFN_FLAGS(pNode) &= ~LF_INIT; // undo the initialization
-				bTrainingContinues = TRUE; // since this piece still not fitted well enough, training contiues
+				//LFN_FLAGS(pNode) &= ~LF_INIT; // undo the initialization
+				//bTrainingContinues = FALSE; // since this piece fitted well enough, training of it stops
 			}
-		}
+		//}
 	}
 }
 

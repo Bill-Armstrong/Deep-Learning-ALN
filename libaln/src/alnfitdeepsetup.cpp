@@ -218,12 +218,10 @@ static char THIS_FILE[] = __FILE__;
 #include "alnintern.h"
 
 
-int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
-
 #define ALNAPI __stdcall
 // functions used externally
 void ALNAPI ALNfitSetup();
-int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given file 
+int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given input data file 
 void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
 void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to create TV (training only) and TS files, which are written out..
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
@@ -236,11 +234,11 @@ void ALNAPI reportFunctions();      // reports on the trained function ALNs with
 void ALNAPI evaluate();			       // Evaluate an existing DTREE on the data file after preprocessing
 void ALNAPI cleanup();
 void ALNAPI outputtrainingresults();
-//void ALNAPI validate(CMyAln * pALN);// Used to compute the error of the ALN on samples not used in training
 void fillvector(double *, CMyAln*); // Used to input a data vector under program control
-void ALNAPI overtrain(CMyAln * pOT);            // Does a fit using a single ALN and splitcontrol
-void ALNAPI trainaverage();
+void ALNAPI overtrain(CMyAln * pOT);            // Does a fit using a single ALN and generous splitting
+void ALNAPI trainaverage(); 
 void ALNAPI constructDTREE(int);
+
 // global variables used externally
 BOOL bClassify = FALSE;      // This is TRUE if the user chose a classification problem, and FALSE for regression
 BOOL bRegress = TRUE;        // This is FALSE iff the TV file outputs are all 0's and 1's
@@ -289,7 +287,6 @@ CDataFile OutputData;         // The result of evaluation with a column added fo
 
 
 //FILE *fpOutput = NULL;             // the output data file resulting from evaluation
-CDataFile AuxALNinputFile;
 double dblSetTolerance;
 
 // from alnintern.h
@@ -345,15 +342,14 @@ FILE *fpReplacement;
 CDataFile UNfile;             // copy of the data file, but with missing values replaced by special number
 CDataFile PreprocessedDataFile;             // The preprocessed file created from the Universal file
 CDataFile NumericalTestFile;  // These CDataFiles are for preprocessing the test and variance files
-long nRowsNumericalTestFile;
 int nColsNumericalTestFile;
 CDataFile TSfile;
-long nRowsTSfile;
+long nRowsTS;
 CDataFile NumericalValFile;
 long nRowsNumericalValFile;
 int nColsNumericalValFile;
-CDataFile VARfile;
-CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTSfile rows.
+CDataFile VARfile;            // used to hold samples not used in training, then converted to noise variance samples
+CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTS rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
 int* anInclude; // this creates an array that persists between calls to create TR and Variance files.
 extern CMyAln * pOTTS; // needed for temporary calculation of noise variance
@@ -409,11 +405,11 @@ void ALNAPI ALNfitSetup() // routine
 	}
 	if(bTrain)
 	{
-		fprintf(fpProtocol,"A DTREE is to be created using the data file\n");
+		fprintf(fpProtocol,"A DTREE is to be created by training using the data file\n");
 	}
 	else
 	{
-		fprintf(fpProtocol,"An existing DTREE will be used on the data file\n");
+		fprintf(fpProtocol,"An existing DTREE will be used to evaluate the data file\n");
 	}
 
 	// ************** ANALYZE THE INPUT DATA FILE ***********************
@@ -422,13 +418,7 @@ void ALNAPI ALNfitSetup() // routine
 	nheaderlines = 0;
   nrows = 0;
   ncols = 0;
-  //int * pnheaderlines;
-  //long * pnrows;
-  //int * pncols;
-  //pnheaderlines = &nheaderlines;
-  //pnrows = &nrows;
-  //pncols = &ncols;
-	if(!analyzeinputfile(szDataFileName, &nheaderlines, &nrows, &ncols,TRUE))
+ 	if(!analyzeinputfile(szDataFileName, &nheaderlines, &nrows, &ncols,TRUE))
 	{
     fprintf(fpProtocol,"Input file analysis failed\n");
     fflush(fpProtocol);
@@ -446,7 +436,9 @@ void ALNAPI ALNfitSetup() // routine
   fprintf(fpProtocol,"The number of columns in the data file is %d\n", nColsUniv); 
   fprintf(fpProtocol,"The number of header rows in the data file is %d\n", nHeaderLinesUniv); 
   fprintf(fpProtocol,"The number of data rows in the data file is %d\n", nRowsUniv); 
-
+	/* At this point, we have the number of  rows and columns in the UNfile, and
+	the number of headerlines in the data file that have to be eliminated or used
+	as column names. n*/
 
 	// ***************** SET UP THE FILES *************************
 	// create the necessary files: UNfile PreprocessedDataFile, TVfile, TSfile
@@ -459,388 +451,393 @@ void ALNAPI ALNfitSetup() // routine
 			UNfile.SetAt(nrow,k,0,0);
 		}
 	}
-	// initialize the extra column to 99999
+	// initialize the extra column to 0
 	for(int nrow = 0; nrow < nRowsUniv; nrow++)
   {
 	  UNfile.SetAt(nrow,nColsUniv,0,0);
   }
 	fprintf(fpProtocol,"Starting to preprocess the data file\n");
 	preprocUniversalFile();
-	if(bTrain)fprintf(fpProtocol,"Creating the training/variance file\n");
+	if(bTrain)fprintf(fpProtocol,"Creating the TVfile to be partitioned into TSfile for training \n\
+		and VARfile for noise variance samples. We also create the test file in cases where there are zero lags,\
+		but creating the test file by random choice in other cases is nonsense.\n");
 	fprintf(fpProtocol,"Creating the test file\n");
 	createTVTSfiles();
 }
 
 int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * prows, int * pcols, BOOL bPrint) // routine
+// input: szDataFileName file, outputs: number of header lines, variable names, number of data rows and columns
+// this routine accepts files with up to 101 columns
 {
-	// this routine accepts files with up to 101 columns
-  long linecount = 0;
-	int  ncount = 0, itemcount = 0, nheaderlines = 0 , ncols = 0;
-  char item[101][128]; // for reading in string items
-	float fitem[101];
-  for(itemcount = 0; itemcount <101; itemcount++)
-  {
-    fitem[itemcount] = 0;
-  }
-  
-	//alnextern.h: static char hdrline[10][2000]; // max line length = 2000 bytes including null terminator
+	long linecount = 0;
+	int  ncount = 0, itemcount = 0, nheaderlines = 0, ncols = 0;
+	char item[101][128]; // for reading in string items (e.g. up t0 101 variable names)
+	float fitem[101];    // for reading in data lines containing floats
+	for (itemcount = 0; itemcount < 101; itemcount++)
+	{
+		fitem[itemcount] = 0; // zero the array for floats in datalines
+	}
+	//alnextern.h: static char hdrline[10][2000]; 
+	// max line length in data file is 2000 bytes including null terminator
 	ifstream ifs(szDataFileName);
 	if (ifs)
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Opening data file %s for analysis succeeded!\n", szDataFileName);
-    if(bPrint)fflush(fpFileSetupProtocol);
-  }
-  else
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Stopping. Opening data file %s for analysis failed!\n", szDataFileName);
-	  if(bPrint)fflush(fpFileSetupProtocol);
-    exit(0);
-  }
+	{
+		if (bPrint)fprintf(fpFileSetupProtocol, "Opening data file %s for analysis succeeded!\n", szDataFileName);
+		if (bPrint)fflush(fpFileSetupProtocol);
+	}
+	else
+	{
+		if (bPrint)fprintf(fpFileSetupProtocol, "Stopping. Opening data file %s for analysis failed!\n", szDataFileName);
+		if (bPrint)fflush(fpFileSetupProtocol);
+		exit(0);
+	}
 	ncount = 2000; // maximum input line length
 	nheaderlines = 0; // current header line number
 	linecount = 0; // current data row number, which finally indicates the number of data rows
 	itemcount = 0; // current item in the row
 	ncols = 0;
-  BOOL bStillHeader = TRUE; // we allow empty lines while still in the header, so we need this flag
-
-  // one line of this array is used as a buffer
-  while(ifs.getline(hdrline[nheaderlines], ncount,'\n') && (ncount > 0))// readline
+	BOOL bStillHeader = TRUE; // we allow empty lines while still in the header, so we need this flag
+	// a line of the hdrline array is used as a buffer (it can store up to 10 lines)
+	while (ifs.getline(hdrline[nheaderlines], ncount, '\n') && (ncount > 0)) // read one line
 	{
-    // comments in input files can be indicated by // at the start of the line
-    // comment lines are ignored except when output is generated from the input file
-    if((hdrline[nheaderlines][0] == '/')&&(hdrline[nheaderlines][1] == '/')) continue;
-    // we allow empty lines in the header area, not in the data rows
-		if(!bStillHeader && hdrline[nheaderlines][0] == '\0') break; // if getline reads an empty line in the data part, the while is terminated
-    // the above are either comments or blank data lines
-    linecount++; // assume it's a data line, but be prepared to reverse this decision and make it a header line
-		itemcount = 0; 
-    if(bStillHeader && (hdrline[nheaderlines][0] == '\0'))
-    {
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is empty\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line is assumed to be a header line. Analysis continues.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      nheaderlineitems[nheaderlines]=0;
-      nheaderlines ++;
+		// comments in input files can be indicated by // at the start of the line
+		// comment lines are ignored except when output is generated from the input file
+		if ((hdrline[nheaderlines][0] == '/') && (hdrline[nheaderlines][1] == '/')) continue;
+		// we allow empty lines in the header area, not in the data rows
+		if (!bStillHeader && hdrline[nheaderlines][0] == '\0') break; // if getline reads an empty line in the data part, the while is terminated
+		// the above are either comments or blank data lines
+		linecount++; // assume it's a data line, but be prepared to reverse this decision and make it a header line
+		itemcount = 0;
+		if (bStillHeader && (hdrline[nheaderlines][0] == '\0'))
+		{
+			if (bPrint)fprintf(fpFileSetupProtocol, "The line read from the file is empty\n");
+			if (bPrint)fprintf(fpFileSetupProtocol, "The line is assumed to be a header line. Analysis continues.\n");
+			if (bPrint)fflush(fpFileSetupProtocol);
+			nheaderlineitems[nheaderlines] = 0;
+			nheaderlines++;
 			linecount--;  // reverse the above increment
-      bDecimal = TRUE;
-      bComma = TRUE;
-      continue;
-    }
-    // at this point, we know the line is neither a comment, nor empty
-    // look at the periods, commas and numbers 0-9 in the line 
-    int charcount = 0;
-    while(hdrline[nheaderlines][charcount] != '\0') // process up to the null terminator
-    {
-      if((hdrline[nheaderlines][charcount] != ' ') && (hdrline[nheaderlines][charcount] != '\t'))
-      {
-        if(hdrline[nheaderlines][charcount] == '.') 
-        {
-          bComma = FALSE; // this can't be a number line with commas
-        }
-        else if(hdrline[nheaderlines][charcount] == ',')
-        {
-          bDecimal = FALSE; // this can't be a number line with decimal points
-        }
-        else if((hdrline[nheaderlines][charcount] < '0' || hdrline[nheaderlines][charcount] > '9')&&
-          (hdrline[nheaderlines][charcount] != '-') && (hdrline[nheaderlines][charcount] != 'E')
-          && (hdrline[nheaderlines][charcount] != 'e'))
-        {
-          // in this case, the line does not consist of numbers only
-          // numbers like 1,234,567.89 and 1.234.567,89 are not allowed in data input
-          // and this is treated like a header line
-          bComma = FALSE;
-          bDecimal = FALSE;
-        }
-      }
-      charcount++;
-    }
-    if(bComma == FALSE && bDecimal == FALSE)
+			bDecimal = TRUE;
+			bComma = TRUE;
+			continue;
+		}
+		// at this point, we know the line is neither a comment, nor empty
+		// look at the periods, commas and numbers 0-9 in the line 
+		int charcount = 0;
+		while (hdrline[nheaderlines][charcount] != '\0') // process up to the null terminator
 		{
-      // this is a header line
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is: \n %s \n" , hdrline[nheaderlines]);
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line is assumed to be a header line. Analysis continues.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      itemcount = sscanf(hdrline[nheaderlines],"%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-			item+0, item+1, item+2,item+3, item+4,	item+5, item+6, item+7, item+8, item+9,
-			item+10, item+11, item+12,item+13, item+14,	item+15, item+16, item+17, item+18, item+19,
-			item+20, item+21, item+22,item+23, item+24,	item+25, item+26, item+27, item+28, item+29,
-			item+30, item+31, item+32,item+33, item+34,	item+35, item+36, item+37, item+38, item+39,
-			item+40, item+41, item+42,item+43, item+44,	item+45, item+46, item+47, item+48, item+49,
-			item+50, item+51, item+52,item+53, item+54,	item+55, item+56, item+57, item+58, item+59,
-			item+60, item+61, item+62,item+63, item+64,	item+65, item+66, item+67, item+68, item+69,
-			item+70, item+71, item+72,item+73, item+74,	item+75, item+76, item+77, item+78, item+79,
-			item+80, item+81, item+82,item+83, item+84,	item+85, item+86, item+87, item+88, item+89,
-			item+90, item+91, item+92,item+93, item+94,	item+95, item+96, item+97, item+98, item+99, item+100);
-		  if((itemcount == EOF)||(nheaderlines > 8))
-		  {
-        if(bPrint)fprintf(fpFileSetupProtocol,"Too many (>9) headerlines or EOF encountered reading the header line\n");
-        if(bPrint)fflush(fpFileSetupProtocol);
-        exit(0);
-      }
-      else
-      {
-        nheaderlineitems[nheaderlines] = itemcount;
-        if(bPrint)fprintf(fpFileSetupProtocol,"There were %d items read in the header line\n",itemcount);
-        if(bPrint)fflush(fpFileSetupProtocol);
-      }
-      nheaderlines ++;
+			if ((hdrline[nheaderlines][charcount] != ' ') && (hdrline[nheaderlines][charcount] != '\t'))
+			{
+				if (hdrline[nheaderlines][charcount] == '.')
+				{
+					bComma = FALSE; // this can't be a number line with commas
+				}
+				else if (hdrline[nheaderlines][charcount] == ',')
+				{
+					bDecimal = FALSE; // this can't be a number line with decimal points
+				}
+				else if ((hdrline[nheaderlines][charcount] < '0' || hdrline[nheaderlines][charcount] > '9') &&
+					(hdrline[nheaderlines][charcount] != '-') && (hdrline[nheaderlines][charcount] != 'E')
+					&& (hdrline[nheaderlines][charcount] != 'e'))
+				{
+					// in this case, the line does not consist of numbers only
+					// numbers like 1,234,567.89 and 1.234.567,89 are not allowed in data input
+					// and this is treated like a header line
+					bComma = FALSE;
+					bDecimal = FALSE;
+				}
+			}
+			charcount++;
+		}
+		if (bComma == FALSE && bDecimal == FALSE)
+		{
+			// this is a header line
+			if (bPrint)fprintf(fpFileSetupProtocol, "The line read from the file is: \n %s \n", hdrline[nheaderlines]);
+			if (bPrint)fprintf(fpFileSetupProtocol, "The line is assumed to be a header line. Analysis continues.\n");
+			if (bPrint)fflush(fpFileSetupProtocol);
+			itemcount = sscanf(hdrline[nheaderlines], "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+				item + 0, item + 1, item + 2, item + 3, item + 4, item + 5, item + 6, item + 7, item + 8, item + 9,
+				item + 10, item + 11, item + 12, item + 13, item + 14, item + 15, item + 16, item + 17, item + 18, item + 19,
+				item + 20, item + 21, item + 22, item + 23, item + 24, item + 25, item + 26, item + 27, item + 28, item + 29,
+				item + 30, item + 31, item + 32, item + 33, item + 34, item + 35, item + 36, item + 37, item + 38, item + 39,
+				item + 40, item + 41, item + 42, item + 43, item + 44, item + 45, item + 46, item + 47, item + 48, item + 49,
+				item + 50, item + 51, item + 52, item + 53, item + 54, item + 55, item + 56, item + 57, item + 58, item + 59,
+				item + 60, item + 61, item + 62, item + 63, item + 64, item + 65, item + 66, item + 67, item + 68, item + 69,
+				item + 70, item + 71, item + 72, item + 73, item + 74, item + 75, item + 76, item + 77, item + 78, item + 79,
+				item + 80, item + 81, item + 82, item + 83, item + 84, item + 85, item + 86, item + 87, item + 88, item + 89,
+				item + 90, item + 91, item + 92, item + 93, item + 94, item + 95, item + 96, item + 97, item + 98, item + 99, item + 100);
+			if ((itemcount == EOF) || (nheaderlines > 8))
+			{
+				if (bPrint)fprintf(fpFileSetupProtocol, "Too many (>9) headerlines or EOF encountered reading the header line\n");
+				if (bPrint)fflush(fpFileSetupProtocol);
+				exit(0);
+			}
+			else
+			{
+				nheaderlineitems[nheaderlines] = itemcount;
+				if (bPrint)fprintf(fpFileSetupProtocol, "There were %d items read in the header line\n", itemcount);
+				if (bPrint)fflush(fpFileSetupProtocol);
+			}
+			nheaderlines++;
 			linecount--;
-      bDecimal = TRUE;
-      bComma = TRUE;
-      continue;
+			bDecimal = TRUE;
+			bComma = TRUE;
+			continue;
 		}
-    // when we reach this point, we should have seen the last of the header lines
-    ASSERT(linecount >= 1);
-    bStillHeader = FALSE;
-    // hdrline[nheaderlines] is used as a buffer below
-    if(bDecimal == FALSE) // but bComma is still TRUE because it's not a header line
-    {
-      charcount = 0;
-      while(hdrline[nheaderlines][charcount] != '\0')
-      {
-        if(hdrline[nheaderlines][charcount] == ',')
-        {
-          hdrline[nheaderlines][charcount] = '.'; // convert the number to decimal points
-        }
-        charcount++;
-      }
-    }
-    // now read the numbers in the above line
-		itemcount = sscanf(hdrline[nheaderlines],"%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f",
-			fitem+0, fitem+1, fitem+2,fitem+3, fitem+4,	fitem+5, fitem+6, fitem+7, fitem+8, fitem+9,
-			fitem+10, fitem+11, fitem+12,fitem+13, fitem+14,	fitem+15, fitem+16, fitem+17, fitem+18, fitem+19,
-			fitem+20, fitem+21, fitem+22,fitem+23, fitem+24,	fitem+25, fitem+26, fitem+27, fitem+28, fitem+29,
-			fitem+30, fitem+31, fitem+32,fitem+33, fitem+34,	fitem+35, fitem+36, fitem+37, fitem+38, fitem+39,
-			fitem+40, fitem+41, fitem+42,fitem+43, fitem+44,	fitem+45, fitem+46, fitem+47, fitem+48, fitem+49,
-			fitem+50, fitem+51, fitem+52,fitem+53, fitem+54,	fitem+55, fitem+56, fitem+57, fitem+58, fitem+59,
-			fitem+60, fitem+61, fitem+62,fitem+63, fitem+64,	fitem+65, fitem+66, fitem+67, fitem+68, fitem+69,
-			fitem+70, fitem+71, fitem+72,fitem+73, fitem+74,	fitem+75, fitem+76, fitem+77, fitem+78, fitem+79,
-			fitem+80, fitem+81, fitem+82,fitem+83, fitem+84,	fitem+85, fitem+86, fitem+87, fitem+88, fitem+89,
-			fitem+90, fitem+91, fitem+92,fitem+93, fitem+94,	fitem+95, fitem+96, fitem+97, fitem+98, fitem+99, fitem+100);
+		// when we reach this point, we should have seen the last of the header lines
+		ASSERT(linecount >= 1);
+		bStillHeader = FALSE;
+		// hdrline[nheaderlines] is used as a buffer below
+		if (bDecimal == FALSE) // but bComma is still TRUE because it's not a header line
+		{
+			charcount = 0;
+			while (hdrline[nheaderlines][charcount] != '\0')
+			{
+				if (hdrline[nheaderlines][charcount] == ',')
+				{
+					hdrline[nheaderlines][charcount] = '.'; // convert the number to decimal points
+				}
+				charcount++;
+			}
+		}
+		// now read the numbers in the above line
+		itemcount = sscanf(hdrline[nheaderlines], "%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f",
+			fitem + 0, fitem + 1, fitem + 2, fitem + 3, fitem + 4, fitem + 5, fitem + 6, fitem + 7, fitem + 8, fitem + 9,
+			fitem + 10, fitem + 11, fitem + 12, fitem + 13, fitem + 14, fitem + 15, fitem + 16, fitem + 17, fitem + 18, fitem + 19,
+			fitem + 20, fitem + 21, fitem + 22, fitem + 23, fitem + 24, fitem + 25, fitem + 26, fitem + 27, fitem + 28, fitem + 29,
+			fitem + 30, fitem + 31, fitem + 32, fitem + 33, fitem + 34, fitem + 35, fitem + 36, fitem + 37, fitem + 38, fitem + 39,
+			fitem + 40, fitem + 41, fitem + 42, fitem + 43, fitem + 44, fitem + 45, fitem + 46, fitem + 47, fitem + 48, fitem + 49,
+			fitem + 50, fitem + 51, fitem + 52, fitem + 53, fitem + 54, fitem + 55, fitem + 56, fitem + 57, fitem + 58, fitem + 59,
+			fitem + 60, fitem + 61, fitem + 62, fitem + 63, fitem + 64, fitem + 65, fitem + 66, fitem + 67, fitem + 68, fitem + 69,
+			fitem + 70, fitem + 71, fitem + 72, fitem + 73, fitem + 74, fitem + 75, fitem + 76, fitem + 77, fitem + 78, fitem + 79,
+			fitem + 80, fitem + 81, fitem + 82, fitem + 83, fitem + 84, fitem + 85, fitem + 86, fitem + 87, fitem + 88, fitem + 89,
+			fitem + 90, fitem + 91, fitem + 92, fitem + 93, fitem + 94, fitem + 95, fitem + 96, fitem + 97, fitem + 98, fitem + 99, fitem + 100);
 
-    if(itemcount > 101)
-    {
-      if(bPrint)fprintf(fpFileSetupProtocol,"Error: too many input columns in this line.\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"Maximum is 100 ALN inputs (plus one more for the desired output) for this program.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      return 0;
-    }
-		if((itemcount == 1) && (linecount == 1))
+		if (itemcount > 101)
 		{
-      if(bPrint)fprintf(fpFileSetupProtocol,"The line read from the file is: \n %s \n" , hdrline[nheaderlines]);
-      if(bPrint)fprintf(fpFileSetupProtocol,"You have only one column, appropriate for a single time series.\n");
-      if(bPrint)fprintf(fpFileSetupProtocol,"You have to use delayed values taken from this column to train.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
+			if (bPrint)fprintf(fpFileSetupProtocol, "Error: too many input columns in this line.\n");
+			if (bPrint)fprintf(fpFileSetupProtocol, "Maximum is 100 ALN inputs (plus one more for the desired output) for this program.\n");
+			if (bPrint)fflush(fpFileSetupProtocol);
+			return 0;
 		}
-		if(linecount == 1)
+		if ((itemcount == 1) && (linecount == 1))
 		{
-			if(bPrint)fprintf(fpFileSetupProtocol,"First data line to help checking for correctness:\n%s\n",hdrline[nheaderlines]);
+			if (bPrint)fprintf(fpFileSetupProtocol, "The line read from the file is: \n %s \n", hdrline[nheaderlines]);
+			if (bPrint)fprintf(fpFileSetupProtocol, "You have only one column, appropriate for a single time series.\n");
+			if (bPrint)fprintf(fpFileSetupProtocol, "You have to use delayed values taken from this column to train.\n");
+			if (bPrint)fflush(fpFileSetupProtocol);
+		}
+		if (linecount == 1)
+		{
+			if (bPrint)fprintf(fpFileSetupProtocol, "First data line to help checking for correctness:\n%s\n", hdrline[nheaderlines]);
 			ncols = itemcount; // the number of columns is set in the first data line
-			if(bPrint)fprintf(fpFileSetupProtocol,"Count of items in first data line = %d\n", itemcount);
-      if(bPrint)fflush(fpFileSetupProtocol);
+			if (bPrint)fprintf(fpFileSetupProtocol, "Count of items in first data line = %d\n", itemcount);
+			if (bPrint)fflush(fpFileSetupProtocol);
 		}
 		else
 		{
-			if(itemcount != ncols)
+			if (itemcount != ncols)
 			{
-			if(bPrint)fprintf(fpFileSetupProtocol,"Inconsistent number of items in data line %d ", linecount);
-			if(bPrint)fprintf(fpFileSetupProtocol,"namely %d \n",itemcount);
-			if(bPrint)fprintf(fpFileSetupProtocol,"Please correct and make sure each input data file line \n");
-			if(bPrint)fprintf(fpFileSetupProtocol,"has the same number of items in it.\n");
-      if(bPrint)fflush(fpFileSetupProtocol);
-      return 0;
+				if (bPrint)fprintf(fpFileSetupProtocol, "Inconsistent number of items in data line %d ", linecount);
+				if (bPrint)fprintf(fpFileSetupProtocol, "namely %d \n", itemcount);
+				if (bPrint)fprintf(fpFileSetupProtocol, "Please correct and make sure each input data file line \n");
+				if (bPrint)fprintf(fpFileSetupProtocol, "has the same number of items in it.\n");
+				if (bPrint)fflush(fpFileSetupProtocol);
+				return 0;
 			}
 		}
 	}
-  if(bDecimal == FALSE && bComma == FALSE)
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol,"Stopping: It appears that both commas and decimal points are used in number lines");
-    if(bPrint)fflush(fpFileSetupProtocol);
-    exit(0);
-  }
+	if (bDecimal == FALSE && bComma == FALSE)
+	{
+		if (bPrint)fprintf(fpFileSetupProtocol, "Stopping: It appears that both commas and decimal points are used in number lines");
+		if (bPrint)fflush(fpFileSetupProtocol);
+		exit(0);
+	}
 	*pheaderlines = nheaderlines; // transmit to the caller
 	*prows = linecount;
 	*pcols = ncols;
-	if(bPrint)fflush(fpFileSetupProtocol);
+	if (bPrint)fflush(fpFileSetupProtocol);
 	return 1;
 }
 
-void ALNAPI preprocUniversalFile()  // routine
+void ALNAPI preprocUniversalFile()  // routine input: szDataFileName file output: UNfile
 {
-  if ((fpData=fopen(szDataFileName,"r")) != NULL)
-  {
-		fprintf(fpProtocol, "Opening file %s succeeded.\n",szDataFileName);
-  }
-  else
-  {
-    fprintf(fpProtocol, "Opening file %s failed. Stop.\n",szDataFileName);
-  }
-  // recode all the entries to a different array of doubles
-  // both original and recoded values for the row are declared here
-  char  Dummyline[2000];
-  float ALNvar = 0; // limited to 100 input variables plus one output variable
-  // copy the entire data file into UNfile EXCEPT the header
-  // NB datafiles can only hold doubles!
-  for(int i = 0; i < nHeaderLinesUniv; i++)
-  {
-    // ignore it if it is a comment line and get the next one
-    // we are not trying to accumulate headerlines here
-    fgets(Dummyline,2000,fpData);
-    while((Dummyline[0] == '/')&&(Dummyline[1] == '/')) fgets(Dummyline,2000,fpData);
-  }
-  // we have all the header lines, but there may be other comment lines
-  // those can be captured below
-  for(int i = 0; i < nRowsUniv; i++)
-  {
-    fgets(Dummyline,2000,fpData);
-    // ignore any comment lines
-    while((Dummyline[0] == '/')&&(Dummyline[1] == '/')) fgets(Dummyline,2000,fpData);
-    // when we get a non-comment line, we keep it, assuming it is data
-    // we convert the commas to decimal points if necessary so we can scan as a number
-    if(bDecimal == FALSE) // but bComma is still TRUE because it's not a header line
-    {
-      int charcount = 0;
-      while(Dummyline[charcount] != 0)
-      {
-        if(Dummyline[charcount] == ',')
-        {
-          Dummyline[charcount] = '.'; // change to decimal point
-        }
-        charcount++;
-      }
-    }
-    double item[101];
-    // get the names of variables from the last header line if one exists
-    int itemcount = sscanf(Dummyline,"%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-		item+0, item+1, item+2,item+3, item+4,	item+5, item+6, item+7, item+8, item+9,
-		item+10, item+11, item+12,item+13, item+14,	item+15, item+16, item+17, item+18, item+19,
-		item+20, item+21, item+22,item+23, item+24,	item+25, item+26, item+27, item+28, item+29,
-		item+30, item+31, item+32,item+33, item+34,	item+35, item+36, item+37, item+38, item+39,
-		item+40, item+41, item+42,item+43, item+44,	item+45, item+46, item+47, item+48, item+49,
-		item+50, item+51, item+52,item+53, item+54,	item+55, item+56, item+57, item+58, item+59,
-		item+60, item+61, item+62,item+63, item+64,	item+65, item+66, item+67, item+68, item+69,
-		item+70, item+71, item+72,item+73, item+74,	item+75, item+76, item+77, item+78, item+79,
-		item+80, item+81, item+82,item+83, item+84,	item+85, item+86, item+87, item+88, item+89,
-		item+90, item+91, item+92,item+93, item+94,	item+95, item+96, item+97, item+98, item+99, item+100);
-    ASSERT(itemcount == nColsUniv);
-    for(int ncoldata=0; ncoldata < nColsUniv;ncoldata++)
-		{
-      // the UNfile consists of all the data lines with header and comments removed
-			UNfile.SetAt(i,ncoldata,item[ncoldata],0);
-		}
-  }
-  if(bPrint && bDiagnostics) UNfile.Write("DiagnoseUNfile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseUNfile.txt written\n");
-  // now we create a file with ALN inputs as lines.
-  // this has to use several lines of the UNfile because of lags
-  // we have to compute the maximum lag
-  nMaxLag = 0;
-  for(int ninput=0; ninput < nALNinputs -1; ninput++) // the output column is 0 and won't be the max
-  {
-    if(nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
-  }
-	PreprocessedDataFile.Create(nRowsUniv,nALNinputs); // this file may contain some rows with missing values
-  // at the end in the reverse order encountered
-  // we first zero it out
-  for(int k = 0; k < nRowsUniv; k++)
-  {
-    for(int ninput=0; ninput<nALNinputs;ninput++)
-     {
-        PreprocessedDataFile.SetAt(k,ninput,0,0);
-    }
-  }
-  double dblValue = 0;
-  int k = 0; // this is the row in the file PreprocessedDataFile. If there are undefined items
-             // in row i of the UNfile, k might not advance in synch with i.
-  int back = nRowsUniv - 1;
-  for(int i= nMaxLag; i < nRowsUniv; i++)
-  {
-    BOOL bRowGood = TRUE;
-		for(int ninput=0; ninput< nALNinputs ;ninput++)
-		{			
-			// THIS IS WHERE THE TRAINING DATA ARE DEFINED
-      dblValue = UNfile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-      if(dblValue == 99999 || dblValue == -9999) bRowGood = FALSE;
-			PreprocessedDataFile.SetAt(k,ninput,dblValue,0);
-		}
-    if(bRowGood)
-    {
-      // moving on to the next row
-		  k++;
-    }
-    else
-    {
-      // erase the bad row in the PP file
-      // add the undefined row at the end of the PreprocessedDataFile going backwards
-		  for(int ninput=0; ninput< nALNinputs ;ninput++)
-		  {			
-			  PreprocessedDataFile.SetAt(k,ninput,0,0);
-        dblValue = UNfile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-        PreprocessedDataFile.SetAt(back,ninput,dblValue,0);
-		  }
-      back--;
-    }
-  }
-  ASSERT(back == k + nMaxLag -1); // k and back have both moved too far!
-  // between the good rows and the rows with undefined, there are nMaxLag rows of garbage
-	fprintf(fpProtocol,"PreprocessedDataFile created with %d rows\n",k);
-  // write it out
-  nRowsPP = k;
-  if(bPrint && bDiagnostics) PreprocessedDataFile.Write("DiagnosePreprocessedDataFile.txt");
-  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnosePreprocessedDataFile.txt written\n");
-  fclose(fpData);
-	if(bTrain)
+	if ((fpData = fopen(szDataFileName, "r")) != NULL)
 	{
-    fprintf(fpProtocol,"Warning: if the ideal function to be learned is complicated,\n");
-    fprintf(fpProtocol,"Or if there is a lot of noise in the data, there must be MANY times\n");
-	  fprintf(fpProtocol,"more rows in the data file as there are ALN inputs!\n");
-		nDim = nALNinputs; // nDim = nALNinputs for training since an output column must be present
-		nOutputIndex = nDim -1;
-
-		// allocate arrays in the free store
-		adblLRC = new double[nDim]; // C has all nDim centroids that match weights of index one greater except for the last
-		adblLRW = new double[nDim +1]; // W has the output component which is -1, and uses the 0 component to speed things up
-		if(!FALSE) nRowsTSfile = (int) (dblFracTest * nRowsPP); // use e.g 10% of data file for test
-		if(nRowsPP < 100)
-		{
-			fprintf(fpProtocol,"Stopping: There must be at least 100 rows in the data file\n");
-      exit(0);
-    }
-    if(!FALSE && ((nRowsPP - nRowsTSfile) <= nALNinputs))
-    {
-			fprintf(fpProtocol,"Stopping: There must be at least as many rows in the data file (after removing a given percentage for testing) as there are ALN inputs.\n");
-      exit(0);
-		}
-		if(!FALSE)
-    {
-      nRowsTV = nRowsPP - nRowsTSfile;
-    }
-    else
-    {
-      nRowsTV = nRowsPP;
-    }
+		fprintf(fpProtocol, "Opening file %s succeeded.\n", szDataFileName);
 	}
 	else
 	{
-		nRowsTSfile = nRowsPP;
+		fprintf(fpProtocol, "Opening file %s failed. Stop.\n", szDataFileName);
+	}
+	// recode all the entries to a different array of doubles
+	// both original and recoded values for the row are declared here
+	char  Dummyline[2000];
+	float ALNvar = 0; // limited to 100 input variables plus one output variable
+	// copy the entire data file into UNfile EXCEPT the header
+	// NB datafiles can only hold doubles!
+	for (int i = 0; i < nHeaderLinesUniv; i++)
+	{
+		// ignore it if it is a comment line and get the next one
+		// we are not trying to accumulate headerlines here, just get to the last non-comment header line
+		fgets(Dummyline, 2000, fpData);
+		while ((Dummyline[0] == '/') && (Dummyline[1] == '/')) fgets(Dummyline, 2000, fpData);
+	}
+	// we have all the header lines, but there may be other comment lines
+	// those can be captured below
+	for (int i = 0; i < nRowsUniv; i++)
+	{
+		fgets(Dummyline, 2000, fpData);
+		// ignore any comment lines
+		while ((Dummyline[0] == '/') && (Dummyline[1] == '/')) fgets(Dummyline, 2000, fpData);
+		// when we get a non-comment line, we keep it, assuming it is data
+		// we convert the commas to decimal points if necessary so we can scan as a number
+		if (bDecimal == FALSE) // but bComma is still TRUE because it's not a header line
+		{
+			int charcount = 0;
+			while (Dummyline[charcount] != 0)
+			{
+				if (Dummyline[charcount] == ',')
+				{
+					Dummyline[charcount] = '.'; // change to decimal point
+				}
+				charcount++;
+			}
+		}
+		double item[101];
+
+		int itemcount = sscanf(Dummyline, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+			item + 0, item + 1, item + 2, item + 3, item + 4, item + 5, item + 6, item + 7, item + 8, item + 9,
+			item + 10, item + 11, item + 12, item + 13, item + 14, item + 15, item + 16, item + 17, item + 18, item + 19,
+			item + 20, item + 21, item + 22, item + 23, item + 24, item + 25, item + 26, item + 27, item + 28, item + 29,
+			item + 30, item + 31, item + 32, item + 33, item + 34, item + 35, item + 36, item + 37, item + 38, item + 39,
+			item + 40, item + 41, item + 42, item + 43, item + 44, item + 45, item + 46, item + 47, item + 48, item + 49,
+			item + 50, item + 51, item + 52, item + 53, item + 54, item + 55, item + 56, item + 57, item + 58, item + 59,
+			item + 60, item + 61, item + 62, item + 63, item + 64, item + 65, item + 66, item + 67, item + 68, item + 69,
+			item + 70, item + 71, item + 72, item + 73, item + 74, item + 75, item + 76, item + 77, item + 78, item + 79,
+			item + 80, item + 81, item + 82, item + 83, item + 84, item + 85, item + 86, item + 87, item + 88, item + 89,
+			item + 90, item + 91, item + 92, item + 93, item + 94, item + 95, item + 96, item + 97, item + 98, item + 99, item + 100);
+		ASSERT(itemcount == nColsUniv);
+		for (int ncoldata = 0; ncoldata < nColsUniv; ncoldata++)
+		{
+			// the UNfile consists of all the data lines with header and comments removed
+			// it may still contain missing values 99999 -9999
+			UNfile.SetAt(i, ncoldata, item[ncoldata], 0);
+		}
+	}
+	if (bPrint && bDiagnostics) UNfile.Write("DiagnoseUNfile.txt");
+	if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseUNfile.txt written\n");
+	// now we create a file with ALN inputs as lines.
+	// this has to use several lines of the UNfile because of lags
+	// we have to compute the maximum lag
+	nMaxLag = 0;
+	for (int ninput = 0; ninput < nALNinputs - 1; ninput++) // the output column is 0 and won't be the max
+	{
+		if (nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
+	}
+	PreprocessedDataFile.Create(nRowsUniv, nALNinputs); // this file may contain some rows with missing values
+	// at the end in the reverse order encountered
+	// we first zero it out
+	for (int k = 0; k < nRowsUniv; k++)
+	{
+		for (int ninput = 0; ninput < nALNinputs; ninput++)
+		{
+			PreprocessedDataFile.SetAt(k, ninput, 0, 0);
+		}
+	}
+	double dblValue = 0;
+	int k = 0; // this is the row in the file PreprocessedDataFile. If there are undefined items
+						 // in row i of the UNfile, k might not advance in synch with i.
+	int back = nRowsUniv - 1;
+	for (int i = nMaxLag; i < nRowsUniv; i++)
+	{
+		BOOL bRowGood = TRUE;
+		for (int ninput = 0; ninput < nALNinputs; ninput++)
+		{
+			// THIS IS WHERE THE TRAINING DATA ARE DEFINED
+			dblValue = UNfile.GetAt(i - nLag[ninput], nInputCol[ninput]);
+			if (dblValue == 99999 || dblValue == -9999) bRowGood = FALSE;
+			PreprocessedDataFile.SetAt(k, ninput, dblValue, 0);
+		}
+		if (bRowGood)
+		{
+			// moving on to the next row
+			k++;
+		}
+		else
+		{
+			// case of missing values: erase the bad row in the PreprocessedDataFile,
+			// add the row with missing values at the end of the PreprocessedDataFile going backwards WHY??
+			for (int ninput = 0; ninput < nALNinputs; ninput++)
+			{
+				PreprocessedDataFile.SetAt(k, ninput, 0, 0); // erase the line just filled with some missing values
+				dblValue = UNfile.GetAt(i - nLag[ninput], nInputCol[ninput]);
+				PreprocessedDataFile.SetAt(back, ninput, dblValue, 0); // fill the last available line with the line just erased
+			}
+			back--;
+		}
+	}
+	ASSERT(back == k + nMaxLag - 1); // k and back have both moved too far!
+	// between the good rows and the rows with undefined, there are nMaxLag rows of garbage
+	fprintf(fpProtocol, "PreprocessedDataFile created with %d rows\n", k);
+	// write it out
+	nRowsPP = k; // this is the number of rows in the date with headers, comments, 
+	// commas in numbers and missing values removed 
+	if (bPrint && bDiagnostics) PreprocessedDataFile.Write("DiagnosePreprocessedDataFile.txt");
+	if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnosePreprocessedDataFile.txt written\n");
+	fclose(fpData);
+	if (bTrain)
+	{
+		fprintf(fpProtocol, "Warning: if the ideal function to be learned is complicated,\n");
+		fprintf(fpProtocol, "Or if there is a lot of noise in the data, there must be MANY times\n");
+		fprintf(fpProtocol, "more rows in the data file as there are ALN inputs!\n");
+		nDim = nALNinputs; // nDim = nALNinputs for training since an output column must be present
+		nOutputIndex = nDim - 1;
+
+		// allocate arrays in the free store
+		adblLRC = new double[nDim]; // C has all nDim centroids that match weights of index one greater except for the last
+		adblLRW = new double[nDim + 1]; // W has the output component which is -1, and uses the 0 component to speed things up
+		nRowsTS = (int)(dblFracTest * nRowsPP); // use e.g 10% of data file for test ??? have the rows with missing vals been removed?
+		if (nRowsPP < 100)
+		{
+			fprintf(fpProtocol, "Stopping: There must be at least 100 rows in the data file\n");
+			exit(0);
+		}
+		if ((nRowsPP - nRowsTS) <= nALNinputs)
+		{
+			fprintf(fpProtocol, "Stopping: There must be at least as many rows in the data file (after removing a given percentage for testing) as there are ALN inputs.\n");
+			exit(0);
+		}
+		if (!FALSE)
+		{
+			nRowsTV = nRowsPP - nRowsTS;
+		}
+		else
+		{
+			nRowsTV = nRowsPP;
+		}
+	}
+	else // we are evaluating the PreprocessedDataFile
+	{
+		nRowsTS = nRowsPP;
 		nRowsTV = 0;
 		// the number of ALNs doesn't matter for evaluation since only a DTREE
-    // is used for evaluation
+		// is used for evaluation
 	}
-	fprintf(fpProtocol,"The number of rows in the test set is %d\n", nRowsTSfile );
-	if(bTrain)
+	fprintf(fpProtocol, "The number of rows in the test set is %d\n", nRowsTS);
+	if (bTrain) // nRowsTV can't be zero here
 	{
-		fprintf(fpProtocol,"The number of ALNs to be averaged in bagging is %d\n", nALNs); 
-		fprintf(fpProtocol,"The dimension of the problem (inputs + one desired output) is %d\n", nDim);		
-		fprintf(fpProtocol,"The output variable is %s\n",varname[nInputCol[nOutputIndex]]);
+		fprintf(fpProtocol, "The number of ALNs to be averaged in bagging is %d\n", nALNs);
+		fprintf(fpProtocol, "The dimension of the problem (inputs + one desired output) is %d\n", nDim);
+		fprintf(fpProtocol, "The output variable is %s\n", varname[nInputCol[nOutputIndex]]);
 	}
 
-  // allocate space for the minima, maxima and standard deviations of the variables
-	adblMinVar = (double *)malloc(nALNinputs*sizeof(double));
-	adblMaxVar = (double *)malloc(nALNinputs*sizeof(double));
-	adblStdevVar = (double *)malloc(nALNinputs*sizeof(double));
+	// allocate space for the minima, maxima and standard deviations of the variables
+	adblMinVar = (double *)malloc(nALNinputs * sizeof(double));
+	adblMaxVar = (double *)malloc(nALNinputs * sizeof(double));
+	adblStdevVar = (double *)malloc(nALNinputs * sizeof(double));
 } // end preprocUniversalFile
 
+/*
 void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxiliary,long nAuxRows, int nAuxCols, CDataFile & AuxNumericalFile)  // routine
 {
 	// the AuxNumericalFile consists of all the data lines with header and comments removed
@@ -914,28 +911,30 @@ void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxi
 
 void ALNAPI MakeAuxALNinputFile(const CDataFile & AuxNumericalFile, CDataFile & AuxALNinputFile, long nAuxRows, long* adnRowsAuxALNinputFile) // routine
 {
-  // now we create a file with ALN inputs as lines.
-  // this has to use several lines of the UNfile because of lags
-  // we have to compute the maximum lag
+  // now we create a file AuxALNinputFile with all simultaneous ALN inputs in single rows to deal with time series.
+  // each row of this has to use several rows of the UNfile because of lags
+  // we have to compute the maximum lag, which will cut off some rows from the UNfile
+	// In addition, some rows of the 
+	// The result is that fillInputVector can look at just one row to get all input values for a training vector etc.
   nMaxLag = 0;
-  for(int ninput=0; ninput < nALNinputs -1; ninput++) // the output column is 0 and won't be the max
+  for(int ninput=0; ninput < nALNinputs -1; ninput++) // the output column has lag 0 and won't be the max
   {
     if(nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
   }
   // at the end in the reverse order encountered
   // we first zero it out
-  for(int k = 0; k < nAuxRows; k++)
+  for(int k = 0; k < nAuxRows; k++) // zeros all rows ofAuxALNinputFile
   {
-    for(int ninput=0; ninput<nALNinputs;ninput++)
+    for(int ninput=0; ninput < nALNinputs; ninput++)
     {
-        AuxALNinputFile.SetAt(k,ninput,0,0);
+        AuxALNinputFile.SetAt(k,ninput,0,0); 
     }
   }
   double dblValue = 0;
-  int k = 0; // this is the row in the file AuxALNinputFile. If there are undefined items
-             // in row i of the UNfile, k might not advance in synch with i.
-  int back = nAuxRows - 1;
-  for(int i= nMaxLag; i < nAuxRows; i++)
+  int k = 0; // this is the row in AuxALNinputFile. If there are undefined items
+             // in row i of the UNfile, our source for the data, k might not advance in synch with i.
+  int back = nAuxRows - 1; // this is the last row of the AuxALNinputFile.
+  for(int i= nMaxLag; i < nAuxRows; i++) // omit rows 0,... nMaxLag - 1 and go through the 
   {
     BOOL bRowGood = TRUE;
 		for(int ninput=0; ninput< nALNinputs ;ninput++)
@@ -958,7 +957,7 @@ void ALNAPI MakeAuxALNinputFile(const CDataFile & AuxNumericalFile, CDataFile & 
 		  {			
 			  AuxALNinputFile.SetAt(k,ninput,0,0);
         dblValue = AuxNumericalFile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-        AuxALNinputFile.SetAt(back,ninput,dblValue,0);
+        AuxALNinputFile.SetAt(back,ninput,dblValue,0); // Why this?
 		  }
       back--;
     }
@@ -968,76 +967,26 @@ void ALNAPI MakeAuxALNinputFile(const CDataFile & AuxNumericalFile, CDataFile & 
   // write it out
   *adnRowsAuxALNinputFile = k;
 }
+*/
 
 void ALNAPI createTVTSfiles()  // routine
 {
   // Taking the PreprocessedDataFile, this creates
-  // a file TSfile.txt with a test set
-  // and a file TVfile.txt a Training/noise_Variance set
+  // a test file TSfile of nRowsTS rows
+  // and a file TVfile, a Training/noise_Variance file
   // formed by the remaining rows.
-  // The number of samples in TSfile.txt
-  // nRowsTSfile is determined 
+  // The number of samples in TSfile
+  // nRowsTS is determined 
   // elsewhere either by a fraction of the
   // data set size (default 10%) or by the size of the
   // size of the test file returned by the Options dialog
-	long i = 0,k = 0;
-	int* anInTest = (int*) malloc(nRowsPP * sizeof(int));
-
-  // select random rows from the PreprocessedDataFile for the test set TSfile
-	// Training: choose from the PreprocessedDataFile randomly and without replacement nRowsTSfile rows
+	long i = 0, k = 0;
+	// Training: choose from the PreprocessedDataFile randomly and without replacement nRowsTS rows
 	// and put them into a file which is written to disk
-	// Evaluation: choose all of the PreprocessedDataFile to be the TSfile.
+	// Evaluation: of the PreprocessedDataFile is the TSfile.
 
   // First we set up the Test file in all cases
-  if(!FALSE)
-  {
-    if(bTrain && (nRowsPP < (nRowsTSfile * 2))) // check for enough data in PP file in case of training
-    {
-      fprintf(fpProtocol,"Not enough rows in the preprocessed file to make TV and TSfile!");
-      fprintf(fpProtocol,"The preprocessed data file with deletions due to undefined values has %d rows,\n and some must be reserved for testing.\n",nRowsPP); 
-    }
-    TSfile.Create(nRowsTSfile,nALNinputs);
-		if(bTrain)
-		{
-      // Set up the array that will track which ones are selected for TSfile
-      for(i = 0; i < 	nRowsPP; i++)
-      {
-	      anInTest[i] = 0;
-      }
-      for(i = 0; i < nRowsTSfile; i++)
-	    {
-
-			  while(TRUE)
-			  {
-					   k = (long)floor(ALNRandFloat()* (double) nRowsPP);
-
-
-				   if((k < nRowsPP) && (anInTest[k] == 0))
-				   {
-					   anInTest[k] = 1; // prevents replacement during selection
-					   for(int j = 0; j < nALNinputs; j++)
-					   {
-						   double dblVal;
-						   dblVal =PreprocessedDataFile.GetAt(k,j,0);
-						   TSfile.SetAt(i,j,dblVal,0);
-					   }
-					   break; // stop the while loop when we have found an ith row for TSfile
-				   }
-			  }
-		  }
-    }
-	  else // if evaluation is being done, the TSfile is all of the PP file
-    for(i = 0; i < 	nRowsPP; i++)
-		{
-			for(int j = 0; j < nALNinputs; j++)  // the output column may be left as zeros
-			{
-			 double dblVal;
-			 dblVal =PreprocessedDataFile.GetAt(i,j,0);
-			 TSfile.SetAt(i,j,dblVal,0);
-			}
-		}
-  }
-  // there is no else here, the separate test file is set up elsewhere
+  // there is no else here, the separate test file has been set up elsewhere
 	if(bPrint && bDiagnostics) TSfile.Write("DiagnoseTSfile.txt");
 	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTSfile.txt written\n");
 
@@ -1046,48 +995,75 @@ void ALNAPI createTVTSfiles()  // routine
 	// which is written to disk
 	if(bTrain) // TVfile is created only when training
 	{
-    if(FALSE)
-    {
-      // in this case, we can take all of the preprocessed data file for the TV file
-      TVfile.Create(nRowsPP,nALNinputs);
-      nRowsTV = nRowsPP;
+		if (nRowsTS == 0) // nothing goes into the TSfile
+		{
+			// in this case, we can take all of the preprocessed data file for the TV file
+			TVfile.Create(nRowsPP, nALNinputs);
+			nRowsTV = nRowsPP;
 			double dblVal;
-      for(i = 0; i < nRowsPP; i++)
-		  {
-				for(int j = 0; j < nALNinputs; j++)
+			for (i = 0; i < nRowsPP; i++)
+			{
+				for (int j = 0; j < nALNinputs; j++)
 				{
 
-					dblVal = PreprocessedDataFile.GetAt(i,j,0);
-					TVfile.SetAt(i,j,dblVal,0);
+					dblVal = PreprocessedDataFile.GetAt(i, j, 0);
+					TVfile.SetAt(i, j, dblVal, 0);
 				}
-      }
-		}    
-    else
-    {
-      // there is no separate test file, so we get the PPfile except what went to the test file
-      TVfile.Create(nRowsPP - nRowsTSfile,nALNinputs);
-      nRowsTV = nRowsPP - nRowsTSfile;
-		  k = 0;
-			double dblVal;
-		  for(i = 0; i < nRowsPP; i++)
-		  {
-			  if(anInTest[i] == 0)
-			  {
-				  for(int j = 0; j < nALNinputs; j++)
-				  {
-					  dblVal = PreprocessedDataFile.GetAt(i,j,0);
-					  TVfile.SetAt(k,j,dblVal,0);
-				  }
-				  k++;
-			  }
-		  }
-      ASSERT(nRowsTV == k);
+			}
 		}
-    // the TVfile is just the training set if a separate variance file is present
-	  if(bPrint && bDiagnostics) TVfile.Write("DiagnoseTVfile.txt");
-	  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTVfile.txt written with %d rows.\n", k);    
-	}
-  free(anInTest);
+		else // nRowsTS > 0
+		{
+			int* anInTest = (int*)malloc(nRowsPP * sizeof(int));
+			int nRandomRow;
+			for(int j = 0; j < nRowsPP; j++)
+			{
+				anInTest[j] = 1; // everything starts off in the TV file
+			}
+			for (k = 0; k < nRowsTS; k++)
+			{
+				do
+				{
+					nRandomRow = (long)floor(ALNRandFloat() * (double)nRowsPP);
+				} while (anInTest[nRandomRow] == 0); // keep doing this until you get a row that is still 1
+				ASSERT(anInTest[nRandomRow] == 1);
+				anInTest[nRandomRow] = 0; // then set that to 0
+			}
+			// anInTest now has nRowsTS 0 values and the rest 1's
+			// TVfile is all of the PPfile except what went to the TSfile
+			nRowsTV = nRowsPP - nRowsTS;
+			TVfile.Create(nRowsTV, nALNinputs);
+			TSfile.Create(nRowsTS, nALNinputs);
+			double dblVal;
+			long TVrows = 0;
+			long TSrows = 0;
+			for (i = 0; i < nRowsPP; i++)
+			{
+				if (anInTest[i] == 1)
+				{ // case anInTest[i] == 1 and the row goes into TVfile
+					for (int j = 0; j < nALNinputs; j++)
+					{
+						dblVal = PreprocessedDataFile.GetAt(i, j, 0);
+						TVfile.SetAt(TVrows, j, dblVal, 0);
+					}
+					TVrows++;
+				}
+				else
+				{ // case anInTest[i] == 0 and the row goes into TSfile
+					for (int j = 0; j < nALNinputs; j++)
+					{
+						dblVal = PreprocessedDataFile.GetAt(i, j, 0);
+						TSfile.SetAt(TSrows, j, dblVal, 0);
+					}
+					TSrows++;
+				}
+			} // end of writing TVfile and TSfile
+			ASSERT((TVrows == nRowsTV) && (TSrows == nRowsTS));
+		}
+    if(bPrint && bDiagnostics) TVfile.Write("DiagnoseTVfile.txt");
+	  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTVfile.txt written with %d rows.\n", k);
+
+	} // end if(bTrain)
+
 	fflush(fpProtocol);
 } // end of createTVTSfiles
 
@@ -1211,7 +1187,7 @@ void getTSfile()
   }
   ASSERT(!bTrain ||(TSfile.ColumnCount() == nDim) && ((TSfile.ColumnCount() == nDim)||(TSfile.ColumnCount() == nDim-1)));
 	fprintf(fpProtocol,"TSfile has %d rows.\n",TSfile.RowCount());
-  ASSERT(TSfile.RowCount() == nRowsTSfile);
+  ASSERT(TSfile.RowCount() == nRowsTS);
 	fflush(fpProtocol);
 }
 */
@@ -1263,6 +1239,7 @@ void ALNAPI createTR_VARfiles(int nChooseTR) // routine
 			}
 		}
 		nOffset = 0; // there is zero offset used to place samples of the complement of TRfile in VARfile
+		ASSERT(nRowsTR + nRowsVAR == nRowsTV);
 	}
 	if (nChooseTR == 1) // we move the data in VARfile into TRfile and move the original TRfile data, shifted by nRowsVAR into VARfile
 	{
@@ -1284,7 +1261,6 @@ void ALNAPI createTR_VARfiles(int nChooseTR) // routine
 	// the VARfile has now all the function value samples that are in the TVfile, but in a different order, to be processed by computeGlobalNoiseVariance()
 		nOffset = 0; // this is not used, but we still set it
 	}
-
 	long tempTR, tempVAR;
 	tempTR = tempVAR = 0;
 	double value_temp = 0;
@@ -1311,7 +1287,7 @@ void ALNAPI createTR_VARfiles(int nChooseTR) // routine
 			tempVAR++;
 		}
 	}
-	//ASSERT((nRowsTR + nRowsVAR) == nRowsTV);
+	ASSERT((tempTR + tempVAR) == nRowsTV);
 	nRowsTR = nRowsTV; // now we use the whole TVset for training
 	// we cheat and use now useless nOffset to temporarily hold nRowsVAR
 	nOffset = nRowsVAR;
@@ -1347,48 +1323,48 @@ void ALNAPI evaluate() // routine
 {
 	// loads the named DTREE file, determines nDim from it and accordingly
 	// sets up the Output data file
-  long lVersion;          /* DTREE library version */
-  DTREE* pDtree;          /* pointer to DTREE structure */
-  int nErrCode;           /* library function return value */
-  char szErrMsg[256];     /* error message */
-  double dblMax, dblMin;  /* temporaries to hold bounds */
-  double dblOutput;       /* result of Dtree evaluation */
-  int k;                  /* loop counters */
-	fprintf(fpProtocol,"\n*********** Opening the DTREE file ****************\n");
-  /* get dtree version */
-  lVersion = GetDtreeVersion();
-  printf("DTREE library v%d.%d\n", lVersion >> 16, lVersion & 0x0000FFFF);
-                        
-  // load the DTREE file from the earlier run of ALNfit
-	fprintf(fpProtocol,"Opening DTREE file %s\n",szDTREEFileName);
-  nErrCode = ReadDtree(szDTREEFileName, &pDtree);
+	long lVersion;          /* DTREE library version */
+	DTREE* pDtree;          /* pointer to DTREE structure */
+	int nErrCode;           /* library function return value */
+	char szErrMsg[256];     /* error message */
+	double dblMax, dblMin;  /* temporaries to hold bounds */
+	double dblOutput;       /* result of Dtree evaluation */
+	int k;                  /* loop counters */
+	fprintf(fpProtocol, "\n*********** Opening the DTREE file ****************\n");
+	/* get dtree version */
+	lVersion = GetDtreeVersion();
+	printf("DTREE library v%d.%d\n", lVersion >> 16, lVersion & 0x0000FFFF);
 
-  /* check error return */  
-  if (nErrCode == DTR_NOERROR)
-  {
-    fprintf(fpProtocol,"DTREE succesfully parsed!\n");
-  }
-  else
-  {
-    GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
-    fprintf(fpProtocol,"\nError (%d): %s\n", dtree_lineno, szErrMsg);
-    fflush(fpProtocol);
-    return;
-  }    
-  /* succesfully loaded DTREE */ 
-	
-  // now look at the data file
+	// load the DTREE file from the earlier run of ALNfit
+	fprintf(fpProtocol, "Opening DTREE file %s\n", szDTREEFileName);
+	nErrCode = ReadDtree(szDTREEFileName, &pDtree);
+
+	/* check error return */
+	if (nErrCode == DTR_NOERROR)
+	{
+		fprintf(fpProtocol, "DTREE succesfully parsed!\n");
+	}
+	else
+	{
+		GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
+		fprintf(fpProtocol, "\nError (%d): %s\n", dtree_lineno, szErrMsg);
+		fflush(fpProtocol);
+		return;
+	}
+	/* succesfully loaded DTREE */
+
+	// now look at the data file
 
 	int ncols = nALNinputs; // during evaluation this may be different from nDim
-	int nrows = nRowsTSfile;
-  /* compare the output variable index and nDim -- use ncols from analyzeinputfile*/
-	if((nALNinputs != pDtree->nOutputIndex+1) && (nALNinputs != pDtree->nOutputIndex))
+	int nrows = nRowsTS;
+	/* compare the output variable index and nDim -- use ncols from analyzeinputfile*/
+	if ((nALNinputs != pDtree->nOutputIndex + 1) && (nALNinputs != pDtree->nOutputIndex))
 	{
 		// the evaluation data file can't have a correct number of columns
-    fprintf(fpProtocol,"The number of columns in the data file, with or without outputs,\n");
-    fprintf(fpProtocol,"doesn't match the DTREE number of columns.\n");
-    fflush(fpProtocol);
-    sprintf(szResultMessage,"Data file has the wrong number of colums to be used with this DTREE");
+		fprintf(fpProtocol, "The number of columns in the data file, with or without outputs,\n");
+		fprintf(fpProtocol, "doesn't match the DTREE number of columns.\n");
+		fflush(fpProtocol);
+		sprintf(szResultMessage, "Data file has the wrong number of colums to be used with this DTREE");
 		return; // this case still has to be worked on
 	}
 	else
@@ -1397,345 +1373,345 @@ void ALNAPI evaluate() // routine
 		nDim = pDtree->nOutputIndex + 1;
 		nOutputIndex = nDim - 1;
 	}
-	fprintf(fpProtocol,"Dimension of the DTREE is %d \n", nDim);
-  // initialize the random number generator using the time
-	srand( (unsigned)time( NULL ) );
+	fprintf(fpProtocol, "Dimension of the DTREE is %d \n", nDim);
+	// initialize the random number generator using the time
+	srand((unsigned)time(NULL));
 	// generate one random vector to evaluate
 	// the output component is also random
 	// and will be replaced by the DTREE evaluation
-	for( k = 0; k < nDim - 1; k++)
+	for (k = 0; k < nDim - 1; k++)
 	{
-    /* get range of all input variables */
-    dblMax = pDtree->aVarDefs[k].bound.dblMax;
-    dblMin = pDtree->aVarDefs[k].bound.dblMin;
-    if(nLag[k] == 0)
-    {
-      fprintf(fpProtocol,"Variable %s dblMin = %f dblMax = %f \n",varname[nInputCol[k]],dblMin,dblMax);
-    }
-    else
-    {
-      fprintf(fpProtocol,"Variable %s@lag%d: dblMin = %f dblMax = %f \n",varname[nInputCol[k]], nLag[k],dblMin,dblMax);
-    }
-	}
-	if (OutputData.Create(nrows,nDim+1) != NULL)
-  {
-		fprintf(fpProtocol,"\n******** Testing the DTREE on the test set **********\n");
-		fprintf(fpProtocol,"Creating internal data file OutputData succeeded!\n");
-		fprintf(fpProtocol,"It has %d rows and %d columns.\n",nrows,nDim+1);
-  }
-  else
-  {
-		fprintf(fpProtocol,"Creating internal data file OutputData failed!\n");
-    fflush(fpProtocol);
-    exit(0);
-  }
-
-	
-	// copy the test file into the output data file
-	ASSERT((ncols == nDim)||(ncols == nDim-1));
-	double value;
-  for(int j = 0; j < nrows; j++)
-  {
-		for( k = 0; k < ncols; k++)
+		/* get range of all input variables */
+		dblMax = pDtree->aVarDefs[k].bound.dblMax;
+		dblMin = pDtree->aVarDefs[k].bound.dblMin;
+		if (nLag[k] == 0)
 		{
-			value = TSfile.GetAt(j,k,0);
-			OutputData.SetAt(j,k,value,0);
+			fprintf(fpProtocol, "Variable %s dblMin = %f dblMax = %f \n", varname[nInputCol[k]], dblMin, dblMax);
+		}
+		else
+		{
+			fprintf(fpProtocol, "Variable %s@lag%d: dblMin = %f dblMax = %f \n", varname[nInputCol[k]], nLag[k], dblMin, dblMax);
+		}
+	}
+	if (OutputData.Create(nrows, nDim + 1) != NULL)
+	{
+		fprintf(fpProtocol, "\n******** Testing the DTREE on the test set **********\n");
+		fprintf(fpProtocol, "Creating internal data file OutputData succeeded!\n");
+		fprintf(fpProtocol, "It has %d rows and %d columns.\n", nrows, nDim + 1);
+	}
+	else
+	{
+		fprintf(fpProtocol, "Creating internal data file OutputData failed!\n");
+		fflush(fpProtocol);
+		exit(0);
+	}
+
+
+	// copy the test file into the output data file
+	ASSERT((ncols == nDim) || (ncols == nDim - 1));
+	double value;
+	for (int j = 0; j < nrows; j++)
+	{
+		for (k = 0; k < ncols; k++)
+		{
+			value = TSfile.GetAt(j, k, 0);
+			OutputData.SetAt(j, k, value, 0);
 		}
 	}
 	int nCountMisclassifications = 0;
 	double dblSE = 0, dblMAE = 0, dblMAXE = 0; // three error accumulators  N.B. this local dblSE has nothing to do with the SmoothingEpsilon abbreviation used elsewhere. 
-	double * adblX = (double *) malloc((nDim) * sizeof(double));
-  for(int j = 0; j < nRowsTSfile; j++)
-  {
+	double * adblX = (double *)malloc((nDim) * sizeof(double));
+	for (int j = 0; j < nRowsTS; j++)
+	{
 		/* get DTREE evaluation (dblOutput) */
-		for( k = 0; k < nDim - 1; k++)
+		for (k = 0; k < nDim - 1; k++)
 		{
-				 /* get inputs*/
-			adblX[k] = TSfile.GetAt(j,k,0);
+			/* get inputs*/
+			adblX[k] = TSfile.GetAt(j, k, 0);
 		}
 		adblX[nDim - 1] = 0; // File value not used 
 		if ((nErrCode = EvalDtree(pDtree, adblX, &dblOutput, NULL)) != DTR_NOERROR)
 		{
-			 GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
-			 fprintf(fpProtocol,"\nError (%d): %s\n", dtree_lineno, szErrMsg);
+			GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
+			fprintf(fpProtocol, "\nError (%d): %s\n", dtree_lineno, szErrMsg);
 		}
-    // put the result into the output data file(round to integer if classification)
-    if(bClassify)
-    {
-      OutputData.SetAt(j,nDim,floor(dblOutput+0.5),0);
-    }
-    else
-    {
-      OutputData.SetAt(j,nDim,dblOutput,0);  
-    }
-    if(ncols < nDim) // we put zeros into the output data file in the column of missing outputs
+		// put the result into the output data file(round to integer if classification)
+		if (bClassify)
 		{
-			OutputData.SetAt(j,nDim - 1,0,0);
+			OutputData.SetAt(j, nDim, floor(dblOutput + 0.5), 0);
+		}
+		else
+		{
+			OutputData.SetAt(j, nDim, dblOutput, 0);
+		}
+		if (ncols < nDim) // we put zeros into the output data file in the column of missing outputs
+		{
+			OutputData.SetAt(j, nDim - 1, 0, 0);
 		}
 		else
 		{
 			// we compute the square error the absolute error and the maximum of the latter
 			double dblAbsErr;
-			dblAbsErr = fabs(dblOutput -TSfile.GetAt(j,nDim -1,0));
+			dblAbsErr = fabs(dblOutput - TSfile.GetAt(j, nDim - 1, 0));
 			dblMAE += dblAbsErr;
 			dblSE += dblAbsErr * dblAbsErr;
-			if(dblAbsErr > dblMAXE) dblMAXE = dblAbsErr;
+			if (dblAbsErr > dblMAXE) dblMAXE = dblAbsErr;
 		}
 
 		// if we have the correct outputs (even for classifications, we allow slight errors)
-		if(bClassify && ncols == nDim)
+		if (bClassify && ncols == nDim)
 		{
-			if(floor(dblOutput + 0.5) != floor(OutputData.GetAt(j,nDim - 1,0) + 0.5)) nCountMisclassifications++;
+			if (floor(dblOutput + 0.5) != floor(OutputData.GetAt(j, nDim - 1, 0) + 0.5)) nCountMisclassifications++;
 		}
-  }
-	fprintf(fpProtocol,"The following is based on a test set with %d samples\n",nRowsTSfile);
-	fprintf(fpProtocol,"Please be careful interpreting the results for small numbers of samples!\n");
-	if(bClassify && ncols == nDim)
+	}
+	fprintf(fpProtocol, "The following is based on a test set with %d samples\n", nRowsTS);
+	fprintf(fpProtocol, "Please be careful interpreting the results for small numbers of samples!\n");
+	if (bClassify && ncols == nDim)
 	{
-    fprintf(fpProtocol,"The number of misclassifications on the test set is %d\n",
+		fprintf(fpProtocol, "The number of misclassifications on the test set is %d\n",
 			nCountMisclassifications);
-    nEvalMisclassifications = nCountMisclassifications;
-    dblEvalMisclassificationPercent = 100.0*(double) nCountMisclassifications/(double)nRowsTSfile;
-    sprintf(szResultMessage,"Samples misclassified = %5.2f percent of test set",100.0*(double) nCountMisclassifications/(double)nRowsTSfile);
-    fprintf(fpProtocol,szResultMessage);
-    fprintf(fpProtocol,"\n");
+		nEvalMisclassifications = nCountMisclassifications;
+		dblEvalMisclassificationPercent = 100.0*(double)nCountMisclassifications / (double)nRowsTS;
+		sprintf(szResultMessage, "Samples misclassified = %5.2f percent of test set", 100.0*(double)nCountMisclassifications / (double)nRowsTS);
+		fprintf(fpProtocol, szResultMessage);
+		fprintf(fpProtocol, "\n");
 	}
 	else
 	{
-    dblEvalRMSError = sqrt(dblSE/(double)nRowsTSfile); // put into global value
-    sprintf(szResultMessage,"RMS deviation of DTREE output from desired\n(or from 0 if output column not present) is %f ",
-        dblEvalRMSError  );
-    fprintf(fpProtocol,szResultMessage);
-    fprintf(fpProtocol,"\n");
-		fprintf(fpProtocol,"Mean absolute deviation of DTREE output from desired is %f\n",
-			dblMAE/(double)nRowsTSfile);
-		fprintf(fpProtocol,"Maximum absolute deviation of DTREE output from desired is %f\n",dblMAXE);
+		dblEvalRMSError = sqrt(dblSE / (double)nRowsTS); // put into global value
+		sprintf(szResultMessage, "RMS deviation of DTREE output from desired\n(or from 0 if output column not present) is %f ",
+			dblEvalRMSError);
+		fprintf(fpProtocol, szResultMessage);
+		fprintf(fpProtocol, "\n");
+		fprintf(fpProtocol, "Mean absolute deviation of DTREE output from desired is %f\n",
+			dblMAE / (double)nRowsTS);
+		fprintf(fpProtocol, "Maximum absolute deviation of DTREE output from desired is %f\n", dblMAXE);
 	}
 	// write out the evaluation file
-  if ((fpOutput=fopen(szScatterFileName,"w")) != NULL)
-  {
-	  fprintf(fpProtocol,"\nPlease examine the output file named:\n   %s\n",szScatterFileName);
-	  fprintf(fpProtocol,"The rightmost column of the output file is the ALN prediction.\n");
-	  fflush(fpProtocol);
-  }
-  else
-  {
-    fprintf(fpProtocol, "Opening file %s failed. Stopping.\n",szScatterFileName);
-    exit(0);
-  }
-  // print out the header lines as they were read
-  if(nHeaderLinesUniv >0)
-  {
-    for(int linenum = 0; linenum < nHeaderLinesUniv; linenum++)
-    {
-      fprintf(fpOutput,"%s\n",hdrline[linenum]);
-    }
-  }
-  else // there are no header lines, just output the substitute variable names
-  {
-    fprintf(fpOutput,"Generated column headings\n");
-    for(int k = 0; k < nDim; k++)
-    {
-      fprintf(fpOutput,"%s",varname[k]);
-    }
-    fprintf(fpOutput,"\n");
-  }
-  fflush(fpOutput);
-  // now remember that the header shows the columns, but not the ALN inputs
-  // which are columns combined with lags!
-  fprintf(fpOutput,"The data file columns (and lags) used for ALN inputs and output are:\n");
-  for( k = 0; k < nDim ; k++)
+	if ((fpOutput = fopen(szScatterFileName, "w")) != NULL)
 	{
-    if(nLag[k] == 0)
-    {
-      fprintf(fpOutput,"%s\t",varname[nInputCol[k]]);
-    }
-    else
-    {
-      fprintf(fpOutput,"%s@lag%d\t",varname[nInputCol[k]], nLag[k]);
-    }
-  }
-  fprintf(fpOutput,"ALNfit\n");
-  fflush(fpOutput);
-  // print out the data lines from OutputData
+		fprintf(fpProtocol, "\nPlease examine the output file named:\n   %s\n", szScatterFileName);
+		fprintf(fpProtocol, "The rightmost column of the output file is the ALN prediction.\n");
+		fflush(fpProtocol);
+	}
+	else
+	{
+		fprintf(fpProtocol, "Opening file %s failed. Stopping.\n", szScatterFileName);
+		exit(0);
+	}
+	// print out the header lines as they were read
+	if (nHeaderLinesUniv > 0)
+	{
+		for (int linenum = 0; linenum < nHeaderLinesUniv; linenum++)
+		{
+			fprintf(fpOutput, "%s\n", hdrline[linenum]);
+		}
+	}
+	else // there are no header lines, just output the substitute variable names
+	{
+		fprintf(fpOutput, "Generated column headings\n");
+		for (int k = 0; k < nDim; k++)
+		{
+			fprintf(fpOutput, "%s", varname[k]);
+		}
+		fprintf(fpOutput, "\n");
+	}
+	fflush(fpOutput);
+	// now remember that the header shows the columns, but not the ALN inputs
+	// which are columns combined with lags!
+	fprintf(fpOutput, "The data file columns (and lags) used for ALN inputs and output are:\n");
+	for (k = 0; k < nDim; k++)
+	{
+		if (nLag[k] == 0)
+		{
+			fprintf(fpOutput, "%s\t", varname[nInputCol[k]]);
+		}
+		else
+		{
+			fprintf(fpOutput, "%s@lag%d\t", varname[nInputCol[k]], nLag[k]);
+		}
+	}
+	fprintf(fpOutput, "ALNfit\n");
+	fflush(fpOutput);
+	// print out the data lines from OutputData
 	double dblValue;
-  char szValue[32];
-  int charcount;
-  for( int linenum = 0; linenum < nRowsTSfile; linenum++)
-  {
-		for( k = 0; k < nDim + 1; k++)
+	char szValue[32];
+	int charcount;
+	for (int linenum = 0; linenum < nRowsTS; linenum++)
+	{
+		for (k = 0; k < nDim + 1; k++)
 		{
 
-			dblValue = OutputData.GetAt(linenum,k,0);
-      sprintf(szValue,"%f",dblValue);
-      charcount = 0;
-      if(!bDecimal)
-      {
-        while(szValue[charcount] != 0)
-        {
-          if(szValue[charcount] == '.') szValue[charcount] = ',';
-          charcount++;
-        }
-      }
-      fprintf(fpOutput,"%s",szValue);
-      if(k<nDim)
-      {
-        fprintf(fpOutput,"\t");
-      }
-      else
-      {
-        fprintf(fpOutput,"\n");
-      }
+			dblValue = OutputData.GetAt(linenum, k, 0);
+			sprintf(szValue, "%f", dblValue);
+			charcount = 0;
+			if (!bDecimal)
+			{
+				while (szValue[charcount] != 0)
+				{
+					if (szValue[charcount] == '.') szValue[charcount] = ',';
+					charcount++;
+				}
+			}
+			fprintf(fpOutput, "%s", szValue);
+			if (k < nDim)
+			{
+				fprintf(fpOutput, "\t");
+			}
+			else
+			{
+				fprintf(fpOutput, "\n");
+			}
 		}
-  }
-  fflush(fpOutput);
-  // Now we do the replacement of missing values in the data file
-  // if bReplaceUndefined is true.
-  // filename is the sames as the .dtr file with an R appended before .txt.
-  // We use the UNfile for this.  It has the whole data of the original data file
-  // except for the header lines, which we have stored in the aline array.
-  // The rule used for replacement appears at the top of the output. The
-  // rules used will be shown with the first used at the top.
-  // Blank lines and comments are suppressed in the data part of the file.
+	}
+	fflush(fpOutput);
+	// Now we do the replacement of missing values in the data file
+	// if bReplaceUndefined is true.
+	// filename is the sames as the .dtr file with an R appended before .txt.
+	// We use the UNfile for this.  It has the whole data of the original data file
+	// except for the header lines, which we have stored in the aline array.
+	// The rule used for replacement appears at the top of the output. The
+	// rules used will be shown with the first used at the top.
+	// Blank lines and comments are suppressed in the data part of the file.
 
-  //if(bReplaceUndefined) we always do this, even if creating an extra column
-  //{
-  int nMaxLag = 0;
-  for(int ninput=0; ninput < nALNinputs - 1; ninput++) // the output has lag 0 which doesn't affect the max
-  {
-    if(nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
-  }
-  for(int i= nMaxLag; i < nRowsUniv; i++)
-  {
-    BOOL bRowGood = TRUE; // this means the DTREE can be used to compute an output value and the value in the file is undefined
+	//if(bReplaceUndefined) we always do this, even if creating an extra column
+	//{
+	int nMaxLag = 0;
+	for (int ninput = 0; ninput < nALNinputs - 1; ninput++) // the output has lag 0 which doesn't affect the max
+	{
+		if (nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
+	}
+	for (int i = nMaxLag; i < nRowsUniv; i++)
+	{
+		BOOL bRowGood = TRUE; // this means the DTREE can be used to compute an output value and the value in the file is undefined
 		// see if the output value in the file is already defined
-		ASSERT(nLag[nALNinputs-1] == 0 ); // a non-zero lag on the output variable is not allowed
-    adblX[nALNinputs-1] = UNfile.GetAt(i,nInputCol[nALNinputs-1]);
+		ASSERT(nLag[nALNinputs - 1] == 0); // a non-zero lag on the output variable is not allowed
+		adblX[nALNinputs - 1] = UNfile.GetAt(i, nInputCol[nALNinputs - 1]);
 		// we don't want to generate the value using the DTREE if 
 		// we are replacing values in a copy of the input data file, and the value to be replaced is defined
 		// or if we can't compute a value because ther is an undefined input value
-    if(bReplaceUndefined &&(fabs(adblX[nALNinputs-1] - 99999) > 0.5) && (fabs(adblX[nALNinputs-1] + 9999) > 0.5))
+		if (bReplaceUndefined && (fabs(adblX[nALNinputs - 1] - 99999) > 0.5) && (fabs(adblX[nALNinputs - 1] + 9999) > 0.5))
 		{
-				bRowGood = FALSE; // the output is defined, so replacement is not needed
+			bRowGood = FALSE; // the output is defined, so replacement is not needed
 		}
 		else
 		{
 			// see if any input to the DTREE is undefined 
-			for(int ninput=0; ninput < nALNinputs -1 ;ninput++) 
+			for (int ninput = 0; ninput < nALNinputs - 1; ninput++)
 			{
-					adblX[ninput] = UNfile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-					if((fabs(adblX[ninput] - 99999) < 0.5) || (fabs(adblX[ninput] + 9999) < 0.5)) bRowGood = FALSE;
+				adblX[ninput] = UNfile.GetAt(i - nLag[ninput], nInputCol[ninput]);
+				if ((fabs(adblX[ninput] - 99999) < 0.5) || (fabs(adblX[ninput] + 9999) < 0.5)) bRowGood = FALSE;
 			}
 		}
-    if(bRowGood == TRUE)
-    {
-      // in this case we have the information necessary to compute a substitute for
-      // the missing output value
-      if ((nErrCode = EvalDtree(pDtree, adblX, &dblOutput, NULL)) != DTR_NOERROR)
-	    {
-		    GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
-		    fprintf(fpProtocol,"\nError (%d): %s\n", dtree_lineno, szErrMsg);
-	    }
-      else
-      {
-				// put the generated value in the right place
-        if(bReplaceUndefined)
-				{
-          UNfile.SetAt(i-nLag[nALNinputs-1],nInputCol[nALNinputs-1],dblOutput,0);
-				}
-				else
-				{
-				  UNfile.SetAt(i-nLag[nALNinputs-1],nColsUniv,dblOutput,0);
-				}
-      }
-    }
-  }
-  //UNfile.Write(szR_or_E_FileName); // changed to include header
-  if ((fpReplacement=fopen(szR_or_E_FileName,"w")) != NULL)
-  {
-    fprintf(fpProtocol,"\nPlease examine the R or E file named:\n   %s\n",szR_or_E_FileName);
-    fprintf(fpProtocol,"Where possible, missing data file output values have been computed.\n");
-    fprintf(fpProtocol,"The rule at the top shows the input variables and output column used.\n");
-    fprintf(fpProtocol,"Using this file as an input data file, you can do further replacements.\n");
-    fflush(fpProtocol);
-  }
-  else
-  {
-	  fprintf(fpProtocol, "Opening file %s failed. Stopping.\n",szR_or_E_FileName);
-    exit(0);
-  }
-  // copy all the existing rules at the top of the file in the old header
-  int nNewRuleNumber = 1;
-  for(int linenum = 0; linenum < nHeaderLinesUniv; linenum++)
-  {
-    if(hdrline[linenum][0] == 'R' &&
-       hdrline[linenum][1] == 'u' &&
-       hdrline[linenum][2] == 'l' &&
-       hdrline[linenum][3] == 'e')
-    {
-      fprintf(fpReplacement,"%s\n",hdrline[linenum]);
-      nNewRuleNumber = linenum + 2;
-    }
-  }
-	if(bReplaceUndefined)
-	{
-		// now we insert the new replacement rule in the next line:
-		fprintf(fpReplacement,"Rule %d: ",nNewRuleNumber );
-		for( k = 0; k < nALNinputs - 1 ; k++)
+		if (bRowGood == TRUE)
 		{
-			if(nLag[k] == 0)
+			// in this case we have the information necessary to compute a substitute for
+			// the missing output value
+			if ((nErrCode = EvalDtree(pDtree, adblX, &dblOutput, NULL)) != DTR_NOERROR)
 			{
-				fprintf(fpReplacement,"%s\t",varname[nInputCol[k]]);
+				GetDtreeError(nErrCode, szErrMsg, sizeof(szErrMsg));
+				fprintf(fpProtocol, "\nError (%d): %s\n", dtree_lineno, szErrMsg);
 			}
 			else
 			{
-				fprintf(fpReplacement,"%s@lag%d\t",varname[nInputCol[k]], nLag[k]);
+				// put the generated value in the right place
+				if (bReplaceUndefined)
+				{
+					UNfile.SetAt(i - nLag[nALNinputs - 1], nInputCol[nALNinputs - 1], dblOutput, 0);
+				}
+				else
+				{
+					UNfile.SetAt(i - nLag[nALNinputs - 1], nColsUniv, dblOutput, 0);
+				}
 			}
 		}
-		fprintf(fpReplacement," -> ");
-		fprintf(fpReplacement,"%s\n",varname[nInputCol[nALNinputs - 1]]);
+	}
+	//UNfile.Write(szR_or_E_FileName); // changed to include header
+	if ((fpReplacement = fopen(szR_or_E_FileName, "w")) != NULL)
+	{
+		fprintf(fpProtocol, "\nPlease examine the R or E file named:\n   %s\n", szR_or_E_FileName);
+		fprintf(fpProtocol, "Where possible, missing data file output values have been computed.\n");
+		fprintf(fpProtocol, "The rule at the top shows the input variables and output column used.\n");
+		fprintf(fpProtocol, "Using this file as an input data file, you can do further replacements.\n");
+		fflush(fpProtocol);
 	}
 	else
 	{
-		fprintf(fpReplacement,"The rightmost column contains computed values for %s\n",varname[nInputCol[nALNinputs - 1]]);
+		fprintf(fpProtocol, "Opening file %s failed. Stopping.\n", szR_or_E_FileName);
+		exit(0);
 	}
-  // then we put in the non-rule lines of the old header
-  for(int linenum = nNewRuleNumber - 1; linenum < nHeaderLinesUniv; linenum++)
-  {
-    fprintf(fpReplacement,"%s\n",hdrline[linenum]);
-  }
-  // finally we output the data lines
+	// copy all the existing rules at the top of the file in the old header
+	int nNewRuleNumber = 1;
+	for (int linenum = 0; linenum < nHeaderLinesUniv; linenum++)
+	{
+		if (hdrline[linenum][0] == 'R' &&
+			hdrline[linenum][1] == 'u' &&
+			hdrline[linenum][2] == 'l' &&
+			hdrline[linenum][3] == 'e')
+		{
+			fprintf(fpReplacement, "%s\n", hdrline[linenum]);
+			nNewRuleNumber = linenum + 2;
+		}
+	}
+	if (bReplaceUndefined)
+	{
+		// now we insert the new replacement rule in the next line:
+		fprintf(fpReplacement, "Rule %d: ", nNewRuleNumber);
+		for (k = 0; k < nALNinputs - 1; k++)
+		{
+			if (nLag[k] == 0)
+			{
+				fprintf(fpReplacement, "%s\t", varname[nInputCol[k]]);
+			}
+			else
+			{
+				fprintf(fpReplacement, "%s@lag%d\t", varname[nInputCol[k]], nLag[k]);
+			}
+		}
+		fprintf(fpReplacement, " -> ");
+		fprintf(fpReplacement, "%s\n", varname[nInputCol[nALNinputs - 1]]);
+	}
+	else
+	{
+		fprintf(fpReplacement, "The rightmost column contains computed values for %s\n", varname[nInputCol[nALNinputs - 1]]);
+	}
+	// then we put in the non-rule lines of the old header
+	for (int linenum = nNewRuleNumber - 1; linenum < nHeaderLinesUniv; linenum++)
+	{
+		fprintf(fpReplacement, "%s\n", hdrline[linenum]);
+	}
+	// finally we output the data lines
 	// if this is not replacement, then we have to output an extra column from the UNfile
 	int nColsPrinted = nColsUniv;
-	if(!bReplaceUndefined) nColsPrinted++;
-  for(int i= 0; i < nRowsUniv; i++)
-  {
-    // this has to output commas if required
-		for(int j=0; j < nColsPrinted ;j++)
+	if (!bReplaceUndefined) nColsPrinted++;
+	for (int i = 0; i < nRowsUniv; i++)
+	{
+		// this has to output commas if required
+		for (int j = 0; j < nColsPrinted; j++)
 		{
-      dblValue = UNfile.GetAt(i,j);
-      sprintf(szValue,"%f",dblValue);
-      charcount = 0;
-      if(!bDecimal)
-      {
-        while(szValue[charcount] != 0)
-        {
-          if(szValue[charcount] == '.') szValue[charcount] = ',';
-          charcount++;
-        }
-      }
-      fprintf(fpReplacement,"%s",szValue);
-      if(j < nColsPrinted -1 )
-      {
-        fprintf(fpReplacement,"\t");
-      }
-      else
-      {
-        fprintf(fpReplacement,"\n");
-      }
-    }
-  }
-  fclose(fpReplacement);
+			dblValue = UNfile.GetAt(i, j);
+			sprintf(szValue, "%f", dblValue);
+			charcount = 0;
+			if (!bDecimal)
+			{
+				while (szValue[charcount] != 0)
+				{
+					if (szValue[charcount] == '.') szValue[charcount] = ',';
+					charcount++;
+				}
+			}
+			fprintf(fpReplacement, "%s", szValue);
+			if (j < nColsPrinted - 1)
+			{
+				fprintf(fpReplacement, "\t");
+			}
+			else
+			{
+				fprintf(fpReplacement, "\n");
+			}
+		}
+	}
+	fclose(fpReplacement);
 	// cleanup
 	DestroyDtree(pDtree);
 	free(adblX);

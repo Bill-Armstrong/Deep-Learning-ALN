@@ -66,34 +66,36 @@ ALNNODE* ALNAPI FindSplitLFN(ALN* pALN)
 inline 
 static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode)
 {
-  // Code reviewed by WWA March 10, 2015.  The definition of LFN_SPLIT_T has completely changed in the last few days.
-  // In order to split, the leaf must have at least certain number of hits during the epoch.
-  // The number depends on the learning rate, so splitting should occur about every
-	// 1/(learning rate) epochs. Since the error of a piece is not changed by a split
-	// because the two pieces are duplicated and adjusted for fillets, the error should decrease after a split.
-  // There have to be enough total adaptations ( taking account of responsibility) so we have more than
-	// dimension of the domain the problem plus 1 different points.
-	// 
-	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > pALN->nDim + 1)
-		&& (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim + 1 ))  // more experimentation would be good
+  // In order to split, the leaf must have at least certain number of adaptation hits during the epoch
+	// such that the training error of the piece is made almost as small as possible without splitting.
+  // That number of hits depends on the learning rate, so the earliest splitting should occur is about every
+	// 1/(learning rate) epochs. The error remains the same after a split,
+	// because the two pieces are duplicated and adjusted for fillets. After the slightest change,
+	// the error should be divided between the two pieces resulting from the split
+	// The total training error should then decrease after a split.
+	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > pALN->nDim)	&& (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim ))
   {
-    ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, pALN->nOutput);
-		ASSERT(pConstr->dblSqEpsilon == pConstr->dblEpsilon * pConstr->dblEpsilon);
-		// Now, if the square error is sufficiently large, the leaf is split (in splitlfn.cpp.
-		// Review Sept 30 2018  This is where the noise variance estimate should enter instead of the dblEpsilon.
-		if(LFN_SPLIT_SQERR(pNode) > LFN_SPLIT_RESPTOTAL(pNode)* pConstr->dblSqEpsilon) 
-		{
-			// LFN_SPLIT_T measures how much the ALN surface(smoothed)is currently above the data points far from the centroid.
-			// Its units are output units. If LFN_SPLIT_T is positive, the split results in a MIN node, otherwise a MAX.
-			// If the criterion LFN_SPLIT_T is below the level of noise, it is set to zero
-			// which will signal splitlfn.cpp to choose the same type, MAX or MIN, 
-			// as the parent node (if the present node is not the root).
-			if(fabs(LFN_SPLIT_T(pNode)) < pConstr->dblEpsilon ) LFN_SPLIT_T(pNode) = 0; 
-			return TRUE;
-		}
-	} 
-  return FALSE;
+		return TRUE;
+	}
+	return FALSE;
 }
+
+// The following is probably of no use.  It was removed above
+//ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, pALN->nOutput);
+//ASSERT(pConstr->dblSqEpsilon == pConstr->dblEpsilon * pConstr->dblEpsilon);
+// Now, if the square error is sufficiently large, the leaf is split (in splitlfn.cpp.
+// Review Sept 30 2018  This is where the noise variance estimate should enter instead of the dblEpsilon.
+//if(LFN_SPLIT_SQERR(pNode) > LFN_SPLIT_RESPTOTAL(pNode)* pConstr->dblSqEpsilon) 
+//{
+// LFN_SPLIT_T measures how much the ALN surface(smoothed)is currently above the data points far from the centroid.
+// Its units are output units. If LFN_SPLIT_T is positive, the split results in a MIN node, otherwise a MAX.
+// If the criterion LFN_SPLIT_T is below the level of noise, it is set to zero
+// which will signal splitlfn.cpp to choose the same type, MAX or MIN, 
+// as the parent node (if the present node is not the root).
+//if(fabs(LFN_SPLIT_T(pNode)) < pConstr->dblEpsilon ) LFN_SPLIT_T(pNode) = 0; Forget this
+//return TRUE;
+//}
+
 
 static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode,
                                   ALNNODE*& pSplitLFN)

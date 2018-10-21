@@ -45,14 +45,14 @@ COptionsDialog::COptionsDialog(CWnd* pParent /*=NULL*/)
 {
 	//{{AFX_DATA_INIT(COptionsDialog)
 	m_nPercentForTest = 10;
-	m_nEstimateRMSError = 0;         // 0 means TRUE, compare half of remaining data with values from an overfitted ALN on the the other half
-	m_strSetTolerance = _T("0.1905255");
-	m_nZeroSmoothing = 0;           // 0 means TRUE, no smoothing is applied during approximation (it is never applied during least squares or noise level estimation)
-	m_nNoJitter = 0;                // 0 means TRUE, i.e we don't add jitter
-	m_nDTREEDepth = 1;              // If greater than 1, parts of the input space are repeatedly split into two boxes to this depth, with ALNs on the blocks
-	m_bTimePrefixes = TRUE;
-	m_bReplaceUndefined = FALSE;
-	m_bDiagnostics = FALSE;
+	m_nEstimateRMSError = 0;          // 0 means TRUE, compare half of remaining data with values from an overfitted ALN on the the other half
+	m_strSetTolerance = _T("9999.9"); // this is not used now, but may be used eg for the probability in the F-test
+	m_nZeroSmoothing = 0;             // 0 means TRUE, no smoothing is applied during approximation (it is never applied during least squares or noise level estimation)
+	m_nNoJitter = 0;                  // 0 means TRUE, i.e we don't add jitter
+	m_nDTREEDepth = 1;                // If greater than 1, parts of the input space are repeatedly split into two boxes to this depth, with ALNs on the blocks
+	m_bTimePrefixes = TRUE;           // the time prefixed are prefixed to the output files, so all the files of a run stay together
+	m_bReplaceUndefined = FALSE;      // set to true if we have to replace undefined values
+	m_bDiagnostics = FALSE;           // if TRUE, diagnostics are printed
 	//}}AFX_DATA_INIT
 }
 

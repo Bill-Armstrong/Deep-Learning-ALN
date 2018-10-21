@@ -17,7 +17,6 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 // splitlfn.cpp
@@ -47,27 +46,21 @@ static char THIS_FILE[] = __FILE__;
 
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 {
-	if(fabs(LFN_SPLIT_T(pNode))> 0) // if this is true, the choice of max or min is clear
+	// since noise makes this decision uncertain, we only split if the piece doesn't fit within the noise limit
+	// and the direction of split will likely not be close
+	if (LFN_SPLIT_T(pNode) < 0) // This is TRUE if the ALN surface tends to be below the training values far from the centroid on the piece
 	{
-		if (LFN_SPLIT_T(pNode) <0) // This is TRUE if the ALN surface tends to be below the function values far from the centroid on the piece
-	  {
-			return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max tends to move the surface up far from the centroid.
-	  }
-		else
-		{
-			return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL);
-		}
+		return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max is concave up
 	}
-	else // the choice of max or min split is not clear, and we have set LFN_SPLIT_T to 0 in findsplitlfn.cpp
+	else
 	{
-		ALNNODE* pParent = NODE_PARENT(pNode);
-		if(pParent == NULL || MINMAX_ISMAX(pParent)) //this affine piece is the top node just choose MAX
-		{
-			return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL); 
-		}
-		else
-		{
-			return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL);
-		}
+		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is concave down
 	}
 }
+
+/* old stuff
+//if(fabs(LFN_SPLIT_T(pNode))> 0) // if this is true, the choice of max or min is clear
+else // the choice of max or min split is not clear, and we have set LFN_SPLIT_T to 0 in findsplitlfn.cpp
+ALNNODE* pParent = NODE_PARENT(pNode);
+if(pParent == NULL || MINMAX_ISMAX(pParent)) //this affine piece is the top node just choose MAX
+*/

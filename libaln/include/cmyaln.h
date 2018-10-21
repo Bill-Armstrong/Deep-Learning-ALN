@@ -14,9 +14,10 @@ extern int nNumberLFNs;
 
 
 
+
 class CMyAln;
 void fillvector(double *, CMyAln *);
-
+//void splitcontrol(CMyAln*, double); //BIG RISK
 class CMyAln : public CAln
 {
   // notification overrides

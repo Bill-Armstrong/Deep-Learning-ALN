@@ -44,29 +44,29 @@ static char THIS_FILE[] = __FILE__;
 #include <dtree.h>
 #include <datafile.h>
 #include <malloc.h>
-
-
-// include classes
 #include ".\cmyaln.h" 
-
-//#include "alnfit.h"
 #include "alnextern.h"
 #include "alnintern.h"
-
-
-CMyAln * pALN = NULL;
-static CMyAln* pAvgALN;      // an ALN representing the bagged average of several ALNs trained on the TVfile with different random numbers
-static CMyAln** apALN = NULL;       // an array of pointers to ALNs
-CMyAln * pOTTS;  // This ALN is overtrained on the original training set (OTTS) to help determine the noise level.
-CMyAln * pOTVS; // This ALN is overtrained on the complement (in the TVfile) of the original training set
+//routines
 void ALNAPI dolinearregression(); // this determines an upper bound on error
 void ALNAPI overtrain(CMyAln * pOT); // this overtrains OTTS and OTVS to obtain the noise variance, which can be used during approximation training later.
 void ALNAPI approximate(); // this actually does the training while avoiding overtraining using noise variance samples.
+void ALNAPI trainaverage(); // this takes several ALNs created in approximate() and creates an ALN of their average
+void ALNAPI constructDTREE(int nMaxDepth); // this takes the average ALN and turns it into a DTREE
+void ALNAPI cleanup(); // this destroys ALNs etc.
 void fillvector(double * adblX, CMyAln* paln); // this send a vector to training either from a file or, in some applications from online.
+// ALN pointers
+CMyAln * pALN = NULL; // declares a pointer to an ALN used in linear regression
+CMyAln * pOTTS;  // This ALN is overtrained on the original training set (OTTS) to help determine the noise level.
+CMyAln * pOTVS; // This ALN is overtrained on the complement (in the TVfile) of the original training set
+static CMyAln** apALN = NULL;       // an array of pointers to ALNs used in approximate()
+static CMyAln* pAvgALN;      // an ALN representing the bagged average of several ALNs trained on the TVfile with different random numbers
+
 double	dblMinRMSE = 0; // stops training when the training error is smaller than this
 double  dblLearnRate = 0.2; // the reciprocal of the learnrate tells how many passes through the data will be required to get close to a fit.
 int nNumberEpochs	= (int)floor(1.199 /dblLearnRate); // for example if the learnrate is 0.2, then one will need 5 passes roughtly to almost correct the errors
-// this says that splitting of a linear piece is prevented when the mean square training error
+
+																										 // this says that splitting of a linear piece is prevented when the mean square training error
 // on it becomes less than 2.59 times the average of noise variance samples on it. This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
 // For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops when the training error is larger than with a lower F-value.
 extern long nRowsTR; // the number of rows in the current training set loaded into TRfile
@@ -75,13 +75,14 @@ extern BOOL bTrainingContinues; // this boolean is set to true and becomes false
 double computeGlobalNoiseVariance(); // used at entry to the approximation step, this computes the average of all noise variance samples in VARfile.
 int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
 double dblFlimit;
+int nEpochSize; // the number of input vectors it takes to correct the errors of position of pieces before splitting
 
 void ALNAPI dolinearregression() // routine
 {
-  fprintf(fpProtocol,"\n****** Linear regression begins, we get an upper bound on error *****\n");
+  fprintf(fpProtocol,"\n****** Linear regression begins: we want an upper bound on error plus starting weights *****\n");
 	// begin linear regression on a single ALN -- this iterative algorithm is not a good method in general, but works here
-	// The reason for using it is that the linear regression problem for a piece is constantly changing because
-	// it and the pieces around it are moving and changing responsibilities for samples (as per the min/max nodes).
+	// The reason for using it for ALN approximation is that the linear regression problem for a piece is constantly changing because
+	// it and the pieces around it are moving and changing responsibilities for samples.
 	// Set up the ALN
 	pALN = new CMyAln;
 	if (!(pALN->Create(nDim, nDim-1))) // nDim is the number of inputs to the ALN plus one for the ALN output; the default output variable is nDim-1
@@ -120,39 +121,39 @@ void ALNAPI dolinearregression() // routine
     }
 	}
   createTR_VARfiles(0); // we pick as a training set about 50% of the TVfile
+	fprintf(fpProtocol, "TRfile and VARfile created, we start training\n");
+	fflush(fpProtocol);
   bTrainingAverage = FALSE;
-	double dblOldRmse = adblStdevVar[nDim - 1]; // this is a high initial value of error
- 	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: value doesn't matter since there are no MAX or MIN nodes, hence nothing to smooth
+ 	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: nothing to smooth
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
-	// Tell the training algorithm the way to access the data using fillvector
-  int nEpochSize = nRowsTR;
-	pALN->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	//********* dolinearregression
 	// Quickstart: get centroids and weights in neighborhood of good values
-	dblMinRMSE =  0; //don't stop early because of low training error
-	dblLearnRate = 0.2; // try to correct most of the error on the first few (5 for learning rate 0.2) passes
-  nNumberEpochs	= (int)floor(1.199 /dblLearnRate); // doing 5 epochs at a 0.2 learning rate
-	if(!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, then slower so the linear piece stabilizes
+	dblLearnRate = 0.2;  // fast change to start
+	int nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; // nEpochsize improves positions of pieces with no splitting
+	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
+	dblMinRMSE = 0; //don't stop early because of low training error
+	nNumberEpochs = 10; //
+	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 	{
-		 fprintf(fpProtocol,"Initial training to do linear regression failed!\n");
-	}	
-	//**********
-	dblLearnRate = 0.1;  //will be adjusted downwards after each iteration in the next loop ending at 0.025 for accuracy
-	nNumberEpochs	= (int)floor(1.99 /dblLearnRate); // linear regression -- no splitting
-	dblMinRMSE = 0;
-	nNumberLFNs = 1;  // this is always correct here
-	for(int iteration = 0; iteration < 3; iteration++)  // any number of iterations is enough; we'll try 3
-	{
-		// Call the training function
-		if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // linear regression
-		{
-			cerr << "Continuing training with lower learning rates for linear regression failed!" << endl;
-		}	
-    fflush(fpProtocol);
-		// we adopt a constantly decreasing learning rate to increase accuracy
-		dblLearnRate = 0.5 * dblLearnRate;
-		nNumberEpochs	= (int)floor(1.99 /dblLearnRate); // as we lower the dblLearnRate, the number of passes through the data increases
+		fprintf(fpProtocol,"Initial linear regression training failed!\n");
+		fflush(fpProtocol);
+		exit(0);
 	}
+	fprintf(fpProtocol, "Initial linear regression training succeeded!\n");
+	fflush(fpProtocol);
+	dblLearnRate = 0.1;  // a lower learning rate calls for a longer nEpochsize, we call this "polishing the ALN"
+	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; // nEpochsize improves positions of pieces with no splitting
+	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
+	dblMinRMSE = 0; //don't stop early because of low training error
+	nNumberEpochs = 10; //
+	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
+	{
+		fprintf(fpProtocol, "Polishing linear regression training failed!\n");
+		fflush(fpProtocol);
+		exit(0);
+	}
+	fprintf(fpProtocol, "Polishing linear regression training succeeded!\n");
+	fflush(fpProtocol);
   // we should now have a good linear regression fit
   // find the weights on the linear piece using an evaluation at the 0 vector (could be anything).
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
@@ -161,34 +162,40 @@ void ALNAPI dolinearregression() // routine
 	{
 		adblX[m] = 0;
 	}
-	double dummy = pALN->QuickEval(adblX, &pActiveLFN); // this just finds a pointer to the linear piece
+	double dummy = pALN->QuickEval(adblX, &pActiveLFN); // this finds a pointer to the linear piece
 	fprintf(fpProtocol,"Linear regression weights on ALN\n");
 	for (int m = 0; m < nDim-1; m++)
 	{
-    if(nLag[m] == 0)
+    if(nLag[m] == 0) // any data we are looking at can have nonzero lags
     {
 			// Note that adblW is stored in a different way, the weight on axis 0 is in adblW[1] etc.
-  		fprintf(fpProtocol,"Linear regression weight on %s is %f centroid is %f\n", varname[nInputCol[m]] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
+  		fprintf(fpProtocol,"Linear regression weight on %s is %f centroid is %f\n",\
+				varname[nInputCol[m]] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
 		}
     else
     {
-  		fprintf(fpProtocol,"Linear regression weight on ALN input %s@lag%d is %f centroid is %f\n", varname[nInputCol[m]], nLag[m] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
+  		fprintf(fpProtocol,"Linear regression weight on ALN input %s@lag%d is %f centroid is %f\n",\
+				varname[nInputCol[m]], nLag[m] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
     }
 		adblLRC[m] = ((pActiveLFN)->DATA.LFN.adblC)[m]; // centroid of linear piece for axis m
 		adblLRW[m+1] = ((pActiveLFN)->DATA.LFN.adblW)[m+1]; // linear regression weight for axis m
   }
-	fprintf(fpProtocol,"Value of the linear piece at the origin is %f; the value at the centroid is %f\n", ((pActiveLFN)->DATA.LFN.adblW)[0], ((pActiveLFN)->DATA.LFN.adblC)[nDim - 1] ); 
-
+	fprintf(fpProtocol,"Value of the linear piece at the origin is %f; the value at the centroid is %f\n",\
+		((pActiveLFN)->DATA.LFN.adblW)[0], ((pActiveLFN)->DATA.LFN.adblC)[nDim - 1] ); 
+	fflush(fpProtocol);
 	// now put the negative sum of weighted centroids into the 0 position
-	// compress the weighted centroid info into W[0], i.e. take the centroid out of  weight_m*(x_m-centroid_m) + etc. to have just one number in W[0]
+	// compress the weighted centroid info into W[0], i.e. take the centroid out of  weight_m*(x_m-centroid_m) + etc.\
+	 to have just one number in W[0]
 	adblLRW[0] = adblLRC[nDim -1] = ((pActiveLFN)->DATA.LFN.adblC)[nDim -1];
   for (int m = 0; m < nDim - 1; m++)
   {
     adblLRW[0] -= adblLRW[m+1] * adblLRC[m];
   }
 	adblLRW[nDim] = -1.0;  // the -1 weight on the ALN output may make a difference somewhere, so we set it here
-	// The idea of weight = -1 is that the hyperplane equation can be written like a*x + b*y -1*z=0 instead of z =  a*x + b*y as a function
-	// This representation is good if we want to invert the ALN, i.e. get x as a function of y and z. Just multiply the first equation by -1/a.
+	// The idea of weight = -1 is that the hyperplane equation can be written \
+	 a*x + b*y -1*z=0 like an equation instead of z =  a*x + b*y as a function
+	// This representation is good if we want to invert the ALN, i.e. get x as a function of y and z.\
+	 Just multiply the first equation by -1/a.
 
 	double desired, predict, se;
 	int nCount; 
@@ -269,13 +276,8 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n"
 					, dblLinRegErr, (pOT->GetRegion(0))->dblSmoothEpsilon);
-	// Tell the training algorithm the way to access the data using fillvector
-	int nEpochSize  = nRowsTR;
-	pOT->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	//********* initial weight and centroid components for overtraining
 	dblMinRMSE = dblLinRegErr / 1000.0; //we stop overtraining when reaching a low training error which is 1/1000 of the linear regression eror
-	dblLearnRate = 0.3; // try to correct all the error on first pass, one more pass to get better values
-	nNumberEpochs	= (int)floor(1.99 /dblLearnRate);  // doing just a few epochs at very high learning rate
 	// use the weights and centroids from linear regression
 	ALNNODE* pActiveLFN;
 	pActiveLFN = pOT->GetTree();
@@ -292,34 +294,36 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	dblFlimit = 0.001; // tiny value
 	splitcontrol(pOT, dblFlimit); // using a tiny value is what we do for unrestricted splitting  Oct 14, 2018
  	nNumberLFNs = 1;  // starts at 1 and should grow quickly
-	for(int iteration = 0; iteration <40; iteration++)  // assume 20 to speed up
+	dblLearnRate = 0.3; // try to correct all the error on first pass, one more pass to get better values
+	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; // splitting occurs after an epoch of this size, but not for linear regression
+	pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
+	for(int iteration = 0; iteration <20; iteration++)  // assume 20 to speed up
 	{
-    if(iteration == 10)
+
+    if(iteration == 3)
     {
       dblLearnRate = 0.2;
-			nNumberEpochs = (int)floor(1.99 / dblLearnRate);
+			nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR;
+			pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 			(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used when estimating noise!
 			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
     }
-    if(iteration == 38)// getting near the end of noise estimation, slowing down learning //was 46
+    if(iteration == 19)// getting near the end of noise estimation, slowing down learning //was 46
     {
       dblLearnRate = 0.1;
-			nNumberEpochs	= (int)floor(1.99 /dblLearnRate);
-			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
-    }
-		if(iteration == 39)// the last epoch is for stabilizing 
-    {
-      dblLearnRate = 0.05;
-			nNumberEpochs	= (int)floor(1.99 /dblLearnRate);
+			nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR;
+			pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
     }
 		bTrainingContinues = TRUE;
 		// Jitter should never be used for overfitting, so we set this to false, but leave a TRUE value for approximation
 		// call the training function
-		if(!pOT->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // onealnfit
+		nNumberEpochs = 10;  // doing just a few epochs at very high learning rate
+		if(!pOT->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // overtraining
 		{
 		  fprintf(fpProtocol,"Overtraining failed!\n");
 		}
+		//splitcontrol(pOT, 0.0);
 		//fprintf(fpProtocol, "Iteration %d of overtraining continues. RMS Error %f\n", iteration, dblTrainErr);
 		if (bTrainingContinues == FALSE)
 		{
@@ -342,11 +346,11 @@ void ALNAPI approximate() // routine
 	fprintf(fpProtocol, "\n**************Approximation with one or more ALNs begins ********\n");
 	fflush(fpProtocol);
 	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
-	double dblNoiseVariance = 0;
+	double dblGlobalNoiseVariance;
 	createTR_VARfiles(2);  // 2 prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
-	dblNoiseVariance = computeGlobalNoiseVariance();
+	dblGlobalNoiseVariance = computeGlobalNoiseVariance();
 	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to limit splitting\n", nalns);
-	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblNoiseVariance);
+	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblGlobalNoiseVariance);
 	if(bJitter)
 	{
 		fprintf(fpProtocol, "Jitter is used during approximation\n");
@@ -364,7 +368,7 @@ void ALNAPI approximate() // routine
 	if(nDim > 40) dofIndex = 11;
 	if(nDim > 60) dofIndex = 12;
 
-	dblFlimit = adblFconstant[dofIndex]; // This can determine splitting for linear pieces that
+	dblFlimit = adblFconstant[dofIndex]; // This can determine splitting for linear pieces
 	dblFlimit = 1.4;  // temporary until we can compute the dof for the pieces
 	// have enough training samples and noise variance samples.
 	// other values for dblFlimit with other numbers of samples, i.e. degrees of freedom, are:
@@ -385,7 +389,7 @@ void ALNAPI approximate() // routine
 	// 120 1.26
 	// Note: pieces don't split if they have enough training hits to determine them, so choose n >= nDim = number of ALN inputs plus 1 for the output.
   // REQUIRED IMPROVEMENT  We have to take into account the actual numbers of samples of TSfile and VARfile per linear piece of approximant.
-	// As training of the approximant progresses, the dof decreases and dblFlimit should increase, depending on the minimum of samples per piece
+	// As training of the approximant progresses, the dof of pieces decreases and dblFlimit should increase, depending on the minimum of samples per piece
 	fprintf(fpProtocol, "nDim is %d and the F-limit used for stopping splitting is %f \n", nDim, dblFlimit);
 
 	// ***************** SET UP THE ARRAY OF POINTERS TO ALNS FOR TRAINING ONLY *************************
@@ -452,7 +456,7 @@ void ALNAPI approximate() // routine
     }
     apALN[n]->SetEpsilon(0,nDim -1); //  is this used? 
 		// Tell the training algorithm the way to access the data using fillvector
-    int nEpochSize = nDim * 100; // changed 2009.11.06
+    nEpochSize = nDim * 100; // changed 2009.11.06
 		apALN[n]->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 		// >>>>>>>>>>>>> HERE IS WHERE SMOOTHING IS SET TO 0.5 OF APPROXIMATION TOLERANCE OR TOZERO BY CHANGING WHICH IS COMMENTED OUT   <<<<<<<<<<<<<<<<<<<<<<<
 		// here is where Tolerance is used.  But maybe it should be determined by the noise!!!  The variance error can't be computed if we used the variance
@@ -489,12 +493,12 @@ void ALNAPI approximate() // routine
 			if (bTrainingContinues == FALSE)
 			{
 				fprintf(fpProtocol, "This approximation training of ALN %d stopped because all leaf nodes have stopped changing!\n",n);
-				fprintf(fpProtocol, "\nFirst step of overtraining of approximation ALN %d completed \n", n);
+				fprintf(fpProtocol, "\nFirst step of training of approximation ALN %d completed \n", n);
 				break;
 			}
 		}
 		dblLearnRate = 0.2;
-		nNumberEpochs	= (int)floor( 1.99/dblLearnRate);
+		nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR;
 		// We stop when all pieces cease to allow splitting
 		dblMinRMSE = 0.0; //temporary
     nNumberLFNs = 1;  // initialize at 1
@@ -562,6 +566,138 @@ void ALNAPI approximate() // routine
 	// we don't destroy the ALNs because they are needed for further work in reporting
 }
 
+void ALNAPI outputtrainingresults() // routine
+{
+	fprintf(fpProtocol, "\n**** Analyzing results on the training/variance set begins ***\n");
+	// all the ALNs have been trained, now report results
+	int i, j, k, n;
+	double desired, average, sum;
+	int nalns; // lower case indicates a value on the stack
+	nalns = nALNs;
+	ALNNODE* pActiveLFN = NULL;
+	// test the average of the ALNs against data in the TV set
+	double * adblX = (double *)malloc((nDim) * sizeof(double));
+	double * adblWAcc = (double *)malloc((nDim) * sizeof(double));
+	double * adblAbsWAcc = (double *)malloc((nDim) * sizeof(double));
+	for (k = 0; k < nDim; k++)
+	{
+		adblWAcc[k] = 0; // zero the accumulator for the average weight
+		adblAbsWAcc[k] = 0; // zero the accumulator for the average absolute weight
+	}
+	double se = 0; // square error accumulator
+
+	int	nClassError = 0;  // for classification problems
+	for (j = 0; j < nRowsTV; j++)
+	{
+		sum = 0;
+
+		for (n = 0; n < nalns; n++)
+		{
+			for (i = 0; i < nDim; i++)
+			{
+				adblX[i] = TVfile.GetAt(j, i, 0);
+			}
+			double dblValue = apALN[n]->QuickEval(adblX, &pActiveLFN);
+			sum += dblValue;
+			for (int k = 0; k < nDim; k++)
+			{
+				adblWAcc[k] += ((pActiveLFN)->DATA.LFN.adblW)[k + 1]; //the adblW vector has the bias in it
+																												// so the components are shifted
+				adblAbsWAcc[k] += fabs(((pActiveLFN)->DATA.LFN.adblW)[k + 1]);
+			}
+		}
+		average = sum / (double)nalns; // this is the result of averaging [0,1]-limited ALNs
+		desired = TVfile.GetAt(j, nDim - 1, 0); // get the desired result	
+		se += (average - desired) * (average - desired);
+		if (((desired > 0.5) && (average < 0.5)) || ((desired < 0.5) && (average > 0.5))) nClassError++;
+	}
+	double rmse = sqrt(se / ((double)nRowsTV - 1.0)); // frees se for use below.
+	// get the average weight on all variables k
+	for (k = 0; k < nDim; k++)
+	{
+		adblWAcc[k] /= (nRowsTV * nalns);
+		adblAbsWAcc[k] /= (nRowsTV * nalns);
+	}
+	fprintf(fpProtocol, "Size of datasets PP TV Test %d  %d  %d \n", nRowsPP, nRowsTV, nRowsTS);
+	fprintf(fpProtocol, "Root mean square error of the average over %d ALNS is %f \n", nalns, rmse);
+	fprintf(fpProtocol, "Warning: the above result is optimistic, see results on the test set below\n");
+	fprintf(fpProtocol, "Importance of each input variable:\n");
+	fprintf(fpProtocol, "Abs imp = stdev(input var) * average absolute weight / stdev(output var) \n");
+	fprintf(fpProtocol, "Abs imp is numerical and indicates ups and downs in output when the given input varies.\n");
+	fprintf(fpProtocol, "For example a sawtooth function with six teeth would have importance 12.\n");
+	fprintf(fpProtocol, "First we have to compute the standard deviation of the output variable.\n");
+	fflush(fpProtocol);
+	//compute the average of the output variable in the TVset
+	k = nDim - 1;
+	desired = 0;
+	for (j = 0; j < nRowsTV; j++)
+	{
+		desired += TVfile.GetAt(j, k, 0);
+	}
+	desired /= nRowsTV; // now desired holds the average for variable k
+
+	// compute the standard deviation of the output variable in the TVset
+	se = 0;
+	double temp;
+	for (j = 0; j < nRowsTV; j++)
+	{
+		temp = TVfile.GetAt(j, k, 0);
+		se += (temp - desired) * (temp - desired);
+	}
+	se /= ((double)nRowsTV - 1.0); // sample variance of the output variable
+	double stdevOutput = sqrt(se);
+	fprintf(fpProtocol, "\nStandard deviation of the output in the TVfile %f\n", stdevOutput);
+	if (fabs(stdevOutput) < 1e-10)
+	{
+		fprintf(fpProtocol, "\nStopping: The standard deviation of the output on the TV set is near 0.\n");
+		fclose(fpProtocol);
+		exit(0);
+	}
+	// we compute the variance of each column of TV
+	se = 0;
+	for (k = 0; k < nDim - 1; k++) // do each variable k
+	{
+		//compute the average of variable k in TVset
+		desired = 0;
+		for (j = 0; j < nRowsTV; j++)
+		{
+			desired += TVfile.GetAt(j, k, 0);
+		}
+		desired /= nRowsTV; // now desired holds the average for variable k
+
+		// compute the standard deviation of variable k in TVset
+		se = 0;
+		double temp;
+		for (j = 0; j < nRowsTV; j++)
+		{
+			temp = TVfile.GetAt(j, k, 0);
+			se += (temp - desired) * (temp - desired);
+		}
+		se /= ((double)nRowsTV - 1.0); // sample variance of variable k
+		dblImportance[k] = sqrt(se) * adblAbsWAcc[k] / stdevOutput;
+		if (nLag[k] == 0)
+		{
+			fprintf(fpProtocol, "Variable %s: stdev = \t%f; avg.wt = \t%f; abs imp = \t%f\n",
+				varname[nInputCol[k]], sqrt(se), adblWAcc[k], dblImportance[k]);
+		}
+		else
+		{
+			fprintf(fpProtocol, "Variable %s@lag%d: stdev = \t%f; avg.wt = \t%f; abs imp = \t%f\n",
+				varname[nInputCol[k]], nLag[k], sqrt(se), adblWAcc[k], dblImportance[k]);
+		}
+		// we use the product of the variance of k and the average absolute weight as a measure of importance
+	}
+	if (bClassify)
+	{
+		fprintf(fpProtocol, "Number of TV file cases misclassified = %d out of %d\n", nClassError, nRowsTV);
+		fprintf(fpProtocol, "Percentage of TV file cases misclassified = %f", 100.0*(double)nClassError / (double)nRowsTV);
+	}
+	free(adblX);
+	free(adblWAcc);
+	free(adblAbsWAcc);
+	fflush(fpProtocol);
+}
+
 void ALNAPI trainaverage() // routine
 {
 	// ************* TRAIN THE AVERAGE ALN **************************************
@@ -577,7 +713,7 @@ void ALNAPI trainaverage() // routine
 	if (!(pAvgALN->Create(nDim, nDim-1) &&
 				pAvgALN->SetGrowable(pAvgALN->GetTree())))
 	{
-    fprintf(fpProtocol,"Stopping: Average ALN creation failed!\n");
+    fprintf(fpProtocol,"Stopping: Growable average ALN creation failed!\n");
     exit(0);
 	}
 	splitcontrol(pAvgALN, dblFlimit / nALNs); // here is one place where the F-limit is set from F-tables, averaging reduces noise variance
@@ -606,16 +742,16 @@ void ALNAPI trainaverage() // routine
 	fprintf(fpProtocol,"Smoothing epsilon for training the average ALN is set the same as for approximation\n\n");
 	fflush(fpProtocol);
 	// Tell the training algorithm the way to access the data using fillvector
-	int nEpochSize = nDim * 100;
+	dblLearnRate = 0.3;
+	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR;
 	pAvgALN->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	dblMinRMSE = 0;
-	dblLearnRate = 0.3;
-	nNumberEpochs	= (int)floor(1.99/dblLearnRate);
-	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
+		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//*********
 	if(bEstimateRMSError)
 	{
 		// Quickstart: get centroids and weights in neighborhood of good values
+		nNumberEpochs = 10;
 		if(!pAvgALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
 		{
 			 fprintf(fpProtocol,"Training failed!\n");
@@ -645,7 +781,7 @@ void ALNAPI trainaverage() // routine
 	}
 	dblMinRMSE = 0.0; //THIS SHOULD BE REPLACED BY SOMETHING
 	dblLearnRate = 0.2;
-	nNumberEpochs	= (int) floor( 1.99/dblLearnRate); //training average ALN
+	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; //training average ALN
   nNumberLFNs = 1;  // initialize at 1
 	int nOldNumberLFNs = 1;  // having little change in nNumberLFNs is a stopping criterion
   for(int iteration = 0; iteration < 20; iteration++) // is 20 iterations enough?
@@ -662,9 +798,11 @@ void ALNAPI trainaverage() // routine
 		{
 			fprintf(fpProtocol, "This training stopped because all leaf nodes have stopped changing!\n");
 			fprintf(fpProtocol, "\nOvertraining of the average ALN completed at iteration %d \n", iteration);
+			fflush(fpProtocol);
 			break;
 		}
 		fprintf(fpProtocol,"\nIteration %d of training average ALN, RMSE = %f\n", iteration, dblTrainErr);
+		fflush(fpProtocol);
 
 		// we don't need to worry about overtraining because there is no noise
 		if((double) nNumberLFNs < (double)nOldNumberLFNs * 0.8)
@@ -675,6 +813,7 @@ void ALNAPI trainaverage() // routine
 		}
 		nOldNumberLFNs = nNumberLFNs;
 	}
+	/*
 	// polish the average ALN
   // keep the final value of nNumberLFNs and hence the same nEpochSize
 	dblLearnRate = 0.05;
@@ -697,6 +836,7 @@ void ALNAPI trainaverage() // routine
 	{
 		fprintf(fpProtocol,"Average ALN variance error w. r. t. variance set = %f\n", dblVarianceErr);
 	}
+	*/
 	fflush(fpProtocol);
 }
 
@@ -721,137 +861,7 @@ void ALNAPI constructDTREE(int nMaxDepth) // routine
   }
 }
 
-void ALNAPI outputtrainingresults() // routine
-{
-	fprintf(fpProtocol,"\n**** Analyzing results on the training/variance set begins ***\n");
-  // all the ALNs have been trained, now report results
-  int i,j,k,n;
-	double desired, average, sum; 
-	int nalns; // lower case indicates a value on the stack
-  nalns = nALNs;
-	ALNNODE* pActiveLFN = NULL;
-  // test the average of the ALNs against data in the TV set
-	double * adblX = (double *) malloc((nDim) * sizeof(double)); 
-	double * adblWAcc = (double *) malloc((nDim) * sizeof(double));
-	double * adblAbsWAcc = (double *) malloc((nDim) * sizeof(double));
-  for(k=0; k < nDim; k++)
-  {
-    adblWAcc[k] = 0; // zero the accumulator for the average weight
-    adblAbsWAcc[k] = 0; // zero the accumulator for the average absolute weight
-  }
-	double se = 0; // square error accumulator
 
-	int	nClassError = 0;  // for classification problems
-	for( j=0; j<nRowsTV; j++)
-	{
-		sum = 0;
-
-		for (n = 0; n < nalns; n++)
-		{
-			for( i=0; i < nDim; i++)
-			{
-				adblX[i] = TVfile.GetAt(j,i,0);
-			}
-      double dblValue = apALN[n]->QuickEval(adblX, &pActiveLFN);
-			sum += dblValue;
-      for(int k=0; k < nDim; k++)
-      {
-        adblWAcc[k] += ((pActiveLFN)->DATA.LFN.adblW)[k+1]; //the adblW vector has the bias in it
-                                                        // so the components are shifted
-        adblAbsWAcc[k] += fabs(((pActiveLFN)->DATA.LFN.adblW)[k+1]); 
-      }
-		}
-		average = sum / (double) nalns; // this is the result of averaging [0,1]-limited ALNs
-		desired = TVfile.GetAt(j,nDim-1,0); // get the desired result	
-		se += (average - desired) * (average - desired);
-		if(((desired > 0.5) && (average < 0.5)) || ((desired < 0.5) && (average > 0.5))) nClassError++;
-  }
-	double rmse = sqrt(se / ((double)nRowsTV - 1.0)); // frees se for use below.
-  // get the average weight on all variables k
-  for(k=0; k < nDim; k++)
-  {
-    adblWAcc[k] /= (nRowsTV * nalns);
-    adblAbsWAcc[k] /= (nRowsTV * nalns);
-  }
-	fprintf(fpProtocol,"Size of datasets PP TV Test %d  %d  %d \n", nRowsPP, nRowsTV, nRowsTSfile );
-	fprintf(fpProtocol,"Root mean square error of the average over %d ALNS is %f \n", nalns, rmse);
-	fprintf(fpProtocol,"Warning: the above result is optimistic, see results on the test set below\n");
-	fprintf(fpProtocol,"Importance of each input variable:\n");
-	fprintf(fpProtocol,"Abs imp = stdev(input var) * average absolute weight / stdev(output var) \n" );
-  fprintf(fpProtocol,"Abs imp is numerical and indicates ups and downs in output when the given input varies.\n");
-  fprintf(fpProtocol,"For example a sawtooth function with six teeth would have importance 12.\n");
-  fprintf(fpProtocol,"First we have to compute the standard deviation of the output variable.\n");
-	fflush(fpProtocol);
-  //compute the average of the output variable in the TVset
-  k = nDim - 1; 
-  desired = 0;
-  for( j=0; j<nRowsTV; j++) 
-  {
-    desired += TVfile.GetAt(j,k,0);
-  }
-  desired /= nRowsTV; // now desired holds the average for variable k
-
-  // compute the standard deviation of the output variable in the TVset
-  se = 0;
-  double temp;
-  for( j=0; j < nRowsTV; j++) 
-  {
-    temp = TVfile.GetAt(j,k,0);
-    se += ( temp - desired) * (temp - desired);
-  }
-  se /= ((double) nRowsTV - 1.0); // sample variance of the output variable
-  double stdevOutput = sqrt(se);
-  fprintf(fpProtocol,"\nStandard deviation of the output in the TVfile %f\n", stdevOutput);
-  if(fabs(stdevOutput) < 1e-10)
-  {
-    fprintf(fpProtocol,"\nStopping: The standard deviation of the output on the TV set is near 0.\n");
-    fclose(fpProtocol);
-    exit(0);
-  }
-  // we compute the variance of each column of TV
-  se = 0;
-  for(k = 0; k < nDim - 1; k++) // do each variable k
-  {
-    //compute the average of variable k in TVset
-    desired = 0;
-    for( j=0; j<nRowsTV; j++) 
-    {
-      desired += TVfile.GetAt(j,k,0);
-    }
-    desired /= nRowsTV; // now desired holds the average for variable k
- 
-    // compute the standard deviation of variable k in TVset
-    se = 0;
-    double temp;
-    for( j=0; j < nRowsTV; j++) 
-    {
-      temp = TVfile.GetAt(j,k,0);
-      se += ( temp - desired) * (temp - desired);
-    }
-    se /= ((double) nRowsTV - 1.0); // sample variance of variable k
-    dblImportance[k] = sqrt(se) * adblAbsWAcc[k]/stdevOutput;
-    if(nLag[k] == 0)
-    {
-      fprintf(fpProtocol,"Variable %s: stdev = \t%f; avg.wt = \t%f; abs imp = \t%f\n",
-      varname[nInputCol[k]], sqrt(se), adblWAcc[k], dblImportance[k]);
-    }
-    else
-    {
-      fprintf(fpProtocol,"Variable %s@lag%d: stdev = \t%f; avg.wt = \t%f; abs imp = \t%f\n",
-      varname[nInputCol[k]], nLag[k], sqrt(se), adblWAcc[k], dblImportance[k]);
-    }
-    // we use the product of the variance of k and the average absolute weight as a measure of importance
-	}
-	if(bClassify)
-	{
-    fprintf(fpProtocol,"Number of TV file cases misclassified = %d out of %d\n",nClassError, nRowsTV);
-    fprintf(fpProtocol,"Percentage of TV file cases misclassified = %f",100.0*(double) nClassError/(double)nRowsTV);
-	}
-  free(adblX); 
-	free(adblWAcc);
-	free(adblAbsWAcc);
-	fflush(fpProtocol);
-}
 
 
 void ALNAPI cleanup() // routine

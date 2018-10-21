@@ -208,10 +208,9 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		}
 
 		///// begin epoch loop
-    int nResetCounters = 2;  // We reset counters for splitting when
-                              //adaptation has had a chance to adjust pieces
+    int nResetCounters = 5;  // We reset counters for splitting when
+                              //adaptation has had a chance to adjust pieces ??????????????????
 															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
-															// We need to get a better way to compute this!!!!!!
 		ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
 
     traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop
@@ -233,9 +232,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
       // are reset
       if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
       {
-        //FindSplitLFN(pALN)now splits LFNs as it goes
+        //FindSplitLFN(pALN) splits LFNs after training has stabilized the pieces somewhat
         ALNNODE* pSplitLFN = FindSplitLFN(pALN);
-        // old code when only one node was split: if (pSplitLFN != NULL)SplitLFN(pALN, pSplitLFN);
 				// reset tree to mark useless pieces, etc
 				// except for first epoch, where we mark everything as useful
 				ResetCounters(pTree, pALN, nEpoch == 0);   

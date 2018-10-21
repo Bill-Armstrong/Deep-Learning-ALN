@@ -92,7 +92,8 @@ double ALNAPI AdaptEval(ALNNODE* pNode, ALN* pALN, const double* adblX,
 #ifdef _DEBUG
   ALNNODE* pLFNCheck = NULL;
   double dblCheck = DebugEval(pNode, pALN, adblX, &pLFNCheck);
-  ASSERT (dbl == dblCheck && pLFNCheck == pActiveLFN);
+	ASSERT(dbl == dblCheck);
+	ASSERT(pLFNCheck == pActiveLFN);
 #endif
 
   *ppActiveLFN = pActiveLFN;

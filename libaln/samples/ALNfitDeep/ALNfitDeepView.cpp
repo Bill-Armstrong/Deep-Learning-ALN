@@ -338,21 +338,9 @@ void CALNfitDeepView::OnButtonStart()
 		if(nPercentForTest > 0)
 		{
 			TSfile.Destroy(); // make sure this is deleted before making a new one 
-			TSfile.Create(nRowsNumericalTestFile, nALNinputs);
-			/*
-			for (i = 0; i < nRowsNumericalTestFile; i++)
-			{
-				for (int j = 0; j < nALNinputs; j++)  // the output column may be left as zeros
-				{
-					double dblVal;
-					dblVal = PreprocessedDataFile.GetAt(i, j, 0);
-					TSfile.SetAt(i, j, dblVal, 0);
-				}
-			}
-			*/  //  WHERE DO WE FILL THE TEST FILE?
-
-
-			MakeAuxALNinputFile(NumericalTestFile, TSfile, nRowsNumericalTestFile, &nRowsTSfile);
+			//TSfile.Create(nRowsTS, nALNinputs); // Numerical refers to the fact that headers have been removed
+			// seems wrong. one hasn't got the fraction required here, it seems  So we created the file later in setup
+			//MakeAuxALNinputFile(NumericalTestFile, TSfile, nRowsNumericalTestFile, &nRowsTS); this may be useless
 			// write out the results to check
 			if (bPrint && bDiagnostics)
 			{
@@ -362,12 +350,12 @@ void CALNfitDeepView::OnButtonStart()
 			if (bPrint)fflush(fpFileSetupProtocol);
 		}
 	}
-  if(m_nTrain == 0) // changed to remove the separate variance file possibility
+  /*if(m_nTrain == 0) // changed to remove the separate noise variance file possibility
   {
     if(bEstimateRMSError)
     {
-      VARfile.Create(nRowsNumericalValFile,nALNinputs);
-      MakeAuxALNinputFile(NumericalValFile, VARfile, nRowsNumericalValFile, &nRowsVAR);
+      VARfile.Create(nRowsTV,nALNinputs); // originally had nRowsNumericalValFile
+     // MakeAuxALNinputFile(NumericalValFile, VARfile, nRowsNumericalValFile, &nRowsVAR);
 			if (bPrint && bDiagnostics)    // write out the results to check
 			{
 				VARfile.Write("DiagnoseVARfile.txt");
@@ -381,6 +369,7 @@ void CALNfitDeepView::OnButtonStart()
     }
 		fflush(fpFileSetupProtocol);
   }
+	*/
   nALNs = pDoc->m_nALNs;
   // set up the naming convention for the output files
   CTime theTime = CTime::GetCurrentTime();
@@ -858,15 +847,13 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     // The view calls the real handler in the doc
     PassBackStatus(0,5);
     PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-    //analyzeTV();
     if(bClassify)
     {
-      fprintf(fpProtocol, "\n**************  The problem is to classify samples into two or, with\
-some limitations, into more classes  *****\n");
+      fprintf(fpProtocol, "\n**************  The problem is to classify samples into two or a few classes  *****\n");
     }
     else
     {
-      fprintf(fpProtocol, "\n**************  The problem is to fit samples of a smooth function  *****\n");
+      fprintf(fpProtocol, "\n**************  The problem is to fit samples with a smooth function  *****\n");
     }
     fflush(fpProtocol);
     if(bEstimateRMSError)  // We are doing RMS Error estimation (works also with two-class classification)
@@ -877,21 +864,15 @@ some limitations, into more classes  *****\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
       dolinearregression();
-			fflush(fpProtocol);
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVflie
-			fflush(fpProtocol);
 			pALN = pOTTS;
       overtrain(pOTTS);
-			fflush(fpProtocol);
 			createTR_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
-			fflush(fpProtocol);
 			pALN = pOTVS;
 			overtrain(pOTVS);
-			fflush(fpProtocol);
     }
- 		fflush(fpProtocol);
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 		createTR_VARfiles(2);
