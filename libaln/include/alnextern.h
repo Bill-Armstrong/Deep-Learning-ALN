@@ -28,8 +28,6 @@
 // functions used externally
 void ALNAPI ALNfitSetup();  // sets up automatic noise measurement, bagging and evaluation
 int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint);	// Analyzes the given input data file 
-//void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
-//void ALNAPI createTVTSfiles();	// The PreprocessedDataFile is used to create the TVfile (for training only) and TSfiles
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 

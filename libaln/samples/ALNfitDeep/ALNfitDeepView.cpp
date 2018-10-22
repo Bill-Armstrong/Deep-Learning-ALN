@@ -333,43 +333,7 @@ void CALNfitDeepView::OnButtonStart()
   // start has been clicked, so we have the ALN variables defined
   // we can construct the files for training and testing that get input values
   // from various columns at various delays.
-	if (m_nTrain == 0)
-	{
-		if(nPercentForTest > 0)
-		{
-			TSfile.Destroy(); // make sure this is deleted before making a new one 
-			//TSfile.Create(nRowsTS, nALNinputs); // Numerical refers to the fact that headers have been removed
-			// seems wrong. one hasn't got the fraction required here, it seems  So we created the file later in setup
-			//MakeAuxALNinputFile(NumericalTestFile, TSfile, nRowsNumericalTestFile, &nRowsTS); this may be useless
-			// write out the results to check
-			if (bPrint && bDiagnostics)
-			{
-				TSfile.Write("DiagnoseTSfile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written\n");
-			}
-			if (bPrint)fflush(fpFileSetupProtocol);
-		}
-	}
-  /*if(m_nTrain == 0) // changed to remove the separate noise variance file possibility
-  {
-    if(bEstimateRMSError)
-    {
-      VARfile.Create(nRowsTV,nALNinputs); // originally had nRowsNumericalValFile
-     // MakeAuxALNinputFile(NumericalValFile, VARfile, nRowsNumericalValFile, &nRowsVAR);
-			if (bPrint && bDiagnostics)    // write out the results to check
-			{
-				VARfile.Write("DiagnoseVARfile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseVARfile.txt written\n");
-			}
-    }
-    else
-    {
-      // we set the tolerance directly without RMS noise stimation
-  	  if(bPrint && bDiagnostics) fprintf(fpFileSetupProtocol,"VARfile.txt was NOT created -- tolerance set directly in options.\n");
-    }
-		fflush(fpFileSetupProtocol);
-  }
-	*/
+  
   nALNs = pDoc->m_nALNs;
   // set up the naming convention for the output files
   CTime theTime = CTime::GetCurrentTime();

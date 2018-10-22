@@ -64,25 +64,28 @@ static CMyAln* pAvgALN;      // an ALN representing the bagged average of severa
 
 double	dblMinRMSE = 0; // stops training when the training error is smaller than this
 double  dblLearnRate = 0.2; // the reciprocal of the learnrate tells how many passes through the data will be required to get close to a fit.
-int nNumberEpochs	= (int)floor(1.199 /dblLearnRate); // for example if the learnrate is 0.2, then one will need 5 passes roughtly to almost correct the errors
-
-																										 // this says that splitting of a linear piece is prevented when the mean square training error
-// on it becomes less than 2.59 times the average of noise variance samples on it. This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
-// For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops when the training error is larger than with a lower F-value.
+int nNumberEpochs = 10; // if the learnrate is 0.2, then one will need 5 or 10 roughly to almost correct the errors
 extern long nRowsTR; // the number of rows in the current training set loaded into TRfile
 extern long nRowsVAR; // the number of rows in the noise variance file.  When approximation starts, this should be nRowsTV
 extern BOOL bTrainingContinues; // this boolean is set to true and becomes false if all (active) linear pieces of the ALN stop changing because they fit well.
 double computeGlobalNoiseVariance(); // used at entry to the approximation step, this computes the average of all noise variance samples in VARfile.
 int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
-double dblFlimit;
+double dblFlimit =2.59;// this says that splitting of a linear piece is prevented when the mean square
+// training error of a piece becomes less than 2.59 times the average of noise variance samples on it.
+// This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
+// For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops
+// when the training error is larger than with a lower F-value.
+// We have to IMPROVE the program to use d.o.f. of each piece for both training error and noise variance 
 int nEpochSize; // the number of input vectors it takes to correct the errors of position of pieces before splitting
 
 void ALNAPI dolinearregression() // routine
 {
   fprintf(fpProtocol,"\n****** Linear regression begins: we want an upper bound on error plus starting weights *****\n");
-	// begin linear regression on a single ALN -- this iterative algorithm is not a good method in general, but works here
-	// The reason for using it for ALN approximation is that the linear regression problem for a piece is constantly changing because
-	// it and the pieces around it are moving and changing responsibilities for samples.
+	// begin linear regression on a single ALN -- this iterative algorithm is not an accepted method in general,
+	// but works here. The reason for using it for ALN approximation is that the linear regression
+	// problem for a piece is constantly changing. A piece and the pieces around it are moving
+	// and changing which pieces are maximum or minimum for a given input.
+	// This changes the samples which are to be least-squares fitted.
 	// Set up the ALN
 	pALN = new CMyAln;
 	if (!(pALN->Create(nDim, nDim-1))) // nDim is the number of inputs to the ALN plus one for the ALN output; the default output variable is nDim-1
@@ -96,18 +99,21 @@ void ALNAPI dolinearregression() // routine
 	for( int m = 0; m < nDim-1; m++) // note that loops that do m < nDim-1 omit the output variable 
 		                               // (always the last ALN input, but maybe not connected to the rightmost data file column)
 	{
-		pALN->SetEpsilon(adblEpsilon[m],m); // adblEpsilon suggests the size along axis m of a box such that the boxes just cover the domain
-		// we input all but the output adblEpsilon (index nDim-1) into this ALN. These Epsilons are set in analyzeTV()
-		// The value of Epsilon shows up in the constraints
+		pALN->SetEpsilon(adblEpsilon[m],m); // adblEpsilon suggests the size along axis m of a box
+		// such that the boxes just cover the domain. It can be used to compute jitter, or to
+		// estimate the maximum absolute slope of linear pieces that makes sense, given the data.
+		// We input all but the output adblEpsilon (index nDim-1) into this ALN. These Epsilons
+		// are set in analyzeTV()
+		// The values of adblEpsilon show up in the constraints.
     if(adblEpsilon[m] == 0)
     {
       fprintf(fpProtocol,"Stopping: Variable %d appears to be constant. Try removing it.\n",m);
       fflush(fpProtocol);
 			exit(0);
     }
-		pALN->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m); // we extend the domain a bit beyond the range of the data
-		pALN->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m);
-		// next we bound weights (partial derivatives) by noting it makes no sense to have a slope that jumps a lot between two data points
+		pALN->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m); // we extend the domain a bit beyond
+		pALN->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m); // the range of the data - an evaluation file could have a bigger domain.
+		// next we bound weights (partial derivatives) by noting it makes no sense to have a slope that jumps a huge amount between two input data points
 		pALN->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // the range of output (for uniform dist.) divided by... 
 		pALN->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m 
     // impose the a priori bounds on weights
@@ -120,19 +126,21 @@ void ALNAPI dolinearregression() // routine
 		  pALN->SetWeightMax(dblMaxWeight[m],m);
     }
 	}
-  createTR_VARfiles(0); // we pick as a training set about 50% of the TVfile
+  createTR_VARfiles(0); // training set TRfile is  about 50% of the TVfile. The rest is for noise variance in VARfile
 	fprintf(fpProtocol, "TRfile and VARfile created, we start training\n");
 	fflush(fpProtocol);
-  bTrainingAverage = FALSE;
+  bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average
  	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: nothing to smooth
+	// NB The region concept has not been completed.  It allows the user to impose constraints
+	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//********* dolinearregression
 	// Quickstart: get centroids and weights in neighborhood of good values
 	dblLearnRate = 0.2;  // fast change to start
-	int nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; // nEpochsize improves positions of pieces with no splitting
+	int nEpochSize = nRowsTR; // nEpochsize gives the number of training samples. Later nRowsTR=nRowsTV.
 	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 	dblMinRMSE = 0; //don't stop early because of low training error
-	nNumberEpochs = 10; //
+	nNumberEpochs = 20; // we are may have to do tests to see what is sufficient
 	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 	{
 		fprintf(fpProtocol,"Initial linear regression training failed!\n");
@@ -142,9 +150,8 @@ void ALNAPI dolinearregression() // routine
 	fprintf(fpProtocol, "Initial linear regression training succeeded!\n");
 	fflush(fpProtocol);
 	dblLearnRate = 0.1;  // a lower learning rate calls for a longer nEpochsize, we call this "polishing the ALN"
-	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; // nEpochsize improves positions of pieces with no splitting
 	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
-	dblMinRMSE = 0; //don't stop early because of low training error
+	dblMinRMSE = 0; // Can be a primitive stopping criterion. Here we don't stop early because of low training error
 	nNumberEpochs = 10; //
 	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 	{
@@ -154,7 +161,7 @@ void ALNAPI dolinearregression() // routine
 	}
 	fprintf(fpProtocol, "Polishing linear regression training succeeded!\n");
 	fflush(fpProtocol);
-  // we should now have a good linear regression fit
+  // we should now have a good linear regression fit now
   // find the weights on the linear piece using an evaluation at the 0 vector (could be anything).
 	double * adblX = (double *) malloc((nDim) * sizeof(double));
 	ALNNODE* pActiveLFN;
@@ -170,12 +177,12 @@ void ALNAPI dolinearregression() // routine
     {
 			// Note that adblW is stored in a different way, the weight on axis 0 is in adblW[1] etc.
   		fprintf(fpProtocol,"Linear regression weight on %s is %f centroid is %f\n",\
-				varname[nInputCol[m]] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
+			varname[nInputCol[m]] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
 		}
     else
     {
   		fprintf(fpProtocol,"Linear regression weight on ALN input %s@lag%d is %f centroid is %f\n",\
-				varname[nInputCol[m]], nLag[m] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
+			varname[nInputCol[m]], nLag[m] , ((pActiveLFN)->DATA.LFN.adblW)[m+1], ((pActiveLFN)->DATA.LFN.adblC)[m]); 
     }
 		adblLRC[m] = ((pActiveLFN)->DATA.LFN.adblC)[m]; // centroid of linear piece for axis m
 		adblLRW[m+1] = ((pActiveLFN)->DATA.LFN.adblW)[m+1]; // linear regression weight for axis m
@@ -192,10 +199,11 @@ void ALNAPI dolinearregression() // routine
     adblLRW[0] -= adblLRW[m+1] * adblLRC[m];
   }
 	adblLRW[nDim] = -1.0;  // the -1 weight on the ALN output may make a difference somewhere, so we set it here
-	// The idea of weight = -1 is that the hyperplane equation can be written \
-	 a*x + b*y -1*z=0 like an equation instead of z =  a*x + b*y as a function
-	// This representation is good if we want to invert the ALN, i.e. get x as a function of y and z.\
-	 Just multiply the first equation by -1/a.
+	// The idea of weight = -1 is that the hyperplane equation can be written 
+	// a*x + b*y -1*z = 0 like an equation instead of z = a*x + b*y as a function
+	// This representation is good if we want to invert the ALN, i.e. get x as a function of y and z.
+	// How to do it? Just multiply the first equation by -1/a. The weight on the output is -1.0
+	// This is not fully implemented yet.  The output of the ALN is now always the highest index variable.
 
 	double desired, predict, se;
 	int nCount; 
@@ -212,7 +220,7 @@ void ALNAPI dolinearregression() // routine
 		se = (predict - desired) * (predict - desired);
 		nCount++;
 		dblLinRegErr +=se;
-	} // end loop over VARfile
+	} // end loop over  the training file
 	dblLinRegErr = sqrt(dblLinRegErr / nCount); 
 	fprintf(fpProtocol, "Root Mean Square Linear Regression Training Error is %f \n", dblLinRegErr);
 	fprintf(fpProtocol, "The number of data points used in determining linear regression error is %d \n",nCount);

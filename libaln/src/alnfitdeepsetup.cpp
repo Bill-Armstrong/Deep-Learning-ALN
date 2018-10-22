@@ -183,8 +183,7 @@
 // If the data file is missing the output during evaluations without training,
 // then a zero column takes the place of the missing output column and the DTREE
 // output column is to the right.
-
-// A protocol of useful information is written to a file to document all steps
+// A protocol of useful information is written to a file to document all steps and help debugging
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif
@@ -207,37 +206,33 @@ static char THIS_FILE[] = __FILE__;
 #include <alnpp.h>
 #include <dtree.h>
 #include <datafile.h>
-
-#define ALNAPI __stdcall
-
-// include classes
 #include ".\cmyaln.h" 
-
-//#include "alnfit.h"
 #include "alnextern.h"
 #include "alnintern.h"
 
-
 #define ALNAPI __stdcall
+
 // functions used externally
 void ALNAPI ALNfitSetup();
 int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given input data file 
-void ALNAPI preprocUniversalFile(); // The universal file is the original dataset and can be preprocessed
+void ALNAPI preprocessDataFile(); // creates UNfile, the original dataset without header, with a column added at right
 void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to create TV (training only) and TS files, which are written out..
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();          // The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();          // The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
-void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void computeNoiseVariance();  // This uses OTTS and OTVS and the samples in the Variance file to compute noise variance samples
 void ALNAPI reportFunctions();      // reports on the trained function ALNs with stats and plots
-void ALNAPI evaluate();			       // Evaluate an existing DTREE on the data file after preprocessing
-void ALNAPI cleanup();
-void ALNAPI outputtrainingresults();
 void fillvector(double *, CMyAln*); // Used to input a data vector under program control
-void ALNAPI overtrain(CMyAln * pOT);            // Does a fit using a single ALN and generous splitting
-void ALNAPI trainaverage(); 
-void ALNAPI constructDTREE(int);
+
+// The main steps in training operations (train_ops.cpp)
+void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
+void ALNAPI overtrain(CMyAln * pOT);// Overfits two parts of the TV file for use in noise variance samples
+void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
+void ALNAPI trainaverage();         // Does bagging by averaging several ALNs created using noise variance stopping
+void ALNAPI outputtrainingresults();// Prints out the results of training 
+void ALNAPI constructDTREE(int);		// The DTREE is a VERY fast way of evaluating any ALN.
+void ALNAPI evaluate();			        // Evaluate an existing DTREE on the data file after preprocessing
+void ALNAPI cleanup();              // Destroys some objects previously allocated
 
 // global variables used externally
 BOOL bClassify = FALSE;      // This is TRUE if the user chose a classification problem, and FALSE for regression
@@ -457,7 +452,7 @@ void ALNAPI ALNfitSetup() // routine
 	  UNfile.SetAt(nrow,nColsUniv,0,0);
   }
 	fprintf(fpProtocol,"Starting to preprocess the data file\n");
-	preprocUniversalFile();
+	preprocessDataFile();
 	if(bTrain)fprintf(fpProtocol,"Creating the TVfile to be partitioned into TSfile for training \n\
 		and VARfile for noise variance samples. We also create the test file in cases where there are zero lags,\
 		but creating the test file by random choice in other cases is nonsense.\n");
@@ -477,7 +472,7 @@ int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * pr
 	{
 		fitem[itemcount] = 0; // zero the array for floats in datalines
 	}
-	//alnextern.h: static char hdrline[10][2000]; 
+	//alnextern.h: static char hdrline[10][2000]; // this will store the whole header
 	// max line length in data file is 2000 bytes including null terminator
 	ifstream ifs(szDataFileName);
 	if (ifs)
@@ -504,8 +499,8 @@ int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * pr
 		// comment lines are ignored except when output is generated from the input file
 		if ((hdrline[nheaderlines][0] == '/') && (hdrline[nheaderlines][1] == '/')) continue;
 		// we allow empty lines in the header area, not in the data rows
-		if (!bStillHeader && hdrline[nheaderlines][0] == '\0') break; // if getline reads an empty line in the data part, the while is terminated
-		// the above are either comments or blank data lines
+		if (!bStillHeader && hdrline[nheaderlines][0] == '\0') continue; // if getline reads an empty line in the data part, the while is terminated
+		// the above are either comments or blank header lines
 		linecount++; // assume it's a data line, but be prepared to reverse this decision and make it a header line
 		itemcount = 0;
 		if (bStillHeader && (hdrline[nheaderlines][0] == '\0'))
@@ -645,7 +640,7 @@ int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * pr
 				return 0;
 			}
 		}
-	}
+	} // end of while (ifs.getline(hdrline[nheaderlines], ncount, '\n') && (ncount > 0))
 	if (bDecimal == FALSE && bComma == FALSE)
 	{
 		if (bPrint)fprintf(fpFileSetupProtocol, "Stopping: It appears that both commas and decimal points are used in number lines");
@@ -659,7 +654,7 @@ int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * pr
 	return 1;
 }
 
-void ALNAPI preprocUniversalFile()  // routine input: szDataFileName file output: UNfile
+void ALNAPI preprocessDataFile()  // routine input: szDataFileName file outputs: UNfile, PreprocessedDataFile
 {
 	if ((fpData = fopen(szDataFileName, "r")) != NULL)
 	{
@@ -837,138 +832,6 @@ void ALNAPI preprocUniversalFile()  // routine input: szDataFileName file output
 	adblStdevVar = (double *)malloc(nALNinputs * sizeof(double));
 } // end preprocUniversalFile
 
-/*
-void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxiliary,long nAuxRows, int nAuxCols, CDataFile & AuxNumericalFile)  // routine
-{
-	// the AuxNumericalFile consists of all the data lines with header and comments removed
-  FILE * fpAux;
-  if ((fpAux=fopen(szAuxiliaryFileName,"r")) != NULL)
-  {
-		if(bPrint)fprintf(fpFileSetupProtocol, "Opening file %s succeeded.\n",szAuxiliaryFileName);
-    if(bPrint)fflush(fpFileSetupProtocol);
-
-  }
-  else
-  {
-    if(bPrint)fprintf(fpFileSetupProtocol, "Opening file %s failed. Stop.\n",szAuxiliaryFileName);
-	  if(bPrint)fflush(fpFileSetupProtocol);
-  }
-  // recode all the entries to a different array of doubles
-  // both original and recoded values for the row are declared here
-  char  Dummyline[2000];
-  float ALNvar = 0; // limited to 100 input variables plus one output variable
-  // copy the entire data file into UNfile EXCEPT the header
-  // NB datafiles can only hold doubles!
-  for(int i = 0; i < nHeaderLinesAuxiliary; i++)
-  {
-    // ignore it if it is a comment line and get the next one
-    // we are not trying to accumulate headerlines here
-    fgets(Dummyline,2000,fpAux);
-    while((Dummyline[0] == '/')&&(Dummyline[1] == '/')) fgets(Dummyline,2000,fpAux);
-  }
-  // we have all the header lines, but there may be other comment lines
-  // those can be captured below
-  for(int i = 0; i < nAuxRows; i++)
-  {
-    fgets(Dummyline,2000,fpAux);
-    // ignore any comment lines
-    while((Dummyline[0] == '/')&&(Dummyline[1] == '/')) fgets(Dummyline,2000,fpAux);
-    // when we get a non-comment line, we keep it, assuming it is data
-    // we convert the commas to decimal points if necessary so we can scan as a number
-    if(bDecimal == FALSE) // but bComma is still TRUE because it's not a header line
-    {
-      int charcount = 0;
-      while(Dummyline[charcount] != 0)
-      {
-        if(Dummyline[charcount] == ',')
-        {
-          Dummyline[charcount] = '.'; // change to decimal point
-        }
-        charcount++;
-      }
-    }
-    double item[101];
-    // get the names of variables from the last header line if one exists
-    int itemcount = sscanf(Dummyline,"%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-		item+0, item+1, item+2,item+3, item+4,	item+5, item+6, item+7, item+8, item+9,
-		item+10, item+11, item+12,item+13, item+14,	item+15, item+16, item+17, item+18, item+19,
-		item+20, item+21, item+22,item+23, item+24,	item+25, item+26, item+27, item+28, item+29,
-		item+30, item+31, item+32,item+33, item+34,	item+35, item+36, item+37, item+38, item+39,
-		item+40, item+41, item+42,item+43, item+44,	item+45, item+46, item+47, item+48, item+49,
-		item+50, item+51, item+52,item+53, item+54,	item+55, item+56, item+57, item+58, item+59,
-		item+60, item+61, item+62,item+63, item+64,	item+65, item+66, item+67, item+68, item+69,
-		item+70, item+71, item+72,item+73, item+74,	item+75, item+76, item+77, item+78, item+79,
-		item+80, item+81, item+82,item+83, item+84,	item+85, item+86, item+87, item+88, item+89,
-		item+90, item+91, item+92,item+93, item+94,	item+95, item+96, item+97, item+98, item+99, item+100);
-    ASSERT(itemcount == nAuxCols);
-    for(int ncoldata=0; ncoldata < nAuxCols;ncoldata++)
-		{
-      // the AuxNumericalFile consists of all the data lines with header and comments removed
-			AuxNumericalFile.SetAt(i,ncoldata,item[ncoldata],0);
-		}
-  }
-}
-
-void ALNAPI MakeAuxALNinputFile(const CDataFile & AuxNumericalFile, CDataFile & AuxALNinputFile, long nAuxRows, long* adnRowsAuxALNinputFile) // routine
-{
-  // now we create a file AuxALNinputFile with all simultaneous ALN inputs in single rows to deal with time series.
-  // each row of this has to use several rows of the UNfile because of lags
-  // we have to compute the maximum lag, which will cut off some rows from the UNfile
-	// In addition, some rows of the 
-	// The result is that fillInputVector can look at just one row to get all input values for a training vector etc.
-  nMaxLag = 0;
-  for(int ninput=0; ninput < nALNinputs -1; ninput++) // the output column has lag 0 and won't be the max
-  {
-    if(nLag[ninput] > nMaxLag) nMaxLag = nLag[ninput];
-  }
-  // at the end in the reverse order encountered
-  // we first zero it out
-  for(int k = 0; k < nAuxRows; k++) // zeros all rows ofAuxALNinputFile
-  {
-    for(int ninput=0; ninput < nALNinputs; ninput++)
-    {
-        AuxALNinputFile.SetAt(k,ninput,0,0); 
-    }
-  }
-  double dblValue = 0;
-  int k = 0; // this is the row in AuxALNinputFile. If there are undefined items
-             // in row i of the UNfile, our source for the data, k might not advance in synch with i.
-  int back = nAuxRows - 1; // this is the last row of the AuxALNinputFile.
-  for(int i= nMaxLag; i < nAuxRows; i++) // omit rows 0,... nMaxLag - 1 and go through the 
-  {
-    BOOL bRowGood = TRUE;
-		for(int ninput=0; ninput< nALNinputs ;ninput++)
-		{			
-			// THIS IS WHERE THE TRAINING DATA ARE DEFINED
-      dblValue = AuxNumericalFile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-      if(dblValue == 99999 || dblValue == -9999) bRowGood = FALSE;
-			AuxALNinputFile.SetAt(k,ninput,dblValue,0);
-		}
-    if(bRowGood)
-    {
-      // moving on to the next row
-		  k++;
-    }
-    else
-    {
-      // erase the bad row in the PP file
-      // add the undefined row at the end of the AuxALNinputFile going backwards
-		  for(int ninput=0; ninput< nALNinputs ;ninput++)
-		  {			
-			  AuxALNinputFile.SetAt(k,ninput,0,0);
-        dblValue = AuxNumericalFile.GetAt(i-nLag[ninput],nInputCol[ninput]);
-        AuxALNinputFile.SetAt(back,ninput,dblValue,0); // Why this?
-		  }
-      back--;
-    }
-  }
-  //ASSERT(back == (k + nMaxLag -1)); // k and back have both moved too far! assert removed
-  // between the good rows and the rows with undefined, there are nMaxLag rows of garbage
-  // write it out
-  *adnRowsAuxALNinputFile = k;
-}
-*/
-
 void ALNAPI createTVTSfiles()  // routine
 {
   // Taking the PreprocessedDataFile, this creates
@@ -1033,6 +896,15 @@ void ALNAPI createTVTSfiles()  // routine
 			nRowsTV = nRowsPP - nRowsTS;
 			TVfile.Create(nRowsTV, nALNinputs);
 			TSfile.Create(nRowsTS, nALNinputs);
+			if (bPrint && bDiagnostics)
+			{
+				TVfile.Write("DiagnoseTVfile.txt");
+				fprintf(fpFileSetupProtocol, "DiagnoseTVfile.txt written\n");
+				fflush(fpFileSetupProtocol);
+				TSfile.Write("DiagnoseTSfile.txt");
+				fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written\n");
+				fflush(fpFileSetupProtocol);
+			}
 			double dblVal;
 			long TVrows = 0;
 			long TSrows = 0;
