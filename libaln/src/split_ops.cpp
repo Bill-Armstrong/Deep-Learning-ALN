@@ -55,7 +55,7 @@ extern long nRowsVAR;
 extern CDataFile TRfile;
 extern CDataFile VARfile;
 extern BOOL bEstimateRMSError;
-BOOL bTrainingContinues;
+BOOL bStopTraining;
 
 void splitcontrol(CMyAln* pALN, double dblLimit);
 void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit);
@@ -194,7 +194,7 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 {
 	// this routine visits all the leaf nodes and determines whether the
 	// training error is below dblLimit times the noise variance
-	// During linear regression and during overtraining the dblLimit is less than 1.0 which causes lots of splitting
+	// During overtraining the dblLimit is less than 1.0. It is set low, which causes lots of splitting
 	double dblSqErrorPieceTrain;
 	double dblPieceNoiseVariance;
 	ASSERT(pNode);
@@ -206,26 +206,31 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		//if(LFN_ISINIT(pNode)) // do this if it hasn't stopped training
-		//{
-			dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TRfile
-			if (bEstimateRMSError)
-			{
-				// if we are evaluating noise variance (which we always do in training until we store a noise variance ALN)
-				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; 
-			}
-			else
-			{
-				dblPieceNoiseVariance = 1.0; // old value adblEpsilon[nDim - 1] * adblEpsilon[nDim - 1]; // This is used for linear regression and overtraining
-			}
-			if (dblSqErrorPieceTrain < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
-			{
-				// stop all future splitting of this leaf node (LFN)
-				LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
-				//LFN_FLAGS(pNode) &= ~LF_INIT; // undo the initialization
-				//bTrainingContinues = FALSE; // since this piece fitted well enough, training of it stops
-			}
-		//}
+		if (NODE_ISCONSTANT(pNode))
+		{
+			return;                     // no adaptation of this constant subtree
+		}
+		dblSqErrorPieceTrain = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on TRfile
+		if (bEstimateRMSError)
+		{
+			// if we are evaluating noise variance (which we always do in training until we store a noise variance ALN)
+			dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; 
+		}
+		else
+		{
+			dblPieceNoiseVariance = 1.0; // this allows use of dblLimit to stop splitting for regression and overtraining
+		}
+		if (dblSqErrorPieceTrain < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
+		{
+			// since this piece fits well enough, given the noise variance, training of it stops
+			// stop all future splitting of this leaf node (LFN)
+			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
+			LFN_FLAGS(pNode) &= NF_CONSTANT; // Make the node constant
+		}
+		else
+		{
+			if (bStopTraining == FALSE) bStopTraining = TRUE; // if every leaf has fitted to within noise, training stops
+		}
 	}
 }
 

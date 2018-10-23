@@ -827,10 +827,11 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
 			fprintf(fpProtocol, "Linear regression and overfitting an ALN being used to estimate RMS noise.\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
+			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVfile, here we don't use the VARfile
       dolinearregression();
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVflie
+			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVfile
 			pALN = pOTTS;
       overtrain(pOTTS);
 			createTR_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
@@ -840,7 +841,7 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 		createTR_VARfiles(2);
-		computeGlobalNoiseVariance(); // this sets up the files for training with noise variance control of stopping
+		computeGlobalNoiseVariance(); // sets up the whole TVfile as TRfile with noise variance control from VARfile
     approximate();
     PassBackStatus(7,75);   
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);

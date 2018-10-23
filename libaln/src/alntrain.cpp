@@ -41,6 +41,7 @@
 #include <aln.h>
 #include "alnpriv.h"
 
+
 #ifdef _DEBUG
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
@@ -208,8 +209,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		}
 
 		///// begin epoch loop
-    int nResetCounters = 5;  // We reset counters for splitting when
-                              //adaptation has had a chance to adjust pieces ??????????????????
+    int nResetCounters = 6;  // We reset counters for splitting when
+                              //adaptation has had a chance to adjust pieces
 															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
 		ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
 

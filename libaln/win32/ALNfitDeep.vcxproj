@@ -71,13 +71,13 @@
     <_ProjectFileVersion>14.0.24720.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
-    <OutDir>..\..\..\ALN2018tests</OutDir>
+    <OutDir>..\..\..\ALN2018tests\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeepDebug</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
-    <OutDir>..\..\..\ALN2018tests</OutDir>
+    <OutDir>..\..\..\ALN2018tests\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeep</TargetName>

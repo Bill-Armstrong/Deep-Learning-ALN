@@ -57,10 +57,3 @@ int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is concave down
 	}
 }
-
-/* old stuff
-//if(fabs(LFN_SPLIT_T(pNode))> 0) // if this is true, the choice of max or min is clear
-else // the choice of max or min split is not clear, and we have set LFN_SPLIT_T to 0 in findsplitlfn.cpp
-ALNNODE* pParent = NODE_PARENT(pNode);
-if(pParent == NULL || MINMAX_ISMAX(pParent)) //this affine piece is the top node just choose MAX
-*/

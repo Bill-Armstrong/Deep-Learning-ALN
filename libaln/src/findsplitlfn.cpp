@@ -46,7 +46,6 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode);
-static ALNNODE* ALNAPI CompareSplitLFNs(ALNNODE* pNode1, ALNNODE* pNode2);
 static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode, 
                                   ALNNODE*& pSplitLFN);
 
@@ -64,7 +63,7 @@ ALNNODE* ALNAPI FindSplitLFN(ALN* pALN)
 }
 
 inline 
-static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode)
+static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode) //routine
 {
   // In order to split, the leaf must have at least certain number of adaptation hits during the epoch
 	// such that the training error of the piece is made almost as small as possible without splitting.
