@@ -57,39 +57,41 @@ extern CDataFile VARfile;
 extern BOOL bEstimateRMSError;
 BOOL bStopTraining;
 
-void splitcontrol(CMyAln* pALN, double dblLimit);
-void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit);
-void dodivideTR(CMyAln* pALN, ALNNODE* pNode);
-void dodivideVAR(CMyAln* pALN, ALNNODE* pNode);
-void spliterrorsetTR(CMyAln * pALN);
-void spliterrorsetVAR(CMyAln * pALN);
-void dozerospliterror(CMyAln* pALN, ALNNODE* pNode);
+
+void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblLimit);
+void dodivideTR(ALN* pALN, ALNNODE* pNode);
+void dodivideVAR(ALN* pALN, ALNNODE* pNode);
+void spliterrorsetTR(ALN * pALN);
+void spliterrorsetVAR(ALN * pALN);
+void dozerospliterror(ALN* pALN, ALNNODE* pNode);
 
 // the following tells us how to use the SPLIT typedef between trainings of an ALN
 #define DBLNOISEVARIANCE dblRespTotal
 
-void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
+void splitcontrol(ALN* pALN, double dblLimit)  // routine
 {
   ASSERT(pALN);
-  ASSERT(pALN->GetTree());
+  ASSERT(pALN->pTree );
+	ASSERT(NODE_ISLFN(pALN->pTree));
+	if(~LFN_CANSPLIT(pALN->pTree))return; // we can't execute splitcontrol on a non-growing tree (linear regression)
 	// initialize the SPLIT components to zero
-	dozerospliterror(pALN, pALN->GetTree());
+	dozerospliterror(pALN, pALN->pTree);
 	// get square errors of pieces on training set
 	spliterrorsetTR(pALN);
 	// divide the training errors of the pieces by the hit counts, set counts to zero
-	dodivideTR(pALN,pALN->GetTree());
+	dodivideTR(pALN,pALN->pTree);
 	// get the values in VARfile which estimate the local noise variance
 	if(bEstimateRMSError && (dblLimit > 1.0)) // dblLimit is set to 0 for overtraining
 	{
 		// there is a set of noise variance samples
 		spliterrorsetVAR(pALN);
 		// divide the sum of local noise estimates on each piece by its count of hits
-		dodivideVAR(pALN,pALN->GetTree());
+		dodivideVAR(pALN,pALN->pTree);
 	}
 	// this conducts a search for all leaves in the ALN
-  dosplitcontrol(pALN, pALN->GetTree(), dblLimit);
+  dosplitcontrol(pALN, pALN->pTree, dblLimit);
   // reset the SPLIT components to zero
-	dozerospliterror(pALN, pALN->GetTree());
+	dozerospliterror(pALN, pALN->pTree);
 }
 
 // We use the first three fields in ALNLFNSPLIT (declared in aln.h)
@@ -109,7 +111,7 @@ void splitcontrol(CMyAln* pALN, double dblLimit)  // routine
 // Another idea is to reduce the dblFlimit in stages, but we just have to see if this can do anything useful.
 
 
-void dozerospliterror(CMyAln* pALN, ALNNODE* pNode) // routine
+void dozerospliterror(ALN* pALN, ALNNODE* pNode) // routine
 {
 	// initializes counters of all leaf nodes before the next training period
   ASSERT(pNode);
@@ -127,7 +129,7 @@ void dozerospliterror(CMyAln* pALN, ALNNODE* pNode) // routine
 	}
 }
 
-void dodivideTR(CMyAln* pALN, ALNNODE* pNode) // routine
+void dodivideTR(ALN* pALN, ALNNODE* pNode) // routine
 {
 	// divides the total square errors of the pieces by their hit count
   ASSERT(pNode);
@@ -160,7 +162,7 @@ void dodivideTR(CMyAln* pALN, ALNNODE* pNode) // routine
 }
 
 
-void dodivideVAR(CMyAln* pALN, ALNNODE* pNode) // routine
+void dodivideVAR(ALN* pALN, ALNNODE* pNode) // routine
 {
 	// divides the total square error of each piece by its respective hit count
   ASSERT(pNode);
@@ -190,7 +192,7 @@ void dodivideVAR(CMyAln* pALN, ALNNODE* pNode) // routine
 
 
 
-void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
+void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 {
 	// this routine visits all the leaf nodes and determines whether the
 	// training error is below dblLimit times the noise variance
@@ -234,7 +236,7 @@ void dosplitcontrol(CMyAln* pALN, ALNNODE* pNode, double dblLimit) // routine
 	}
 }
 
-void spliterrorsetTR(CMyAln * pALN) // routine
+void spliterrorsetTR(ALN * pALN) // routine
 {
 	// assign the square errors on the training set to the leaf nodes of the ALN
 	double * adblX = (double *)malloc((nDim) * sizeof(double));
@@ -249,8 +251,8 @@ void spliterrorsetTR(CMyAln * pALN) // routine
 			adblX[i] = TRfile.GetAt(j, i, 0);
 		}
 		desired = adblX[nDim - 1]; // get the desired result
-		adblX[nDim - 1] = 0; // not used in evaluation by QuickEval
-		predict = pALN->QuickEval(adblX, &pActiveLFN);
+		adblX[nDim - 1] = 0; // not used in evaluation by ALNQuickEval
+		predict = ALNQuickEval(pALN, adblX, &pActiveLFN);
 		if (!LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
 		{
 			se = (predict - desired) * (predict - desired);
@@ -262,7 +264,7 @@ void spliterrorsetTR(CMyAln * pALN) // routine
 } // END of spliterrorsetTR
 
 
-void spliterrorsetVAR(CMyAln * pALN) // routine
+void spliterrorsetVAR(ALN * pALN) // routine
 {
 
 		// assign the square errors on the variance set to the leaf nodes of the ALN
@@ -278,8 +280,8 @@ void spliterrorsetVAR(CMyAln * pALN) // routine
 				adblX[i] = VARfile.GetAt(j, i, 0); // the value at nDim - 1 is used only for desired
 			}
 			// pAln has to be the current approximant! Is this correct?
-			value = pALN->QuickEval(adblX, &pActiveLFN);  // this is the piece of the current approximant that the X-vector lies on.
-			if (!LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
+			value = ALNQuickEval(pALN, adblX, &pActiveLFN);  // this is the piece of the current approximant that the X-vector lies on.
+						if (!LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
 			{
 				//se = (predict - desired) * (predict - desired);
 				// now correct for the dimension. the average variance of predict - desired is !+ 2/(nDim+2), so we have to divide se by this

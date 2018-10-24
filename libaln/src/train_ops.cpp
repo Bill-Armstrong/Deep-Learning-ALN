@@ -137,7 +137,7 @@ void ALNAPI dolinearregression() // routine
 	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//********* dolinearregression
-	// Quickstart: get centroids and weights in neighborhood of good values
+	// get centroids and weights in neighborhood of good values by first using a fairly high learning rate
 	dblLearnRate = 0.2;  // roughly, 0.2 corrects about 20% of the error for each pass through the data in nRowsTR.
 	int nEpochSize = nRowsTR; // nEpochsize gives the number of training samples. Later nRowsTR=nRowsTV.
 	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
@@ -426,7 +426,7 @@ void ALNAPI approximate() // routine
       fflush(fpProtocol);
       exit(0);
 		}
-		splitcontrol(apALN[n], dblFlimit); // here F-limit for splitting is set
+		splitcontrol((ALN*)apALN[n], dblFlimit); // here F-limit for splitting is set
 		// NB it would be better to use the Flimit that is given by the hit counts on the piece that is to be split or not  IMPROVEMENT LATER
 		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 		// Set constraints on variables for ALN index n
@@ -722,7 +722,8 @@ void ALNAPI trainaverage() // routine
     fprintf(fpProtocol,"Stopping: Growable average ALN creation failed!\n");
     exit(0);
 	}
-	splitcontrol(pAvgALN, dblFlimit / nALNs); // here is one place where the F-limit is set from F-tables, averaging reduces noise variance
+	splitcontrol((ALN*)pAvgALN, dblFlimit / nALNs); // here is one place where the F-limit is set from
+	// F-tables, averaging reduces noise variance and instead of changing all the samples in VARfile, we just change dblFlimit
 	for(int k = 0; k < nDim - 1; k++) // do each variable k except the output
 	{
 		pAvgALN->SetEpsilon(adblEpsilon[k],k);

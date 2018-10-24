@@ -413,7 +413,7 @@ ALNIMP int ALNAPI ALNAddLFNs(ALN* pALN, ALNNODE* pParent,
         LFN_SPLIT(pChild) = (ALNLFNSPLIT*)malloc(sizeof(ALNLFNSPLIT));
         if (LFN_SPLIT(pChild) == NULL)
           ThrowALNMemoryException();
-
+		
         pChild->fNode |= LF_SPLIT;
         LFN_SPLIT_COUNT(pChild) = 0;
         LFN_SPLIT_SQERR(pChild) = 0.0;

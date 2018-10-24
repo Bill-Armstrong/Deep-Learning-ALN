@@ -40,7 +40,8 @@
 
 #include <aln.h>
 #include "alnpriv.h"
-
+#include "alnpp.h"
+#include ".\cmyaln.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -71,6 +72,9 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                              double dblMinRMSErr,
                              double dblLearnRate,
                              BOOL bJitter);
+
+void splitcontrol(ALN*, double); // does an F-test
+extern double dblFlimit; // according to this limit
 
 // TrainALN expects data in monolithic array, row major order, ie,
 //   row 0 col 0, row 0 col 1, ..., row 0 col n,
@@ -233,6 +237,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
       // are reset
       if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
       {
+				// we should just do one epoch of training before this, but OK for test.
+				if(LFN_CANSPLIT(pALN->pTree))splitcontrol(pALN, dblFlimit);
         //FindSplitLFN(pALN) splits LFNs after training has stabilized the pieces somewhat
         ALNNODE* pSplitLFN = FindSplitLFN(pALN);
 				// reset tree to mark useless pieces, etc

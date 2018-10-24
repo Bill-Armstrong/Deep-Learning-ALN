@@ -288,13 +288,13 @@ double dblSetTolerance;
 
 
 // Functions used only internally
-void splitcontrol(CMyAln*, double); // if average variance error of a piece is high, splitting is prevented
-void dosplitcontrol(CMyAln*, ALNNODE*, double); //does the recursion of splitcontrol
-void dozerospliterror(CMyAln*, ALNNODE*);  // sets the square error to zero in each LFN
-void spliterrorsetTR(CMyAln*); // accumulates the training square error and number of hits on each linear piece
-void spliterrorsetVAR(CMyAln*); // accumulates the variance square error and number of hits on each linear piece
-void dodivideTR(CMyAln*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
-void dodivideVAR(CMyAln*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
+void splitcontrol(ALN*, double); // if average variance error of a piece is high, splitting is prevented
+void dosplitcontrol(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
+void dozerospliterror(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
+void spliterrorsetTR(ALN*); // accumulates the training square error and number of hits on each linear piece
+void spliterrorsetVAR(ALN*); // accumulates the variance square error and number of hits on each linear piece
+void dodivideTR(ALN*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
+void dodivideVAR(ALN*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
 
 // thread procedures
 UINT TakeActionProc(LPVOID pParam);  // separate thread
