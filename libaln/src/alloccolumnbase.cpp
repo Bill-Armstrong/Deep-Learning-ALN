@@ -17,22 +17,13 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // alloccolumnbase.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/alloccolumnbase.cpp $
-//  $Workfile: alloccolumnbase.cpp $
-//  $Revision: 5 $
-//  $Date: 7/17/07 5:08p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
+//  libaln/src/alloccolumnbase.cpp $
+//  Date: October 24, 2018
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

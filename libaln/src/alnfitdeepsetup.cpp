@@ -453,9 +453,7 @@ void ALNAPI ALNfitSetup() // routine
   }
 	fprintf(fpProtocol,"Starting to preprocess the data file\n");
 	preprocessDataFile();
-	if(bTrain)fprintf(fpProtocol,"Creating the TVfile to be partitioned into TSfile for training \n\
-		and VARfile for noise variance samples. We also create the test file in cases where there are zero lags,\
-		but creating the test file by random choice in other cases is nonsense.\n");
+	if(bTrain)fprintf(fpProtocol,"Creating the TVfile to be partitioned into TSfile for training and VARfile for noise variance samples.\n");
 	fprintf(fpProtocol,"Creating the test file\n");
 	createTVTSfiles();
 }
@@ -1020,7 +1018,6 @@ void ALNAPI analyzeTV() // routine
 		{
       fprintf(fpProtocol, "Stdev of output variable %s = %lf \n",varname[nInputCol[nOutputIndex]],adblStdevVar[k]);
 			fprintf(fpProtocol, "The Epsilons above are sides of boxes per point in units of the particular input\n");
-			fprintf(fpProtocol, "The output Epsilon will be set to the tolerance, the desired RMS error on training\n");
 		}
   }
   fflush(fpProtocol);
@@ -1028,7 +1025,6 @@ void ALNAPI analyzeTV() // routine
 
 
 /*
-
 void getTVfile() // routine -- not currently used, but this and getTSfile() may be useful for diagnosis
 {
 	fprintf(fpProtocol,"Opening TAB separated Training/noise_Variance data file.\n");

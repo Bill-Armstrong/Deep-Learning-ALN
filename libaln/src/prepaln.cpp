@@ -17,21 +17,14 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 // prepaln.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/prepaln.cpp $
-//  $Workfile: prepaln.cpp $
-//  $Revision: 7 $
-//  $Date: 8/18/07 4:27p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
+//  Archive: /ALN Development/libaln/src/prepaln.cpp
+//  Workfile: prepaln.cpp 
+//  Date: October 24, 2018
+//  Changes by: W. W. Armstrong
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
@@ -44,8 +37,6 @@
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
-
-
 
 BOOL ALNAPI DoPrepRegions(ALN* pALN);
 BOOL ALNAPI DoPrepNode(ALN* pALN, ALNNODE* pNode);
@@ -62,8 +53,6 @@ BOOL ALNAPI PrepALN(ALN* pALN)
 
   return TRUE;
 }
-
-
 
 BOOL ALNAPI DoPrepRegions(ALN* pALN)
 {
@@ -88,7 +77,7 @@ BOOL ALNAPI DoPrepRegions(ALN* pALN)
       }
 
       // calc sq epsilon
-      pRegion->aConstr[j].dblSqEpsilon = dblEpsilon * dblEpsilon;
+      pRegion->aConstr[j].dblSqEpsilon = dblEpsilon * dblEpsilon; // this may be useless now
     }
 
     // calc smoothing epsilon quantities
@@ -112,8 +101,7 @@ BOOL ALNAPI DoPrepNode(ALN* pALN, ALNNODE* pNode)
   else
   {
     ASSERT(NODE_ISMINMAX(pNode));
-
-    DoPrepNode(MINMAX_LEFT(pNode));
+		DoPrepNode(MINMAX_LEFT(pNode));
     DoPrepNode(MINMAX_RIGHT(pNode));
   }
 

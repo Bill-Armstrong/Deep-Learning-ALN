@@ -32,7 +32,7 @@
 //  $Author: Arms $
 //
 ///////////////////////////////////////////////////////////////////////////////
-
+/*
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif
@@ -46,22 +46,17 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode);
-static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode, 
-                                  ALNNODE*& pSplitLFN);
+static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode);
 
-ALNNODE* ALNAPI FindSplitLFN(ALN* pALN)
+void ALNAPI FindSplitLFN(ALN* pALN)
 {
   ASSERT(pALN);
   ASSERT(pALN->pTree);
 
-  ALNNODE* pSplitLFN = NULL;
-  DoFindSplitLFN(pALN, pALN->pTree, pSplitLFN);
-
-  ASSERT(pSplitLFN == NULL || LFN_CANSPLIT(pSplitLFN));
-  
-  return pSplitLFN;
+  DoFindSplitLFN(pALN, pALN->pTree); // works its way through the tree and splits leaf nodes that can split
 }
-
+*/
+/*
 inline 
 static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode) //routine
 {
@@ -72,13 +67,13 @@ static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode) //routine
 	// because the two pieces are duplicated and adjusted for fillets. After the slightest change,
 	// the error should be divided between the two pieces resulting from the split
 	// The total training error should then decrease after a split.
-	if (LFN_CANSPLIT(pNode)&& (LFN_SPLIT_COUNT(pNode) > pALN->nDim)	&& (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim ))
+	if (LFN_CANSPLIT(pNode)); // && (LFN_SPLIT_COUNT(pNode) > pALN->nDim) && (LFN_SPLIT_RESPTOTAL(pNode) > pALN->nDim))
   {
 		return TRUE;
 	}
 	return FALSE;
 }
-
+*/
 // The following is probably of no use.  It was removed above
 //ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, pALN->nOutput);
 //ASSERT(pConstr->dblSqEpsilon == pConstr->dblEpsilon * pConstr->dblEpsilon);
@@ -95,21 +90,21 @@ static BOOL CanSplitLFN(ALN* pALN, ALNNODE* pNode) //routine
 //return TRUE;
 //}
 
-
-static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode,
-                                  ALNNODE*& pSplitLFN)
+/*
+static void ALNAPI DoFindSplitLFN(ALN* pALN, ALNNODE* pNode)
 {
   ASSERT(pNode);
   if (NODE_ISMINMAX(pNode))
   {
-    DoFindSplitLFN(pALN, MINMAX_LEFT(pNode), pSplitLFN);
-    DoFindSplitLFN(pALN, MINMAX_RIGHT(pNode), pSplitLFN);
+    DoFindSplitLFN(pALN, MINMAX_LEFT(pNode));
+    DoFindSplitLFN(pALN, MINMAX_RIGHT(pNode));
   }
   else
   {
     ASSERT(NODE_ISLFN(pNode));
-    // check if splittable
+    // check if LFN splittable
     if (CanSplitLFN(pALN, pNode))
-      SplitLFN(pALN, pNode);
+			SplitLFN(pALN, pNode); // we split *every* leaf node that has been training a while but does not fit within the noise level
   }
 }
+*/

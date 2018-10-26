@@ -824,7 +824,7 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     {
       // We do the following if we are doing regression and estimating RMS noise
 			// Noise estimation may work for two classes, but for more classes, it depends on which classes are close to one-another
-			fprintf(fpProtocol, "Linear regression and overfitting an ALN being used to estimate RMS noise.\n");
+			fprintf(fpProtocol, "Linear regression and overfitting are used, the latter for estimating noise variance.\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVfile, here we don't use the VARfile

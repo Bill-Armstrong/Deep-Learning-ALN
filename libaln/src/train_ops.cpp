@@ -76,7 +76,8 @@ double dblFlimit =2.59;// this says that splitting of a linear piece is prevente
 // For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops
 // when the training error is larger than with a lower F-value.
 // We have to IMPROVE the program to use d.o.f. of each piece for both training error and noise variance 
-int nEpochSize; // the number of input vectors it takes to correct the errors of position of pieces before splitting
+int nEpochSize; // the number of input vectors in the current training set
+BOOL bALNgrowable = TRUE; // FALSE for linear regression, TRUE otherwise
 
 void ALNAPI dolinearregression() // routine
 {
@@ -97,6 +98,7 @@ void ALNAPI dolinearregression() // routine
 		exit(0);
 	}
   fflush(fpProtocol);
+	bALNgrowable = FALSE;
 	// Set constraints on variables for the ALN	
 	for( int m = 0; m < nDim-1; m++) // note that loops that do m < nDim-1 omit the output variable 
 		                               // (always the last ALN input, but maybe not connected to the rightmost data file column)
@@ -156,7 +158,6 @@ void ALNAPI dolinearregression() // routine
 	// pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL); A lower learning rate usually calls for longer training but we pass here
 	dblMinRMSE = 0; // Can be a primitive stopping criterion. Here we don't stop early because of low training error
 	nNumberEpochs = 1000; //
-	dblFlimit = 0.99;
 	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 	{
 		fprintf(fpProtocol, "Polishing linear regression training failed!\n");
@@ -236,29 +237,29 @@ void ALNAPI dolinearregression() // routine
 	fflush(fpProtocol);
 }
 
-void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data in pOT and the complement in pOTVS
+void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data inTRfile to get pOTTS
+																		//and it over fits then the TVfile minus TRfile to get pOTVS
 {
-	// begin fitting a single ALN using new training & variance sets
-  // pieces are allowed to break as long as they have over nDim training points on them instead of
-	// being constrained to have training error above the noise level as in approximation below
-	// We can overtrain using several different splits of the TVfile into two equal parts.
+	// Leaf nodes are allowed to split as long as they are overdetermined (i.e. have more than nDim training points on them)
+	// In future, we can overtrain using several different splits of the TVfile into two almost equal parts.
 	// This program now uses overtraining on the original training set and its complement.
 	fprintf(fpProtocol,"\n*** Overtraining an ALN for use with noise variance estimation begins***\n");
-	//  CMyAln * pOT is declared in the header so it can be used elsewhere including in split_ops.cpp
+	bALNgrowable = TRUE;
 	// Set up the ALN
 	pOT = new CMyAln;
 	if (!(pOT->Create(nDim, nDim-1)))
 	{
-		fprintf(fpProtocol,"Stopping: noise estimation overtrained ALN creation failed!\n");
+		fprintf(fpProtocol,"Stopping: creation of an ALN for overtraining failed!\n");
     fflush(fpProtocol);
     exit(0);
 	}
-  if (!pOT->SetGrowable(pOT->GetTree()))		
+  if (!pOT->SetGrowable(pOT->GetTree()))	// the ALN should grow to about the size of TVfile divided by 2*nDim	
 	{
 	  fprintf(fpProtocol,"Setting overtraining ALN growable failed!\n"); 
     fflush(fpProtocol);
     exit(0);
 	}
+
 	// Set constraints on variables for the ALN	
 	for( int m = 0; m < nDim-1; m++) // NB Excludes the output variable of the ALN
 	{
@@ -284,13 +285,12 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
     }
 	}
 	bStopTraining = FALSE; // This becomes TRUE and stops training when all pieces fit well according to the F-test. 
-	// We just set the training error here in place of the dblFlimit. The noise variance is set to 1.0 if dblFlimit < 1.0.
-	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing should be zero so as not to interfere.
+	dblFlimit = 0; // The F-test splits a leaf node unless the training error is zero and the piece is not overdetermined
+	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing must be zero.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
-	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n"
-					, dblLinRegErr, (pOT->GetRegion(0))->dblSmoothEpsilon);
+	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n", dblLinRegErr, 0.0);
 	//********* initial weight and centroid components for overtraining
-	dblMinRMSE = dblLinRegErr / 1000.0; //we stop overtraining when reaching a low training error which is 1/1000 of the linear regression eror
+	dblMinRMSE = dblLinRegErr / 10000.0; //we can stop overtraining upon reaching a very low training error compared to linear regression
 	// use the weights and centroids from linear regression
 	ALNNODE* pActiveLFN;
 	pActiveLFN = pOT->GetTree();
@@ -304,43 +304,49 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	((pActiveLFN)->DATA.LFN.adblW)[0] = adblLRW[0];
 	((pActiveLFN)->DATA.LFN.adblW)[nDim] = -1.0;
 	fprintf(fpProtocol,"Weight 0 is %f centroid %d is %f\n", adblLRW[0], nDim -1, adblLRC[nDim - 1] ); 
-	dblFlimit = 0.1; // tiny value for the desired training error of overtraining
- 	nNumberLFNs = 1;  // starts at 1 and should grow quickly
+
+ 	nNumberLFNs = 1;  // starts at 1 and should grow quickly, all eligible leaf nodes split at the same time! 
 	dblLearnRate = 0.2; // try to correct all the error on first pass, one more pass to get better values
 	// NB the View sets up the TRfile and the VARfile so nRowsTR is known here
-	nEpochSize =  nRowsTR; // splitting occurs after an epoch of this size, but not for linear regression
+	// One key idea here is that the mean of TRfile samples on a piece should be zero for the F-test.
+	// If that is not true then it just makes it less likely to be accepted as a good fit by the F-test.
+	nEpochSize =  nRowsTR; // splitting occurs after nResetCounters epochs of this size, see alntrain.cpp -- OnEpochEnd.
 	pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
-	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used when estimating noise!
-	for(int iteration = 0; iteration <20; iteration++)  // assume 20 to speed up
+	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used for overtraining
+	for(int iteration = 0; iteration <40; iteration++)  // experimental
 	{
-    if(iteration == 3)
+    if(iteration == 10)
     {
-			dblLearnRate = 0.1;
+			dblLearnRate = 0.15;
 			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
     }
-    if(iteration == 10)// getting near the end of noise estimation, slowing down learning //was 46
+    if(iteration == 15)// getting near the end of noise estimation, slowing down learning 
     {
-      dblLearnRate = 0.05;
+      dblLearnRate = 0.1;
 			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
     }
 		bStopTraining = FALSE; // Should stop training when all pieces fit well. Doesn't work yet!
 		// Jitter should never be used for overfitting, so we set this to false, but leave a TRUE value for approximation
 		// call the training function
-		nNumberEpochs = 10; //epochs per iteration, 20 iterations, total 200 epochs
+		nNumberEpochs = 10; //epochs per iteration, 40 iterations, 6 times nResetCounters = total 1200 epochs -- CHECK THIS!!!!
 		if(!pOT->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // overtraining
 		{
 		  fprintf(fpProtocol,"Overtraining failed!\n");
+			fflush(fpProtocol);
+			exit(0);
 		}
 		//fprintf(fpProtocol, "Iteration %d of overtraining continues. RMS Error %f\n", iteration, dblTrainErr);
 		if (bStopTraining == TRUE)
 		{
 			fprintf(fpProtocol, "This overtraining stopped because all leaf nodes have stopped changing!\n");
+			bStopTraining = FALSE;
 			fprintf(fpProtocol, "\nOvertraining of an ALN completed at iteration %d \n", iteration);
 			break;
 		}
 		fflush(fpProtocol);
 	}
 	fprintf(fpProtocol,"\nOvertraining of an ALN completed. Training RMSE = %f \n",dblTrainErr);
+	fflush(fpProtocol);
 	// We are not finished with OTTS , we add OTVS and keep them for the noise level determination.
 	// In future versions of the program we will create a weight-bounded ALN to learn the noise and store it for future evaluations
 	// At present, there is no way to pass on the noise variance information
@@ -350,6 +356,7 @@ void ALNAPI approximate() // routine
 {
 	fprintf(fpProtocol, "\n**************Approximation with one or more ALNs begins ********\n");
 	fflush(fpProtocol);
+	bALNgrowable = TRUE; // now the nodes can split
 	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
 	double dblGlobalNoiseVariance;
 	createTR_VARfiles(2);  // 2 prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
@@ -426,8 +433,7 @@ void ALNAPI approximate() // routine
       fflush(fpProtocol);
       exit(0);
 		}
-		splitcontrol((ALN*)apALN[n], dblFlimit); // here F-limit for splitting is set
-		// NB it would be better to use the Flimit that is given by the hit counts on the piece that is to be split or not  IMPROVEMENT LATER
+
 		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 		// Set constraints on variables for ALN index n
 		for(int m = 0; m < nDim-1; m++)
@@ -485,12 +491,12 @@ void ALNAPI approximate() // routine
 			((pActiveLFN)->DATA.LFN.adblW)[0] = adblLRW[0];
 			((pActiveLFN)->DATA.LFN.adblW)[nDim]= -1.0;
 		}
-		else
+		/*else
 		{
 			// Quickstart: get centroids and weights in neighborhood of good values
 			dblMinRMSE = 0;
 			dblLearnRate = 0.5; // we just want to get a linear piece near the data points
-			nNumberEpochs = (int)floor(6.0 / dblLearnRate);
+			nNumberEpochs = 10;  //CHECK THIS????
 			bStopTraining = FALSE;
 			if (!apALN[n]->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
 			{
@@ -499,10 +505,11 @@ void ALNAPI approximate() // routine
 			if (bStopTraining == TRUE)
 			{
 				fprintf(fpProtocol, "This approximation training of ALN %d stopped because all leaf nodes have stopped changing!\n",n);
+				bStopTraining = FALSE;
 				fprintf(fpProtocol, "\nFirst step of training of approximation ALN %d completed \n", n);
 				break;
 			}
-		}
+		}*/
 		dblLearnRate = 0.2;
 		nEpochSize = 3 * nRowsTR;
 		// We stop when all pieces cease to allow splitting -- IF WE GET IT IMPLEMENTED!
@@ -524,6 +531,7 @@ void ALNAPI approximate() // routine
 			if (bStopTraining == TRUE)
 			{
 				fprintf(fpProtocol, "This training stopped because all leaf nodes have stopped changing!\n");
+				bStopTraining = FALSE;
 				fprintf(fpProtocol, "\nOvertraining of approximation ALN number %d completed at iteration %d \n",n, iteration);
 				break;
 			}
@@ -713,7 +721,7 @@ void ALNAPI trainaverage() // routine
 	// for training the average, we should use the TV set for points
 	// since they best define the region where the data is
 	// The values of those points are not used
-	fprintf(fpProtocol,"\n********** Training an ALN by resampling the average ******\n");
+	fprintf(fpProtocol,"\n**** Training an ALN by resampling the average of several approximations ******\n");
 	fprintf(fpProtocol, "The F-limit used for stopping splitting of the average ALN is %f \n", dblFlimit/nALNs);
 	pAvgALN = new CMyAln; // NULL initialized ALN
 	if (!(pAvgALN->Create(nDim, nDim-1) &&
@@ -722,8 +730,9 @@ void ALNAPI trainaverage() // routine
     fprintf(fpProtocol,"Stopping: Growable average ALN creation failed!\n");
     exit(0);
 	}
-	splitcontrol((ALN*)pAvgALN, dblFlimit / nALNs); // here is one place where the F-limit is set from
-	// F-tables, averaging reduces noise variance and instead of changing all the samples in VARfile, we just change dblFlimit
+	bALNgrowable = TRUE;
+	dblFlimit /= nALNs; // Used for splitting the average ALN
+	// Averaging reduces noise variance and instead of changing all the samples in VARfile, we just reduce dblFlimit
 	for(int k = 0; k < nDim - 1; k++) // do each variable k except the output
 	{
 		pAvgALN->SetEpsilon(adblEpsilon[k],k);
@@ -745,14 +754,14 @@ void ALNAPI trainaverage() // routine
 		  pAvgALN->SetWeightMax(dblMaxWeight[k],k);
     }
 	}
-	(pAvgALN)->SetEpsilon(0,nDim -1); // small output tolerance based on variance error
+	//(pAvgALN)->SetEpsilon(0,nDim -1); // small output tolerance based on variance error
 	fprintf(fpProtocol,"Smoothing epsilon for training the average ALN is set the same as for approximation\n\n");
 	fflush(fpProtocol);
 	// Tell the training algorithm the way to access the data using fillvector
-	dblLearnRate = 0.3;
-	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR;
+	dblLearnRate = 0.2;
+	nEpochSize = nRowsTV;
 	pAvgALN->SetDataInfo(nEpochSize,nDim,NULL,NULL);
-	dblMinRMSE = 0;
+	dblMinRMSE = 0; // Stopping splitting uses the F-test
 		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//*********
 	if(bEstimateRMSError)
@@ -766,7 +775,7 @@ void ALNAPI trainaverage() // routine
 	}
 	else
 	{
-		// use the weights and centroids from linear regression
+		// use the weights and centroids from linear regression to start
 		ALNNODE* pActiveLFN;
 		pActiveLFN = pAvgALN->GetTree();
 		for(int m = 0; m < nDim - 1; m++)
@@ -781,29 +790,28 @@ void ALNAPI trainaverage() // routine
 	//**********	// at this point we have no further use for the starting values from linear regression
 	if(bEstimateRMSError)
 	{
-		delete [] adblLRC; // delete this from free store
+		delete [] adblLRC; // delete these from free store
 		delete [] adblLRW;
 		adblLRC = NULL; // set the pointers to NULL
 		adblLRW = NULL;
 	}
-	dblMinRMSE = 0.0; //THIS SHOULD BE REPLACED BY SOMETHING
 	dblLearnRate = 0.2;
-	nEpochSize = (int)floor(1.199 / dblLearnRate) * nRowsTR; //training average ALN
+	nEpochSize = nRowsTV; //training average ALN
   nNumberLFNs = 1;  // initialize at 1
-	//int nOldNumberLFNs = 1;  // having little change in nNumberLFNs is a stopping criterion
   for(int iteration = 0; iteration < 20; iteration++) // is 20 iterations enough?
 	{
 	  // Call the training function
-		bStopTraining = TRUE;
+		bStopTraining = FALSE;
 	  if (!pAvgALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // average
 	  {
 		  fprintf(fpProtocol,"Average ALN training failed!\n");
       fflush(fpProtocol);
       exit(0);
 	  }
-		if (bStopTraining == FALSE)
+		if (bStopTraining == TRUE)
 		{
 			fprintf(fpProtocol, "This training stopped because all leaf nodes have stopped changing!\n");
+			bStopTraining = FALSE;
 			fprintf(fpProtocol, "\nOvertraining of the average ALN completed at iteration %d \n", iteration);
 			fflush(fpProtocol);
 			break;

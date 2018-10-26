@@ -17,22 +17,15 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
+
 // alntrain.cpp
 // training support routines
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/alntrain.cpp $
-//  $Workfile: alntrain.cpp $
-//  $Revision: 12 $
-//  $Date: 8/18/07 2:51p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
+// libaln/src/alntrain.cpp
+// Revision date: October 24, 2018
+// Changes by: WWA
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
@@ -73,8 +66,11 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                              double dblLearnRate,
                              BOOL bJitter);
 
-void splitcontrol(ALN*, double); // does an F-test
-extern double dblFlimit; // according to this limit
+void splitcontrol(ALN*, double); // does an F-test to see if a piece is fitted well or is ready to split
+void dozerospliterror(ALN* pALN, ALNNODE* pNode); // this zeros the split items just before the last epoch
+extern double dblFlimit; // pieces split according to this limit (should vary with the number of samples on the piece0
+int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // splits any piece that's ready
+extern BOOL bALNgrowable; // used to stop the splitting operations for linear regression
 
 // TrainALN expects data in monolithic array, row major order, ie,
 //   row 0 col 0, row 0 col 1, ..., row 0 col n,
@@ -82,13 +78,14 @@ extern double dblFlimit; // according to this limit
 //   ...,
 //   row m col 0, row m col 1, ..., row m col n,
 // if aVarInfo is NULL, then there must be nDim columns in data array
-//   else aVarInfo must have pALN->nDim elements
+// else aVarInfo must have pALN->nDim elements
 // if adblData is NULL, then application must provide a training proc,
-//   and must fill data vector during AN_FILLVECTOR message
+// and must fill the data vector during AN_FILLVECTOR message
 // else adblData must have nPoints rows and nCols must be greater than zero
 // nNotifyMask is the bitwise OR of all the notifications that should
-//   sent during training, or AN_ALL, or AN_NONE
+// be sent during training, or AN_ALL, or AN_NONE
 // returns ALN_* error code, (ALN_NOERROR on success)
+
 ALNIMP int ALNAPI ALNTrain(ALN* pALN,
                            const ALNDATAINFO* pDataInfo,
                            const ALNCALLBACKINFO* pCallbackInfo,
@@ -158,7 +155,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                                              pCallbackInfo->pfnNotifyProc;
 
 	// init traindata
-	traindata.dblLearnRate = dblLearnRate / nDim; // there is 1 adapt per input variable, so lower this
+	traindata.dblLearnRate = dblLearnRate; // was 1 adapt per input variable (?), now an epoch is 1 pass through the training data
 	traindata.nNotifyMask = nNotifyMask;
 	traindata.pvData = pvData;
 	traindata.pfnNotifyProc = pfnNotifyProc;
@@ -172,7 +169,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     // allocate input vector
     adblX = new double[nDim];
     if (!adblX) ThrowALNMemoryException();
-    memset(adblX, 0, sizeof(double) * nDim);
+    memset(adblX, 0, sizeof(double) * nDim); // this has space for all the inputs and the output value
 
     // allocate column base vector
     apdblBase = AllocColumnBase(nStart, pALN, pDataInfo);
@@ -216,9 +213,10 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     int nResetCounters = 6;  // We reset counters for splitting when
                               //adaptation has had a chance to adjust pieces
 															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
+															// 40 should handle any learning rate above 0.05
 		ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
 
-    traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop
+    traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ????
 		for (int nEpoch = 0; 
 				 (nEpoch < nMaxEpochs) && (traininfo.dblRMSErr > dblMinRMSErr); 
 				 nEpoch++)
@@ -232,18 +230,24 @@ static int ALNAPI DoTrainALN(ALN* pALN,
         EPOCHINFO ei(epochinfo);  // make copy to send!
 				Callback(pALN, AN_EPOCHSTART, &ei, pfnNotifyProc, pvData);
 			}
-
-      // split candidate LFNs if not first epoch, and before counters
-      // are reset
-      if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
+			if (nEpoch > 0 && (nEpoch%nResetCounters == nResetCounters - 1))
+			{
+				if (bALNgrowable)ResetCounters(pTree, pALN, nEpoch == 0);
+			}
+      // split candidate LFNs if not first epoch, and before counters are reset
+			if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
       {
-				// we should just do one epoch of training before this, but OK for test.
-				if(LFN_CANSPLIT(pALN->pTree))splitcontrol(pALN, dblFlimit);
-        //FindSplitLFN(pALN) splits LFNs after training has stabilized the pieces somewhat
-        ALNNODE* pSplitLFN = FindSplitLFN(pALN);
+				// Don't use splitcontrol when the leaf node is not splitable! (e.g. for linear regression)
+				ASSERT(pALN->pTree);
+				// If the tree is not growable, as in linear regression, the left part will be false,
+				// If the tree is growable, then splitting can start because the right condition is true
+				// and continue for the rest of the tree because the left condition is true (too complicated??)
+				if(bALNgrowable)splitcontrol(pALN, dblFlimit);  
+				//FindSplitLFN(pALN) splits LFNs after training has stabilized the pieces somewhat
+        //FindSplitLFN(pALN); USELESS NOW
 				// reset tree to mark useless pieces, etc
 				// except for first epoch, where we mark everything as useful
-				ResetCounters(pTree, pALN, nEpoch == 0);   
+				//ResetCounters(pTree, pALN, nEpoch == 0);   // can this be deleted?
 			}
 
       // track squared error
