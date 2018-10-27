@@ -101,7 +101,7 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 	double* adblW = LFN_W(pNode);	    // weight vector
 	double* adblC = LFN_C(pNode);			// centroid vector
 	double* adblD = LFN_D(pNode);			// average square dist from centroid vector
-	//double* adblPrevX = LFN_P(pNode); // vector of previous inputs --- this was eliminated on March 24, 2015 keep the array for later use somewhere
+	double* adblPrevX = LFN_P(pNode); // vector of previous inputs --- this was eliminated on March 24, 2015 keep the array for later use somewhere
 	// calculate adblA = how far the linear piece is above adblX[nOutput].
 	// Note:  the sum below added to the bias weight would add up to zero for a point *on* the linear piece
 	// If adblX[nOutput] is greater than the value of output on the piece, dblA is *negative*

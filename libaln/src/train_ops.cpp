@@ -244,7 +244,6 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	// In future, we can overtrain using several different splits of the TVfile into two almost equal parts.
 	// This program now uses overtraining on the original training set and its complement.
 	fprintf(fpProtocol,"\n*** Overtraining an ALN for use with noise variance estimation begins***\n");
-	bALNgrowable = TRUE;
 	// Set up the ALN
 	pOT = new CMyAln;
 	if (!(pOT->Create(nDim, nDim-1)))
@@ -259,7 +258,7 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
     fflush(fpProtocol);
     exit(0);
 	}
-
+	bALNgrowable = TRUE; 
 	// Set constraints on variables for the ALN	
 	for( int m = 0; m < nDim-1; m++) // NB Excludes the output variable of the ALN
 	{
@@ -284,14 +283,14 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 		  pOT->SetWeightMax(dblMaxWeight[m],m);
     }
 	}
-	bStopTraining = FALSE; // This becomes TRUE and stops training when all pieces fit well according to the F-test. 
-	dblFlimit = 0; // The F-test splits a leaf node unless the training error is zero and the piece is not overdetermined
-	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // for overfitting a single ALN, the smoothing must be zero.
+	bStopTraining = FALSE; // This becomes TRUE and stops training when all leaf nodes fit well according to the F-test. 
+	dblFlimit = 0; // This allows unlimited splitting of leaf nodes with more than nDim training hits.
+	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // For overfitting, the smoothing must be zero.
 	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n", dblLinRegErr, 0.0);
 	//********* initial weight and centroid components for overtraining
-	dblMinRMSE = dblLinRegErr / 10000.0; //we can stop overtraining upon reaching a very low training error compared to linear regression
-	// use the weights and centroids from linear regression
+	dblMinRMSE = 0.0; // We don't stop overtraining upon reaching even a very low training error.
+	// Start training using the weights and centroid from linear regression
 	ALNNODE* pActiveLFN;
 	pActiveLFN = pOT->GetTree();
 	for(int m = 0; m < nDim -1; m++)
@@ -306,36 +305,33 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	fprintf(fpProtocol,"Weight 0 is %f centroid %d is %f\n", adblLRW[0], nDim -1, adblLRC[nDim - 1] ); 
 
  	nNumberLFNs = 1;  // starts at 1 and should grow quickly, all eligible leaf nodes split at the same time! 
-	dblLearnRate = 0.2; // try to correct all the error on first pass, one more pass to get better values
 	// NB the View sets up the TRfile and the VARfile so nRowsTR is known here
 	// One key idea here is that the mean of TRfile samples on a piece should be zero for the F-test.
 	// If that is not true then it just makes it less likely to be accepted as a good fit by the F-test.
 	nEpochSize =  nRowsTR; // splitting occurs after nResetCounters epochs of this size, see alntrain.cpp -- OnEpochEnd.
 	pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used for overtraining
+	bStopTraining = FALSE; // Becomes true and should stop training when all pieces fit well.
+	nNumberEpochs = 10; // epochs per iteration = 10 * nResetCounters = 6 * iterations = 40 total: 2400 epochs for overtraining
 	for(int iteration = 0; iteration <40; iteration++)  // experimental
 	{
-    if(iteration == 10)
+    if(iteration == 0)
     {
-			dblLearnRate = 0.15;
-			fprintf(fpProtocol,"Learning rate changed to %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
-    }
-    if(iteration == 15)// getting near the end of noise estimation, slowing down learning 
+		  dblLearnRate = 0.15;
+			fprintf(fpProtocol, "Initial learning rate %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
+		}
+    if(iteration == 38)// getting near the end of overtraining, slowing down learning 
     {
-      dblLearnRate = 0.1;
+      dblLearnRate = 0.05;
 			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
     }
-		bStopTraining = FALSE; // Should stop training when all pieces fit well. Doesn't work yet!
-		// Jitter should never be used for overfitting, so we set this to false, but leave a TRUE value for approximation
-		// call the training function
-		nNumberEpochs = 10; //epochs per iteration, 40 iterations, 6 times nResetCounters = total 1200 epochs -- CHECK THIS!!!!
+		// Call the training function
 		if(!pOT->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // overtraining
 		{
 		  fprintf(fpProtocol,"Overtraining failed!\n");
 			fflush(fpProtocol);
 			exit(0);
 		}
-		//fprintf(fpProtocol, "Iteration %d of overtraining continues. RMS Error %f\n", iteration, dblTrainErr);
 		if (bStopTraining == TRUE)
 		{
 			fprintf(fpProtocol, "This overtraining stopped because all leaf nodes have stopped changing!\n");
@@ -347,9 +343,9 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	}
 	fprintf(fpProtocol,"\nOvertraining of an ALN completed. Training RMSE = %f \n",dblTrainErr);
 	fflush(fpProtocol);
-	// We are not finished with OTTS , we add OTVS and keep them for the noise level determination.
-	// In future versions of the program we will create a weight-bounded ALN to learn the noise and store it for future evaluations
-	// At present, there is no way to pass on the noise variance information
+	// We are not finished with OTTS , we also creat OTVS and keep them for the noise level determination.
+	// In future versions of the program we will create a weight-bounded ALN to learn the noise variance
+	// and store it for the present and future evaluations
 }
 
 void ALNAPI approximate() // routine

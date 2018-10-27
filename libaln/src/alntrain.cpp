@@ -71,6 +71,7 @@ void dozerospliterror(ALN* pALN, ALNNODE* pNode); // this zeros the split items 
 extern double dblFlimit; // pieces split according to this limit (should vary with the number of samples on the piece0
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // splits any piece that's ready
 extern BOOL bALNgrowable; // used to stop the splitting operations for linear regression
+extern BOOL bStopTraining; // this allows training to stop when all leaf nodes have stopped adapting
 
 // TrainALN expects data in monolithic array, row major order, ie,
 //   row 0 col 0, row 0 col 1, ..., row 0 col n,
@@ -213,7 +214,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     int nResetCounters = 6;  // We reset counters for splitting when
                               //adaptation has had a chance to adjust pieces
 															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
-															// 40 should handle any learning rate above 0.05
+
 		ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
 
     traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ????
@@ -239,15 +240,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
       {
 				// Don't use splitcontrol when the leaf node is not splitable! (e.g. for linear regression)
 				ASSERT(pALN->pTree);
-				// If the tree is not growable, as in linear regression, the left part will be false,
-				// If the tree is growable, then splitting can start because the right condition is true
-				// and continue for the rest of the tree because the left condition is true (too complicated??)
+				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
 				if(bALNgrowable)splitcontrol(pALN, dblFlimit);  
-				//FindSplitLFN(pALN) splits LFNs after training has stabilized the pieces somewhat
-        //FindSplitLFN(pALN); USELESS NOW
-				// reset tree to mark useless pieces, etc
-				// except for first epoch, where we mark everything as useful
-				//ResetCounters(pTree, pALN, nEpoch == 0);   // can this be deleted?
 			}
 
       // track squared error

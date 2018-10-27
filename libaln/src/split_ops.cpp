@@ -43,7 +43,8 @@ static char THIS_FILE[] = __FILE__;
 
 
 // include classes
-#include ".\cmyaln.h" 
+#include ".\cmyaln.h"
+#include "aln.h"
 
 extern double dblMax;
 extern double* adblEpsilon;
@@ -218,29 +219,27 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) <= pALN->nDim))  // removed NODE_ISCONSTANT(pNode) ||
+		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) < pALN->nDim) || NODE_ISCONSTANT(pNode))
 		{
-			return;                     // no adaptation of this constant subtree
+			return;   // no splitting of subtree
 		}
 		dblPieceSquareTrainError = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on the piece
 		dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; // average noise variance on the piece
 		if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
 		{
 			// if we get here, and dblLimit is not 0, the piece is fitting within the noise variance by the F-test.
-			
 			// since this piece fits well enough, we stop all future splitting of this leaf node (LFN)
-		
-			// a while but does not fit within the noise level
-			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator
-			//LFN_FLAGS(pNode) &= NF_CONSTANT; // Make the node constant ???? should we do this????
-			//bStopTraining = TRUE;
+			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator; this flag prevents splitting
+			LFN_FLAGS(pNode) &= NF_CONSTANT;
 		}
 		else
 		{
-			// If dblLimit is 0, we always land here. There is no stopping.  We want the training error to go to almost zero.
+			// If dblLimit is >1, then the F-test has indicated more training is required.
+			// If dblLimit is 0, there is no stopping unless there are too few points on the piece.
+			// We want the training error to go to almost zero.
 			SplitLFN(pALN, pNode); // we split *every* leaf node that has been training
 			// we start off with bStopTraining == FALSE, but if any leaf node needs to continue we set to true
-			//if(bStopTraining == TRUE)bStopTraining = FALSE;  REPAIR THIS JUNK
+			bStopTraining = FALSE; // if any leaf node gets here, then more training is required
 		}
 	}
 }
