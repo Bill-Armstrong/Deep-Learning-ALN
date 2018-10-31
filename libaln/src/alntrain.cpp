@@ -67,7 +67,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                              BOOL bJitter);
 
 void splitcontrol(ALN*, double); // does an F-test to see if a piece is fitted well or is ready to split
-void dozerospliterror(ALN* pALN, ALNNODE* pNode); // this zeros the split items just before the last epoch
+void dozerosplitvalues(ALN* pALN, ALNNODE* pNode); // this zeros the split items just before the last epoch
 extern double dblFlimit; // pieces split according to this limit (should vary with the number of samples on the piece0
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // splits any piece that's ready
 extern BOOL bALNgrowable; // used to stop the splitting operations for linear regression
@@ -215,8 +215,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                               //adaptation has had a chance to adjust pieces
 															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
 
-		ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
-
+		// ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
+// RISKY
     traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ????
 		for (int nEpoch = 0; 
 				 (nEpoch < nMaxEpochs) && (traininfo.dblRMSErr > dblMinRMSErr); 
@@ -233,7 +233,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			}
 			if (nEpoch > 0 && (nEpoch%nResetCounters == nResetCounters - 1))
 			{
-				if (bALNgrowable)ResetCounters(pTree, pALN, nEpoch == 0);
+				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //ResetCounters(pTree, pALN, nEpoch == 0);
 			}
       // split candidate LFNs if not first epoch, and before counters are reset
 			if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
@@ -251,66 +251,66 @@ static int ALNAPI DoTrainALN(ALN* pALN,
       // for all the adapting LFNs in the system... when we add jitter, we can
       // "increase" the size of the training set by iterating over the input
       // points more than once before resetting the epoch stats
-      int nRepCount = 1;
-      for (int nRep = 0; nRep < nRepCount; nRep++)
-      {
-			  // shuffle training point indexes... in the case where
-        // nStart != 0, these are offset counts from nStart
-        Shuffle(nStart, nEnd, anShuffle);
-      				    
-			  int nPoint;
-			  for (nPoint = nStart; nPoint <= nEnd; nPoint++)
-			  {
-          int nTrainPoint = anShuffle[nPoint - nStart]; // zero based
-          ASSERT((nTrainPoint + nStart) <= nEnd);
+      int nRepCount = 1; 
+			for (int nRep = 0; nRep < nRepCount; nRep++)
+			{
+				// shuffle training point indexes... in the case where
+				// nStart != 0, these are offset counts from nStart
+				Shuffle(nStart, nEnd, anShuffle);
 
-          // fill input vector
-          FillInputVector(pALN, adblX, nTrainPoint, nStart, apdblBase, 
-                          pDataInfo, pCallbackInfo);
-        
-          // if we have first data point, init LFNs on first pass
-          if (nEpoch == 0 && nPoint == nStart)
-            InitLFNs(pTree, pALN, adblX);
+				int nPoint;
+				for (nPoint = nStart; nPoint <= nEnd; nPoint++) // this does all the samples in an epoch in a randomized order
+				{
+					int nTrainPoint = anShuffle[nPoint - nStart]; // zero based
+					ASSERT((nTrainPoint + nStart) <= nEnd);
 
-          // jitter the data point
-          if (bJitter)
-            Jitter(pALN, adblX);
+					// fill input vector
+					FillInputVector(pALN, adblX, nTrainPoint, nStart, apdblBase,
+						pDataInfo, pCallbackInfo);
 
-          // do an adapt eval to get active LFN and distance, and to prepare
-          // tree for adaptation
-          ALNNODE* pActiveLFN = NULL;
-          CCutoffInfo& cutoffinfo = aCutoffInfo[nPoint - nStart];
-          double dbl = AdaptEval(pTree, pALN, adblX, &cutoffinfo, &pActiveLFN);
+					// if we have first data point, init LFNs on first pass
+					if (nEpoch == 0 && nPoint == nStart)
+						InitLFNs(pTree, pALN, adblX);
 
- 				  // track squared error before adapt, since adapt routines
-          // do not relcalculate value of adapted surface
-      	  dblSqErrorSum += dbl * dbl;
+					// jitter the data point
+					if (bJitter)
+						Jitter(pALN, adblX);
 
-          // notify start of adapt
-				  if (CanCallback(AN_ADAPTSTART, pfnNotifyProc, nNotifyMask))
-				  {
-            ADAPTINFO adaptinfo;
-            adaptinfo.nAdapt = nPoint - nStart;
-  				  adaptinfo.adblX = adblX;
-  				  adaptinfo.dblErr = dbl;
-					  Callback(pALN, AN_ADAPTSTART, &adaptinfo, pfnNotifyProc, pvData);
-				  }
+					// do an adapt eval to get active LFN and distance, and to prepare
+					// tree for adaptation
+					ALNNODE* pActiveLFN = NULL;
+					CCutoffInfo& cutoffinfo = aCutoffInfo[nPoint - nStart];
+					double dbl = AdaptEval(pTree, pALN, adblX, &cutoffinfo, &pActiveLFN);
 
-				  // do a useful adapt to correct any error
-          traindata.dblGlobalError = dbl;
-				  Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);
+					// track squared error before adapt, since adapt routines
+					// do not relcalculate value of adapted surface
+					dblSqErrorSum += dbl * dbl;
 
-				  // notify end of adapt
-				  if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))
-				  {
-            ADAPTINFO adaptinfo;
-            adaptinfo.nAdapt = nPoint - nStart;
-  				  adaptinfo.adblX = adblX;
-  				  adaptinfo.dblErr = dbl;
-					  Callback(pALN, AN_ADAPTEND, &adaptinfo, pfnNotifyProc, pvData);
-				  }
-			  }	// end for each point in data set
-      } // end reps
+					// notify start of adapt
+					if (CanCallback(AN_ADAPTSTART, pfnNotifyProc, nNotifyMask))
+					{
+						ADAPTINFO adaptinfo;
+						adaptinfo.nAdapt = nPoint - nStart;
+						adaptinfo.adblX = adblX;
+						adaptinfo.dblErr = dbl;
+						Callback(pALN, AN_ADAPTSTART, &adaptinfo, pfnNotifyProc, pvData);
+					}
+
+					// do a useful adapt to correct any error
+					traindata.dblGlobalError = dbl;
+					Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
+
+					// notify end of adapt
+					if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))
+					{
+						ADAPTINFO adaptinfo;
+						adaptinfo.nAdapt = nPoint - nStart;
+						adaptinfo.adblX = adblX;
+						adaptinfo.dblErr = dbl;
+						Callback(pALN, AN_ADAPTEND, &adaptinfo, pfnNotifyProc, pvData);
+					}
+				}	// end for each point in data set
+			} // end reps
 
 			// estimate RMS error on training set for this epoch
 			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / (nPoints * nRepCount));

@@ -156,7 +156,6 @@ typedef int BOOL;
 #define LFN_W(pNode) ((pNode)->DATA.LFN.adblW)
 #define LFN_C(pNode) ((pNode)->DATA.LFN.adblC)
 #define LFN_D(pNode) ((pNode)->DATA.LFN.adblD)
-#define LFN_P(pNode) ((pNode)->DATA.LFN.adblPrevX)
 #define MINMAX_FLAGS(pNode) ((pNode)->fNode)
 #define MINMAX_TYPE(pNode) ((pNode)->fNode & (GF_MIN | GF_MAX))
 #define MINMAX_ISMAX(pNode) ((pNode)->fNode & GF_MAX)
@@ -235,7 +234,6 @@ typedef struct tagALNNODE
       double* adblW;                /* weight vector, nVDim + 1 elements   */
       double* adblC;                /* centroid vector                     */
       double* adblD;                /* ave sq dist from centroid vector    */
-			double* adblPrevX;						/* previous input used to update adblD */
       ALNLFNSPLIT* pSplit;          /* split structure                     */
     } LFN;
     struct tagMINMAX

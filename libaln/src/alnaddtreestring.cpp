@@ -17,7 +17,6 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 // alnaddtreestring.cpp
@@ -27,10 +26,6 @@
 // 
 //  $Archive: /ALN Development/libaln/src/alnaddtreestring.cpp $
 //  $Workfile: alnaddtreestring.cpp $
-//  $Revision: 5 $
-//  $Date: 8/18/07 4:27p $
-//  $Author: Arms $
-//
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL

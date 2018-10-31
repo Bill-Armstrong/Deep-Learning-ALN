@@ -374,8 +374,6 @@ static int ALNAPI WriteTree(FILE* pFile, const ALN* pALN, const ALNNODE* pNode)
     if ((int)fwrite(LFN_D(pNode), sizeof(double), LFN_VDIM(pNode), pFile)
           != LFN_VDIM(pNode)) return ALN_ERRFILE;
 
-		if ((int)fwrite(LFN_P(pNode), sizeof(double), LFN_VDIM(pNode), pFile)
-          != LFN_VDIM(pNode)) return ALN_ERRFILE;
 	}
   else
   {
@@ -471,14 +469,7 @@ static int ALNAPI ReadTree(FILE* pFile, ALN* pALN, ALNNODE* pNode)
 
     if ((int)fread(LFN_D(pNode), sizeof(double), LFN_VDIM(pNode), pFile)
           != LFN_VDIM(pNode)) return ALN_ERRFILE;
-
-    LFN_P(pNode) = (double*)malloc(LFN_VDIM(pNode) * sizeof(double));
-    if (LFN_P(pNode) == NULL)
-      return ALN_OUTOFMEM;
-
-    if ((int)fread(LFN_P(pNode), sizeof(double), LFN_VDIM(pNode), pFile)
-          != LFN_VDIM(pNode)) return ALN_ERRFILE;
-	}
+  }
   else
   {
     ASSERT(pNode->fNode & NF_MINMAX);

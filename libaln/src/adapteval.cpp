@@ -17,22 +17,11 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // adapteval.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/adapteval.cpp $
-//  $Workfile: adapteval.cpp $
-//  $Revision: 7 $
-//  $Date: 8/18/07 2:47p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
@@ -45,12 +34,6 @@
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
-
-///////////////////////////////////////////////////////////////////////////////
-// Comments
-//   Currently testing fast cutoff implementation...
-//   To enable fast cutoffs, uncomment the following define.  There is no
-//   guarantee that this will work in all cases
 
 double ALNAPI AdaptEval(ALNNODE* pNode, ALN* pALN, const double* adblX, 
                         CCutoffInfo* pCutoffInfo, ALNNODE** ppActiveLFN)
@@ -73,7 +56,6 @@ double ALNAPI AdaptEval(ALNNODE* pNode, ALN* pALN, const double* adblX,
     if (pEval != NULL)
     {
       BuildCutoffRoute(pEval);
-
     }
 
     // evaluate using cutoff

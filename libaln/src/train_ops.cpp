@@ -62,22 +62,20 @@ CMyAln * pOTVS; // This ALN is overtrained on the complement (in the TVfile) of 
 static CMyAln** apALN = NULL;       // an array of pointers to ALNs used in approximate()
 static CMyAln* pAvgALN;      // an ALN representing the bagged average of several ALNs trained on the TVfile with different random numbers
 
-double	dblMinRMSE = 0; // stops training when the training error is smaller than this
-double  dblLearnRate = 0.2; // the reciprocal of the learnrate tells how many passes through the data will be required to get close to a fit.
+double dblMinRMSE = 0; // stops training when the training error is smaller than this
+double dblLearnRate = 0.2;  // roughly, 0.2 corrects most of the error for if we make 15 passes through the data in nRowsTR.
 int nNumberEpochs = 10; // if the learnrate is 0.2, then one will need 5 or 10 roughly to almost correct the errors
 extern long nRowsTR; // the number of rows in the current training set loaded into TRfile
 extern long nRowsVAR; // the number of rows in the noise variance file.  When approximation starts, this should be nRowsTV
 extern BOOL bStopTraining; // this boolean is set to FALSE and becomes TRUE if all (active) linear pieces fit well.
 double computeGlobalNoiseVariance(); // used at entry to the approximation step, this computes the average of all noise variance samples in VARfile.
 int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
-double dblFlimit =2.59;// this says that splitting of a linear piece is prevented when the mean square
-// training error of a piece becomes less than 2.59 times the average of noise variance samples on it.
-// This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
-// For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops
-// when the training error is larger than with a lower F-value.
-// We have to IMPROVE the program to use d.o.f. of each piece for both training error and noise variance 
+// For linear regression and overtraining, dblFlimit should be zero, either no splitting because the
+// tree can't grow, or unlimited splitting for overfitting
+double dblFlimit = 0;
 int nEpochSize; // the number of input vectors in the current training set
 BOOL bALNgrowable = TRUE; // FALSE for linear regression, TRUE otherwise
+int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 
 void ALNAPI dolinearregression() // routine
 {
@@ -137,34 +135,20 @@ void ALNAPI dolinearregression() // routine
  	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // linear regression: nothing to smooth
 	// NB The region concept has not been completed.  It allows the user to impose constraints
 	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
-	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//********* dolinearregression
 	// get centroids and weights in neighborhood of good values by first using a fairly high learning rate
-	dblLearnRate = 0.2;  // roughly, 0.2 corrects about 20% of the error for each pass through the data in nRowsTR.
+	dblLearnRate = 0.15;  // This rate seems ok for now
 	int nEpochSize = nRowsTR; // nEpochsize gives the number of training samples. Later nRowsTR=nRowsTV.
 	pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 	dblMinRMSE = 0; //don't stop early because of low training error
 	nNumberEpochs = 100; // we are may have to do tests to see what is sufficient
 	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 	{
-		fprintf(fpProtocol,"Initial linear regression training failed!\n");
+		fprintf(fpProtocol,"Linear regression training failed!\n");
 		fflush(fpProtocol);
 		exit(0);
 	}
-	fprintf(fpProtocol, "Initial linear regression training succeeded!\n");
-	fflush(fpProtocol);
-	// now we go for a lower learning rate, so the changes become smaller and the piece doesn't jump around so much
-	dblLearnRate = 0.05;  // a lower learning rate is called "polishing the ALN"
-	// pALN->SetDataInfo(nEpochSize, nDim, NULL, NULL); A lower learning rate usually calls for longer training but we pass here
-	dblMinRMSE = 0; // Can be a primitive stopping criterion. Here we don't stop early because of low training error
-	nNumberEpochs = 1000; //
-	if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
-	{
-		fprintf(fpProtocol, "Polishing linear regression training failed!\n");
-		fflush(fpProtocol);
-		exit(0);
-	}
-	fprintf(fpProtocol, "Polishing linear regression training succeeded!\n");
+	fprintf(fpProtocol, "Linear regression training succeeded!\n");
 	fflush(fpProtocol);
   // we should now have a good linear regression fit now
   // find the weights on the linear piece using an evaluation at the 0 vector (could be any other place!).
@@ -283,16 +267,17 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 		  pOT->SetWeightMax(dblMaxWeight[m],m);
     }
 	}
+	dblLearnRate = 0.15; // This rate seems to work well.
 	bStopTraining = FALSE; // This becomes TRUE and stops training when all leaf nodes fit well according to the F-test. 
 	dblFlimit = 0; // This allows unlimited splitting of leaf nodes with more than nDim training hits.
 	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // For overfitting, the smoothing must be zero.
-	int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	fprintf(fpProtocol,"Initial root mean square training error at start of overtraining = %fl  Smoothing = %f \n", dblLinRegErr, 0.0);
 	//********* initial weight and centroid components for overtraining
 	dblMinRMSE = 0.0; // We don't stop overtraining upon reaching even a very low training error.
-	// Start training using the weights and centroid from linear regression
 	ALNNODE* pActiveLFN;
 	pActiveLFN = pOT->GetTree();
+
+	// Start training using the weights and centroid from linear regression
 	for(int m = 0; m < nDim -1; m++)
 	{
 		((pActiveLFN)->DATA.LFN.adblC)[m] = adblLRC[m]; // LR just means for linear regression
@@ -311,21 +296,11 @@ void ALNAPI overtrain(CMyAln * pOT) // this routine overfits the training data i
 	nEpochSize =  nRowsTR; // splitting occurs after nResetCounters epochs of this size, see alntrain.cpp -- OnEpochEnd.
 	pOT->SetDataInfo(nEpochSize, nDim, NULL, NULL);
 	(pOT->GetRegion(0))->dblSmoothEpsilon = 0.0; // Smoothing should never be used for overtraining
-	bStopTraining = FALSE; // Becomes true and should stop training when all pieces fit well.
 	nNumberEpochs = 10; // epochs per iteration = 10 * nResetCounters = 6 * iterations = 40 total: 2400 epochs for overtraining
 	for(int iteration = 0; iteration <40; iteration++)  // experimental
 	{
-    if(iteration == 0)
-    {
-		  dblLearnRate = 0.15;
-			fprintf(fpProtocol, "Initial learning rate %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
-		}
-    if(iteration == 38)// getting near the end of overtraining, slowing down learning 
-    {
-      dblLearnRate = 0.05;
-			fprintf(fpProtocol,"Learning rate changed to %f\n", dblLearnRate);
-    }
-		// Call the training function
+		fprintf(fpProtocol, "Initial learning rate %f, Smoothing set to %f\n", dblLearnRate, (pOT->GetRegion(0))->dblSmoothEpsilon);
+	 	// Call the training function
 		if(!pOT->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // overtraining
 		{
 		  fprintf(fpProtocol,"Overtraining failed!\n");
@@ -352,12 +327,11 @@ void ALNAPI approximate() // routine
 {
 	fprintf(fpProtocol, "\n**************Approximation with one or more ALNs begins ********\n");
 	fflush(fpProtocol);
-	bALNgrowable = TRUE; // now the nodes can split
 	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
 	double dblGlobalNoiseVariance;
 	createTR_VARfiles(2);  // 2 prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
 	dblGlobalNoiseVariance = computeGlobalNoiseVariance();
-	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to limit splitting\n", nalns);
+	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to stop splitting\n", nalns);
 	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblGlobalNoiseVariance);
 	if(bJitter)
 	{
@@ -367,6 +341,13 @@ void ALNAPI approximate() // routine
 	{
 		fprintf(fpProtocol, "Jitter is not used during approximation\n");
 	}
+// Explanation of dblFlimit
+// dblFlimit = 2.59 says that splitting of a linear piece is prevented when the mean square
+// training error of a piece becomes less than 2.59 times the average of the noise variance samples on it.
+// This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
+// For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops sooner
+// and the training error will generally be larger than with a lower F-value.
+// We have to IMPROVE the program to use d.o.f. of *each* piece for both training error and noise variance 
 	const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
 	int dofIndex;
 	dofIndex = nDim - 2; // the lowest possible nDim is 2 for one ALN input and one ALN output
@@ -378,9 +359,9 @@ void ALNAPI approximate() // routine
 
 	dblFlimit = adblFconstant[dofIndex]; // This can determine splitting for linear pieces
 	//!!!!!!!!!!!!!!!!!
-	dblFlimit = 2.59;  // Finally used for stopping splitting, but temporary until we can compute the dof for the pieces
-	// have enough training samples and noise variance samples.
-	// other values for dblFlimit with other numbers of samples, i.e. degrees of freedom, are:
+	dblFlimit = 2.0; // Override for stopping splitting, but temporary until we can compute the dof for the pieces
+	// from the training samples and noise variance samples.
+	// Other values for dblFlimit with other numbers of samples, i.e. degrees of freedom, are:
 	// n dblFlimit
 	// 2 9.00
 	// 3 5.39
@@ -397,7 +378,7 @@ void ALNAPI approximate() // routine
 	// 60 1.40
 	// 120 1.26
 	// Note: pieces don't split if they have enough training hits to determine them, so choose n >= nDim = number of ALN inputs plus 1 for the output.
-  // REQUIRED IMPROVEMENT  We have to take into account the actual numbers of samples of TSfile and VARfile per linear piece of approximant.
+  // REQUIRED IMPROVEMENT  We have to take into account the actual numbers of samples of TSfile and VARfile per leaf node during an epoch.
 	// As training of the approximant progresses, the dof of pieces decreases and dblFlimit should increase, depending on the minimum of samples per piece
 	fprintf(fpProtocol, "nDim is %d and the F-limit used for stopping splitting is %f \n", nDim, dblFlimit);
 
@@ -429,8 +410,7 @@ void ALNAPI approximate() // routine
       fflush(fpProtocol);
       exit(0);
 		}
-
-		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
+		bALNgrowable = TRUE; // now the nodes can split
 		// Set constraints on variables for ALN index n
 		for(int m = 0; m < nDim-1; m++)
 		{
@@ -458,18 +438,13 @@ void ALNAPI approximate() // routine
 
     if(bClassify)
     {
-      // in classification tasks we skip the linear regression and one ALN steps
-      // so we have to put in an initial variance error estimate
-      dblVarianceErr = 0.288;
+     // TO DO
     }
-    apALN[n]->SetEpsilon(0,nDim -1); //  is this used? 
 		// Tell the training algorithm the way to access the data using fillvector
-    nEpochSize = nDim * 100; // changed 2009.11.06
+    nEpochSize = nRowsTV;
 		apALN[n]->SetDataInfo(nEpochSize,nDim,NULL,NULL);
-		// >>>>>>>>>>>>> HERE IS WHERE SMOOTHING IS SET TO 0.5 OF APPROXIMATION TOLERANCE OR TOZERO BY CHANGING WHICH IS COMMENTED OUT   <<<<<<<<<<<<<<<<<<<<<<<
-		// here is where Tolerance is used.  But maybe it should be determined by the noise!!!  The variance error can't be computed if we used the variance
-		// set for noise samples!  Lots of work here.
-		// (apALN[n]->GetRegion(0))->dblSmoothEpsilon = dblSmoothingFraction * dblTolerance;// approximation: we guess that smoothing, if used, should be about half the level of noise
+		// >>>>>>>>>>>>> HERE IS WHERE SMOOTHING IS SET TO 0.5 OF APPROXIMATION TOLERANCE OR TO ZERO
+		// BY CHANGING WHICH IS COMMENTED OUT   <<<<<<<<<<<<<<<<<<<<<<<
 		// for DEEP LEARNING, SMOOTHING SHOULD BE SET TO ZERO
 		(apALN[n]->GetRegion(0))->dblSmoothEpsilon = 0.0;
 		fprintf(fpProtocol, "The smoothing used for training each approximation ALN and the bagging average is %f\n", 0.0); 
@@ -487,38 +462,29 @@ void ALNAPI approximate() // routine
 			((pActiveLFN)->DATA.LFN.adblW)[0] = adblLRW[0];
 			((pActiveLFN)->DATA.LFN.adblW)[nDim]= -1.0;
 		}
-		/*else
-		{
-			// Quickstart: get centroids and weights in neighborhood of good values
-			dblMinRMSE = 0;
-			dblLearnRate = 0.5; // we just want to get a linear piece near the data points
-			nNumberEpochs = 10;  //CHECK THIS????
-			bStopTraining = FALSE;
-			if (!apALN[n]->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
-			{
-				fprintf(fpProtocol, "Training failed!\n");
-			}
-			if (bStopTraining == TRUE)
-			{
-				fprintf(fpProtocol, "This approximation training of ALN %d stopped because all leaf nodes have stopped changing!\n",n);
-				bStopTraining = FALSE;
-				fprintf(fpProtocol, "\nFirst step of training of approximation ALN %d completed \n", n);
-				break;
-			}
-		}*/
-		dblLearnRate = 0.2;
-		nEpochSize = 3 * nRowsTR;
-		// We stop when all pieces cease to allow splitting -- IF WE GET IT IMPLEMENTED!
-		dblMinRMSE = 0.0; //temporary
+		nNumberEpochs = 10;
+		dblMinRMSE = 0.0;
     nNumberLFNs = 1;  // initialize at 1
-		//int nOldNumberLFNs = 0; // for stopping criterion
     fprintf(fpProtocol,"----------  Training approximation ALN %d ------------------\n",n);
-		for(int iteration = 0; iteration < 40; iteration++) // is 20 iterations enough?
+		for(int iteration = 0; iteration < 40; iteration++) // is 40 iterations enough?
 		{
-			fprintf(fpProtocol,"\nIteration %d of approximation with ALN %d\n", iteration,n);
-      fflush(fpProtocol);
+			fprintf(fpProtocol, "\nIteration %d of approximation with ALN %d\n", iteration, n);
+			fflush(fpProtocol);
+			if (iteration == 0)
+			{
+				dblLearnRate = 0.15;
+				fprintf(fpProtocol, "Iteration %d: Initial learning rate is %f \n", iteration, dblLearnRate);
+				fflush(fpProtocol);
+			}      
+			if (iteration == 38)
+			{
+				dblLearnRate = 0.05;
+				fprintf(fpProtocol, "Iteration %d: Learning rate changed to %f \n", iteration, dblLearnRate);
+				fflush(fpProtocol);
+			}
 			// Call the training function
-			bStopTraining = FALSE;
+			bStopTraining = FALSE; // We stop at the end of the routine or when all pieces cease to allow splitting
+			// call the training routing
 			if (!apALN[n]->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, bJitter, nNotifyMask))
 			{
 			  fprintf(fpProtocol,"Training failed!\n");
@@ -531,45 +497,12 @@ void ALNAPI approximate() // routine
 				fprintf(fpProtocol, "\nOvertraining of approximation ALN number %d completed at iteration %d \n",n, iteration);
 				break;
 			}
-			if(bEstimateRMSError == FALSE) // THIS IS IMPORTANT -- WE NEED TO HAVE A NEW STOPPING RULE
+			if(bEstimateRMSError)
       {
 				fprintf(fpProtocol,"Training RMSE = %f\n", dblTrainErr);
-				if(dblTrainErr < adblEpsilon[nDim-1])
-				{
-					fprintf(fpProtocol,"Stopping approximation: Training RMSE = %f less than tolerance\n", dblTrainErr);
-					fflush(fpProtocol);
-					break;
-				}
-      }
-      else
-      {
-				fprintf(fpProtocol,"Training RMSE = %f\n", dblTrainErr);
-				if(dblTrainErr < adblEpsilon[nDim - 1]) // was dblTolerance
-				{
-					fprintf(fpProtocol,"Stopping approximation: Training RMSE = %f less than tolerance\n", dblTrainErr);
-					fflush(fpProtocol);
-					break;
-				}
 			}
-			if(iteration == 10)
-			{
-				dblLearnRate = 0.1;
-			}
-			if(iteration < 25)
-			{
-				// Tree allowed to grow
-				fprintf(fpProtocol,"Number of active LFNs = %d. Tree growing\n", nNumberLFNs);
-				fflush(fpProtocol);
-			}
-			else
-			{
-				if(iteration == 24) dblLearnRate = 0.05;
-				if(iteration == 29) dblLearnRate = 0.04;
-				if(iteration == 34) dblLearnRate = 0.03;
-				if(iteration == 39) dblLearnRate = 0.02;
-				fprintf(fpProtocol,"Number of active LFNs = %d. Tree growth stopped. Next learn rate = %f\n", nNumberLFNs, dblLearnRate);				
-			}
-			//nOldNumberLFNs = nNumberLFNs;
+			fprintf(fpProtocol,"Number of active LFNs = %d. Tree growing\n", nNumberLFNs);
+			fflush(fpProtocol);
 			fflush(fpProtocol);
 		} // end of loop of interations over one ALN
   } // end of the loop for n = ALN index
@@ -758,7 +691,6 @@ void ALNAPI trainaverage() // routine
 	nEpochSize = nRowsTV;
 	pAvgALN->SetDataInfo(nEpochSize,nDim,NULL,NULL);
 	dblMinRMSE = 0; // Stopping splitting uses the F-test
-		int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO;
 	//*********
 	if(bEstimateRMSError)
 	{

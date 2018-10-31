@@ -101,7 +101,6 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 	double* adblW = LFN_W(pNode);	    // weight vector
 	double* adblC = LFN_C(pNode);			// centroid vector
 	double* adblD = LFN_D(pNode);			// average square dist from centroid vector
-	double* adblPrevX = LFN_P(pNode); // vector of previous inputs --- this was eliminated on March 24, 2015 keep the array for later use somewhere
 	// calculate adblA = how far the linear piece is above adblX[nOutput].
 	// Note:  the sum below added to the bias weight would add up to zero for a point *on* the linear piece
 	// If adblX[nOutput] is greater than the value of output on the piece, dblA is *negative*
@@ -118,10 +117,8 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 	// If response is < 1, then the adjustment of the centroid and weights is lessened.
 	// We need two learning rates.  The first is for the centroids and weights which divides by 2*nDim -1, thus
 	// putting them on an equal footing with respect to correcting a share of the error.
-	// The other learn rate is used for purposes other than correcting the error: i.e. for exponential
-	// smoothing of variances and convexity criteria.
-	double dblLearnRate = ptdata->dblLearnRate;
-	double dblLearnRespParam = dblLearnRate * dblResponse * region.dblLearnFactor/(2.0*nDim - 1.0);
+	double dblLrnRate = ptdata->dblLearnRate;
+	double dblLearnRespParam = dblLrnRate * dblResponse * region.dblLearnFactor/(2.0*nDim - 1.0);
 
 	// ADAPT CENTROID FOR OUTPUT
 	// Summing up:
@@ -155,7 +152,7 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 		// UPDATE VARIANCE BY EXPONENTIAL SMOOTHING
 		// We adapt this first so the adaptation of the centroid to this input will not affect it
 		ASSERT(adblD[i] >=0);
-		adblD[i] += (dblXmC * dblXmC  - adblD[i]) * dblLearnRate; // Is this the right rate???
+		adblD[i] += (dblXmC * dblXmC  - adblD[i]) * dblLrnRate; // Is this the right rate???
 		// The exponentially smoothed estimate of variance
 		// adblD[i] is not allowed to go below dblSqEpsilon of the current input variable to
 		// slow rotations along some axes and prevent division by 0.
@@ -174,7 +171,7 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 		// further from the centroid than the variance stdev of the points on the piece along the current axis.
 		// If the error is positive away from the centre, then we need a split of the LFN into a MIN node.
 		if (LFN_CANSPLIT(pNode) && bUsefulAdapt && (dblXmC*dblXmC >= adblD[i]) )
-			LFN_SPLIT_T(pNode) += (dblError - LFN_SPLIT_T(pNode))* dblLearnRate;  //Is this the right rate???
+			LFN_SPLIT_T(pNode) += (dblError - LFN_SPLIT_T(pNode))* dblLrnRate;  //Is this the right rate???
   } // end loop over all nDim dimensions
   // compress the weighted centroid info into W[0]       
   double *pdblW0 = LFN_W(pNode); 

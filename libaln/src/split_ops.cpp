@@ -59,38 +59,40 @@ extern BOOL bEstimateRMSError;
 BOOL bStopTraining = FALSE;
 
 
-void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblLimit);
+void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
 void dodivideTR(ALN* pALN, ALNNODE* pNode);
 void dodivideVAR(ALN* pALN, ALNNODE* pNode);
 void spliterrorsetTR(ALN * pALN);
 void spliterrorsetVAR(ALN * pALN);
-void dozerospliterror(ALN* pALN, ALNNODE* pNode);
+void dozerosplitvalues(ALN* pALN, ALNNODE* pNode);
 void dozerosplitNOISEVARIANCE(ALN* pALN, ALNNODE* pNode);
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 // the following tells us how to use the SPLIT typedef between trainings of an ALN
 #define DBLNOISEVARIANCE dblRespTotal
 
-void splitcontrol(ALN* pALN, double dblLimit)  // routine
+void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 {
   ASSERT(pALN);
 	ASSERT(pALN->pTree);
-	// initialize the SPLIT components to zero
-//	dozerospliterror(pALN, pALN->pTree);  DONE BY RESET COUNTERS
-	// get square errors of pieces on training set
-	spliterrorsetTR(pALN);
-	// divide the training errors of the pieces by the hit counts, set counts to zero
-	dodivideTR(pALN,pALN->pTree);
-	// zero the NOISEVARIANCE component of split
-	dozerosplitNOISEVARIANCE(pALN, pALN->pTree); 
-	// get the values in VARfile which estimate the local noise variance
-	spliterrorsetVAR(pALN);
-	// divide the sum of local noise estimates on each piece by its count of hits
-	dodivideVAR(pALN,pALN->pTree);
-	//} I removed the test above so that we can get the noise samples analyzed
-	// this conducts a search for all leaves in the ALN
-  dosplitcontrol(pALN, pALN->pTree, dblLimit);
+	// initializing all the SPLIT values to zero is done by void dozerosplitvalues(ALN* pALN, ALNNODE* pNode)
+	if(dblFlimit >1.0)
+	{
+		// get square errors of pieces on training set
+		spliterrorsetTR(pALN);
+		// divide the training errors of the pieces by the hit counts, set counts to zero
+		dodivideTR(pALN,pALN->pTree);
+		// zero the NOISEVARIANCE component of split
+		dozerosplitNOISEVARIANCE(pALN, pALN->pTree); 
+		// get the values in VARfile which estimate the local noise variance
+		spliterrorsetVAR(pALN);
+		// divide the sum of local noise estimates on each piece by its count of hits
+		dodivideVAR(pALN,pALN->pTree);
+		//} I removed the test above so that we can get the noise samples analyzed
+		// this conducts a search for all leaves in the ALN
+	}
+  dosplitcontrol(pALN, pALN->pTree, dblFlimit);
   // reset the SPLIT components to zero
-	//dozerospliterror(pALN, pALN->pTree); RESET COUNTERS???
+	//dozerosplitvalues(pALN, pALN->pTree); RESET COUNTERS???
 }
 
 // We use the first three fields in ALNLFNSPLIT (declared in aln.h)
@@ -110,14 +112,14 @@ void splitcontrol(ALN* pALN, double dblLimit)  // routine
 // Another idea is to reduce the dblFlimit in stages, but we just have to see if this can do anything useful.
 
 
-void dozerospliterror(ALN* pALN, ALNNODE* pNode) // routine
+void dozerosplitvalues(ALN* pALN, ALNNODE* pNode) // routine
 {
 	// initializes counters of all leaf nodes before the next training period
 	ASSERT(pNode);
 	if (NODE_ISMINMAX(pNode))
 	{
-		dozerospliterror(pALN, MINMAX_LEFT(pNode));
-		dozerospliterror(pALN, MINMAX_RIGHT(pNode));
+		dozerosplitvalues(pALN, MINMAX_LEFT(pNode));
+		dozerosplitvalues(pALN, MINMAX_RIGHT(pNode));
 	}
 	else
 	{
@@ -142,8 +144,6 @@ void dozerosplitNOISEVARIANCE(ALN* pALN, ALNNODE* pNode) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		//(pNode->DATA.LFN.pSplit)->nCount = 0;
-		//(pNode->DATA.LFN.pSplit)->dblSqError = 0;
 		(pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE = 0;
 	}
 }
@@ -162,12 +162,21 @@ void dodivideTR(ALN* pALN, ALNNODE* pNode) // routine
   else
   {
     ASSERT(NODE_ISLFN(pNode));
-		long nCountTemp = (pNode->DATA.LFN.pSplit)->nCount;
-		if (nCountTemp > 0) // avoid division by 0
+
+		if (LFN_CANSPLIT(pNode)) // skip this leaf node if it has stopped splitting
 		{
-			(pNode->DATA.LFN.pSplit)->dblSqError /= nCountTemp;
-			(pNode->DATA.LFN.pSplit)->nCount = 0; // after we get the value of the MSE, this can be zeroed.
-			// nCount is used again for the noise variance samples in VARfile attached to this LFN
+			long nCountTemp = (pNode->DATA.LFN.pSplit)->nCount;
+			if (nCountTemp >= nDim) // avoid division by 0 as well as having enough hits
+			{
+				(pNode->DATA.LFN.pSplit)->dblSqError /= nCountTemp;
+				(pNode->DATA.LFN.pSplit)->nCount = 0; // after we get the value of the MSE, this can be zeroed.
+				// nCount is used again for the noise variance samples in VARfile attached to this LFN
+			}
+			else
+			{
+				// this node can't be allowed to split any more
+				pNode->fNode &= ~LF_SPLIT;
+			}
 		}
 	}
 }
@@ -185,9 +194,9 @@ void dodivideVAR(ALN* pALN, ALNNODE* pNode) // routine
   else
   {
     ASSERT(NODE_ISLFN(pNode));
-		//if (!LFN_ISINIT(pNode)) // skip this leaf node if it has stopped training
+		if (LFN_CANSPLIT(pNode)) // only do this leaf node if it has not stopped splitting
 		{
-			if((pNode->DATA.LFN.pSplit)->nCount > nDim) // we need at more than nDim samples to do stats
+			if((pNode->DATA.LFN.pSplit)->nCount >= nDim) // we need at least nDim samples to do stats
 			{
 				(pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE /=
 											 (pNode->DATA.LFN.pSplit)->nCount;
@@ -195,6 +204,7 @@ void dodivideVAR(ALN* pALN, ALNNODE* pNode) // routine
 			else
 			{
 				// if there are too few or no variance samples, make sure we don't divide
+				LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator; this flag prevents splitting
 				(pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE = dblMax;
 			}
 		}
@@ -203,39 +213,40 @@ void dodivideVAR(ALN* pALN, ALNNODE* pNode) // routine
 
 
 
-void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
+void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 {
-	// this routine visits all the leaf nodes and determines whether the
-	// training error is below dblLimit times the noise variance
-	// During overtraining the dblLimit is less than 1.0. It is set low, which causes lots of splitting
+	// This routine visits all the leaf nodes and determines whether or not to split.
+	// During linear regression, there is no splitting anyway.
+	// During overtraining the dblFlimit is should be zero, which causes lots of splitting.
 	double dblPieceSquareTrainError;
 	double dblPieceNoiseVariance;
 	ASSERT(pNode);
 	if (NODE_ISMINMAX(pNode))
 	{
-		dosplitcontrol(pALN, MINMAX_LEFT(pNode), dblLimit);
-		dosplitcontrol(pALN, MINMAX_RIGHT(pNode), dblLimit);
+		dosplitcontrol(pALN, MINMAX_LEFT(pNode), dblFlimit);
+		dosplitcontrol(pALN, MINMAX_RIGHT(pNode), dblFlimit);
 	}
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) < pALN->nDim) || NODE_ISCONSTANT(pNode))
+		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) < pALN->nDim))
 		{
-			return;   // no splitting of subtree
+			return;   // no splitting of this leaf node: already can't split or too few samples
 		}
 		dblPieceSquareTrainError = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on the piece
 		dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE; // average noise variance on the piece
-		if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblLimit) // this implements the F-test criterion for stopping training
+
+
+		if ((dblFlimit > 1.0) && (dblPieceSquareTrainError < dblPieceNoiseVariance * dblFlimit)) // this implements the F-test criterion for stopping training
 		{
-			// if we get here, and dblLimit is not 0, the piece is fitting within the noise variance by the F-test.
-			// since this piece fits well enough, we stop all future splitting of this leaf node (LFN)
-			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // ~ is the unary one's complement operator; this flag prevents splitting
-			LFN_FLAGS(pNode) &= NF_CONSTANT;
+			// If we get here, this piece is fitting within the noise variance by the F-test.
+			// Since this piece fits well enough, we stop all future splitting of this leaf node (LFN).
+			LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting
 		}
 		else
 		{
-			// If dblLimit is >1, then the F-test has indicated more training is required.
-			// If dblLimit is 0, there is no stopping unless there are too few points on the piece.
+			// If dblFlimit is >1, then the F-test has indicated more training is required.
+			// If dblFlimit is 0, there is no stopping unless there are too few points on the piece.
 			// We want the training error to go to almost zero.
 			SplitLFN(pALN, pNode); // we split *every* leaf node that has been training
 			// we start off with bStopTraining == FALSE, but if any leaf node needs to continue we set to true

@@ -66,9 +66,7 @@ void ALNAPI InitLFNs(ALNNODE* pNode, ALN* pALN, const double* adblX)
   		double* adblW = LFN_W(pNode) + 1; // weight vector... skip bias
   		double* adblC = LFN_C(pNode);			// centroid vector
   		double* adblD = LFN_D(pNode);			// ave sq dist from centroid vector
-			double* adblPrevX = LFN_P(pNode); // previous input vector for updating adblD
-
-  		// vector initialization
+			// vector initialization
   	  for (int i = 0; i < nDim; i++)
   	  { 
   			ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, i);
@@ -79,7 +77,6 @@ void ALNAPI InitLFNs(ALNNODE* pNode, ALN* pALN, const double* adblX)
   			               pConstr->dblWMin);
   	    adblC[i] = adblX[i];
   	    adblD[i] = pConstr->dblSqEpsilon;
-				adblPrevX[i] = adblX[i];
   	  }
     
   	  // the hyperplane is on the centroid to start so W[0] = 0

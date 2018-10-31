@@ -99,10 +99,10 @@ void CALNfitDeepDoc::GenerateReportString()
 	const int nMessageCount = 14;
 	const char * apMessages[nMessageCount] = 
 	{
-		MESSAGE0,  //"Analyzing training/variance file",
+		MESSAGE0,  //"Analyzing training/noise variance -- TVfile",
 		MESSAGE1,  //"Using linear regression to find an upper bound on noise",
-		MESSAGE2,  //"Over-training a single ALN to estimate the noise in the training/variance file",
-		MESSAGE3,  //"Training one or more ALNs using the noise estimate to guide ALN growth",
+		MESSAGE2,  //"Overtraining two ALNs to help estimate the noise variance",
+		MESSAGE3,  //"Training one or more ALNs using the noise variance samples to guide ALN growth",
 		MESSAGE4,  //"Training a new ALN with samples of the average of the trained ALNs",
 		MESSAGE5,  //"Constructing a DTREE from the average ALN and writing the .dtr file ",
 		MESSAGE6,  //"Loading and evaluating the DTREE on the test data file",

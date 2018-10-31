@@ -56,13 +56,12 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX, CE
 	ASSERT(NODE_ISMINMAX(pNode));
 
 	// set node eval flags
-	NODE_FLAGS(pNode) |= NF_EVAL;
+ 	NODE_FLAGS(pNode) |= NF_EVAL;  //NODE_FLAGS(pNode) ((pNode)->fNode)
 	NODE_FLAGS(MINMAX_LEFT(pNode)) &= ~NF_EVAL;
-	NODE_FLAGS(MINMAX_RIGHT(pNode)) &= ~NF_EVAL;
-
+	NODE_FLAGS(MINMAX_RIGHT(pNode)) &= ~NF_EVAL;//((pNode)->DATA.MINMAX.CHILDREN.CHILDSEPARATE.pRightChild)
 	// set first child
 	ALNNODE* pChild0;
-	if (MINMAX_EVAL(pNode))
+	if (MINMAX_EVAL(pNode))    // ((pNode)->DATA.MINMAX.pEvalChild)
 		pChild0 = MINMAX_EVAL(pNode);
 	else
 		pChild0 = MINMAX_LEFT(pNode);
@@ -76,7 +75,7 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX, CE
 
 	// get reference to region for this node
 	ALNREGION& region = pALN->aRegions[NODE_REGION(pNode)];
-
+	/*
 	if (region.dbl4SE > 0.0) // if smoothing is used
 	{
 		// loosen cutoff constraint for children
@@ -84,12 +83,12 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX, CE
 			cutoff.dblMax -= region.dbl4SE;
 		else if (MINMAX_ISMIN(pNode) && cutoff.bMin)
 			cutoff.dblMin += region.dbl4SE;
-	}
-
+	} REMOVED THIS TO SEE WHAT HAPPENs
+	*/
 	// eval first child
 	ALNNODE* pActiveLFN0;
 	double dbl0 = AdaptEval(pChild0, pALN, adblX, cutoff, &pActiveLFN0);
-
+	/*
 	// see if we can cutoff...
 	if (Cutoff(dbl0, pNode, cutoff, region.dbl4SE))
 	{
@@ -97,9 +96,9 @@ double ALNAPI AdaptEvalMinMax(ALNNODE* pNode, ALN* pALN, const double* adblX, CE
 		MINMAX_ACTIVE(pNode) = pChild0;
 		NODE_DISTANCE(pNode) = dbl0;
 		MINMAX_RESPACTIVE(pNode) = 1.0;	 // we can't have < 1 without additional evaluation
-		return dbl0;
-	}
-
+		return dbl0;  
+	}   Removed the cutoff to see what happens
+	*/
 	// eval second child
 	ALNNODE* pActiveLFN1;
 	double dbl1 = AdaptEval(pChild1, pALN, adblX, cutoff, &pActiveLFN1);
