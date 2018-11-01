@@ -34,14 +34,14 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-#define		MESSAGE0  "Analyzing training/variance file"
-#define		MESSAGE1  "Using linear regression to find an upper bound on noise"
-#define		MESSAGE2  "Over-training a single ALN to estimate the noise in the training/variance file"
-#define		MESSAGE3  "Training one or more ALNs using the noise estimate to guide ALN growth"
+#define		MESSAGE0  "Analyzing the data file"
+#define		MESSAGE1  "Using linear regression to find an upper bound on noise etc."
+#define		MESSAGE2  "Overtraining two or more ALNs to help in creating noise variance samples"
+#define		MESSAGE3  "Training one or more ALNs using the noise estimate to prevent overtraining."
 #define		MESSAGE4  "Training a new ALN with samples of the average of the trained ALNs"
 #define		MESSAGE5  "Constructing a DTREE from the average ALN and writing the .dtr file "
 #define		MESSAGE6  "Loading and evaluating the DTREE on the test data file"
-#define		MESSAGE7  "Determining importance of input variables using TV file and the trained ALNs"
+#define		MESSAGE7  "Determining importance of input variables using the trained ALNs"
 #define		MESSAGE8  "Please enter parameters for a run above; then click on Start"
 #define		MESSAGE9  "Finished. Please examine ..Protocol.. and ..Output.. text files for results."
 #define   MESSAGE10  "Opened.fit file."

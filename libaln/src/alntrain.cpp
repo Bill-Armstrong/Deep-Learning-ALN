@@ -211,16 +211,15 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		}
 
 		///// begin epoch loop
-    int nResetCounters = 6;  // We reset counters for splitting when
-                              //adaptation has had a chance to adjust pieces
-															// This depends on epochsize, learning rate, RMS error, tolerance... etc.
-
-		// ResetCounters(pTree, pALN,TRUE); // now we need to initialize counters at start separately
-// RISKY
-    traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ????
-		for (int nEpoch = 0; 
-				 (nEpoch < nMaxEpochs) && (traininfo.dblRMSErr > dblMinRMSErr); 
-				 nEpoch++)
+		// nEpochsBeforeSplit should be a divisor of nMaxEpochs e.g. 10 divides 100 evenly
+    int nEpochsBeforeSplit = 10;  // We reset counters for splitting when
+                                 // adaptation has had a chance to adjust pieces almost
+		                             // as close as possible to the training samples.
+														     // This depends on epochsize, learning rate, RMS error, tolerance... etc.
+	
+		// ResetCounters(pTree, pALN,TRUE); // we now use dozerosplitvalues(ALN*, ALNNODE*) instead
+    //traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ???? WIERD
+		for (int nEpoch = 0; nEpoch < nMaxEpochs; nEpoch++)
 		{
       int nCutoffs = 0;
            
@@ -231,89 +230,78 @@ static int ALNAPI DoTrainALN(ALN* pALN,
         EPOCHINFO ei(epochinfo);  // make copy to send!
 				Callback(pALN, AN_EPOCHSTART, &ei, pfnNotifyProc, pvData);
 			}
-			if (nEpoch > 0 && (nEpoch%nResetCounters == nResetCounters - 1))
+
+			// Just one epoch before splitcontrol is called to split linear pieces, counters are reset
+			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1)) // nEpoch count starts at 0
 			{
-				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //ResetCounters(pTree, pALN, nEpoch == 0);
+				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //Reset split values befpre the actions of the last epoch
 			}
-      // split candidate LFNs if not first epoch, and before counters are reset
-			if(nEpoch > 0 && (nEpoch%nResetCounters == 0))
-      {
-				// Don't use splitcontrol when the leaf node is not splitable! (e.g. for linear regression)
-				ASSERT(pALN->pTree);
-				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
-				if(bALNgrowable)splitcontrol(pALN, dblFlimit);  
-			}
+
+     
 
       // track squared error
       double dblSqErrorSum = 0;	
+			// We prepare a random reordering of the training data for the next set of epochs
+      Shuffle(nStart, nEnd, anShuffle);
 
-      // we improve generalization by ensuring enough data points are available
-      // for all the adapting LFNs in the system... when we add jitter, we can
-      // "increase" the size of the training set by iterating over the input
-      // points more than once before resetting the epoch stats
-      int nRepCount = 1; 
-			for (int nRep = 0; nRep < nRepCount; nRep++)
+			int nPoint;
+			for (nPoint = nStart; nPoint <= nEnd; nPoint++) // this does all the samples in an epoch in a randomized order
 			{
-				// shuffle training point indexes... in the case where
-				// nStart != 0, these are offset counts from nStart
-				Shuffle(nStart, nEnd, anShuffle);
+				int nTrainPoint = anShuffle[nPoint - nStart]; //a sample is picked for training
+				ASSERT((nTrainPoint + nStart) <= nEnd);
 
-				int nPoint;
-				for (nPoint = nStart; nPoint <= nEnd; nPoint++) // this does all the samples in an epoch in a randomized order
+				// fill input vector
+				FillInputVector(pALN, adblX, nTrainPoint, nStart, apdblBase,
+					pDataInfo, pCallbackInfo);
+
+				// if we have first data point, init LFNs on first pass
+				if (nEpoch == 0 && nPoint == nStart)
+					InitLFNs(pTree, pALN, adblX);
+
+				// jitter the data point
+				if (bJitter)
+					Jitter(pALN, adblX);
+
+				// do an adapt eval to get active LFN and distance, and to prepare
+				// tree for adaptation
+				ALNNODE* pActiveLFN = NULL;
+				CCutoffInfo& cutoffinfo = aCutoffInfo[nPoint - nStart];
+				double dbl = AdaptEval(pTree, pALN, adblX, &cutoffinfo, &pActiveLFN);
+
+				// track squared error before adapt, since adapt routines
+				// do not relcalculate value of adapted surface
+				dblSqErrorSum += dbl * dbl;
+
+				// notify start of adapt
+				if (CanCallback(AN_ADAPTSTART, pfnNotifyProc, nNotifyMask))
 				{
-					int nTrainPoint = anShuffle[nPoint - nStart]; // zero based
-					ASSERT((nTrainPoint + nStart) <= nEnd);
+					ADAPTINFO adaptinfo;
+					adaptinfo.nAdapt = nPoint - nStart;
+					adaptinfo.adblX = adblX;
+					adaptinfo.dblErr = dbl;
+					Callback(pALN, AN_ADAPTSTART, &adaptinfo, pfnNotifyProc, pvData);
+				}
 
-					// fill input vector
-					FillInputVector(pALN, adblX, nTrainPoint, nStart, apdblBase,
-						pDataInfo, pCallbackInfo);
-
-					// if we have first data point, init LFNs on first pass
-					if (nEpoch == 0 && nPoint == nStart)
-						InitLFNs(pTree, pALN, adblX);
-
-					// jitter the data point
-					if (bJitter)
-						Jitter(pALN, adblX);
-
-					// do an adapt eval to get active LFN and distance, and to prepare
-					// tree for adaptation
-					ALNNODE* pActiveLFN = NULL;
-					CCutoffInfo& cutoffinfo = aCutoffInfo[nPoint - nStart];
-					double dbl = AdaptEval(pTree, pALN, adblX, &cutoffinfo, &pActiveLFN);
-
-					// track squared error before adapt, since adapt routines
-					// do not relcalculate value of adapted surface
-					dblSqErrorSum += dbl * dbl;
-
-					// notify start of adapt
-					if (CanCallback(AN_ADAPTSTART, pfnNotifyProc, nNotifyMask))
-					{
-						ADAPTINFO adaptinfo;
-						adaptinfo.nAdapt = nPoint - nStart;
-						adaptinfo.adblX = adblX;
-						adaptinfo.dblErr = dbl;
-						Callback(pALN, AN_ADAPTSTART, &adaptinfo, pfnNotifyProc, pvData);
-					}
-
-					// do a useful adapt to correct any error
-					traindata.dblGlobalError = dbl;
+				// do a useful adapt to correct any error
+				traindata.dblGlobalError = dbl;
+				if (nEpoch%nEpochsBeforeSplit != nEpochsBeforeSplit - 1)
+				{
 					Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
+				}
 
-					// notify end of adapt
-					if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))
-					{
-						ADAPTINFO adaptinfo;
-						adaptinfo.nAdapt = nPoint - nStart;
-						adaptinfo.adblX = adblX;
-						adaptinfo.dblErr = dbl;
-						Callback(pALN, AN_ADAPTEND, &adaptinfo, pfnNotifyProc, pvData);
-					}
-				}	// end for each point in data set
-			} // end reps
+				// notify end of adapt
+				if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))
+				{
+					ADAPTINFO adaptinfo;
+					adaptinfo.nAdapt = nPoint - nStart;
+					adaptinfo.adblX = adblX;
+					adaptinfo.dblErr = dbl;
+					Callback(pALN, AN_ADAPTEND, &adaptinfo, pfnNotifyProc, pvData);
+				}
+			}	// end for each point in data set
 
 			// estimate RMS error on training set for this epoch
-			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / (nPoints * nRepCount));
+			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / nPoints);
 						
 			// calc true RMS if estimate below min, or if last epoch, or every
       // 10 epochs when jittering
@@ -340,8 +328,20 @@ static int ALNAPI DoTrainALN(ALN* pALN,
         EPOCHINFO ei(epochinfo);  // make copy to send!
 				Callback(pALN, AN_EPOCHEND, &ei, pfnNotifyProc, pvData);
 			}
-		} 
-		///// end epoch loop
+			// RISKY moved this to here
+			// split candidate LFNs after an epoch following which counters are reset
+			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1))
+			{
+				// Don't use splitcontrol when the leaf node is not splitable! (e.g. for linear regression)
+				ASSERT(pALN->pTree);
+				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
+				if (bALNgrowable)splitcontrol(pALN, dblFlimit);  // This leads to leaf nodes splitting
+			}
+
+
+
+
+		} // end epoch loop
 
 		// notify end of training
 		
