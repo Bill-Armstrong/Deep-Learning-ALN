@@ -42,33 +42,33 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* aln version information */
+	/* aln version information */
 #ifndef __ALNVER_H__
-  #include <alnver.h>
+#include <alnver.h>
 #endif
 
 /* aln compiler / platform configuration */
 #ifndef __ALNCFG_H__
-  #include <alncfg.h>
+#include <alncfg.h>
 #endif
 
 /* aln diagnostic services */
 #ifndef __ALNDBG_H__
-  #include <alndbg.h>
+#include <alndbg.h>
 #endif
 
 /* dtree support */
 #ifndef __DTREE_H__
-  #ifdef ALNDLL
-  #define DTREEDLL
-  #define DTRIMP ALNIMP
-  #endif  /* ALNDLL */
-  #include <dtree.h>
+#ifdef ALNDLL
+#define DTREEDLL
+#define DTRIMP ALNIMP
+#endif  /* ALNDLL */
+#include <dtree.h>
 #else
 #error Please do not include dtree.h before including aln.h
 #endif
 
-typedef int BOOL;
+	typedef int BOOL;
 
 #ifndef TRUE
 #define TRUE 1
@@ -78,12 +78,12 @@ typedef int BOOL;
 #define FALSE 0
 #endif
 
-/*
-/////////////////////////////////////////////////////////////////////////////
-// MANIFEST CONSTANT DEFINITIONS
-*/
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// MANIFEST CONSTANT DEFINITIONS
+	*/
 
-/* node flags ------------------------------------------------------------ */
+	/* node flags ------------------------------------------------------------ */
 #define NF_LFN      0x00010000      /* LFN node                            */
 #define NF_MINMAX     0x00020000      /* minmax node                           */
 #define NF_CONSTANT 0x00040000      /* node constant                       */
@@ -124,14 +124,14 @@ typedef int BOOL;
 */
 
 /*
-// helper macro to calc byte count of bitmap fields for n elements 
-// ... assumes char width is 8 bits 
+// helper macro to calc byte count of bitmap fields for n elements
+// ... assumes char width is 8 bits
 */
 #define MAPBYTECOUNT(n) (((n) + 7) >> 3)
 
 /*
-// helper macros test, set, and reset bits in map 
-// use following speedups: n / 8 == n >> 3   and   n % 8 == n & 0x07 
+// helper macros test, set, and reset bits in map
+// use following speedups: n / 8 == n >> 3   and   n % 8 == n & 0x07
 */
 #define TESTMAP(pMap, n) (((char*)pMap)[(n)>>3] & (0x01<<((n)&0x07)))
 #define SETMAP(pMap, n) (((char*)pMap)[(n)>>3] |= (0x01<<((n)&0x07)))
@@ -190,211 +190,211 @@ typedef int BOOL;
 */
 
 /* constraint structure -------------------------------------------------- */
-typedef struct tagALNCONSTRAINT
-{
-  int    nVarIndex;                 /* variable index                      */ 
-  double dblEpsilon;  							/* epsilon constraint                  */
-  double dblMin, dblMax;            /* range constraints                   */
-  double dblWMin, dblWMax;          /* weight constraints                  */
+	typedef struct tagALNCONSTRAINT
+	{
+		int    nVarIndex;                 /* variable index                      */
+		double dblEpsilon;  							/* epsilon constraint                  */
+		double dblMin, dblMax;            /* range constraints                   */
+		double dblWMin, dblWMax;          /* weight constraints                  */
 
-  /* auto calculated quantities */
-	double dblSqEpsilon;  						/* space for epsilon squared calc      */
-} ALNCONSTRAINT;
+		/* auto calculated quantities */
+		double dblSqEpsilon;  						/* space for epsilon squared calc      */
+	} ALNCONSTRAINT;
 
-/* lfn split structure - the variables are used in two different ways:
-   1. as below during training of linear pieces and
-	 2. during tree growth by splitting */
-typedef struct tagALNLFNSPLIT
-{
-  int nCount;
-  double dblSqError;                /* squared error                       */
-  double dblRespTotal;              /* total response                      */
-  double dblT;                      /* convexity criterion								 */
-} ALNLFNSPLIT;
+	/* lfn split structure - the variables are used in two different ways:
+		 1. as below during training of linear pieces and
+		 2. during tree growth by splitting */
+	typedef struct tagALNLFNSPLIT
+	{
+		int nCount;
+		double dblSqError;                /* squared error                       */
+		double dblRespTotal;              /* total response                      */
+		double dblT;                      /* convexity criterion								 */
+	} ALNLFNSPLIT;
 
-/* node structure -------------------------------------------------------- */
-typedef struct tagALNNODE
-{
-  struct tagALNNODE* pParent;       /* pointer to parent node              */
-  int nParentRegion;                /* index of parent region in ALN,      */
-                                    /*   currently unused, must be 0       */ 
-  int fNode;                        /* node flags (NF_*, LF_*, GF_*)       */
-  int nRespCount;                   /* responsibility count current epoch  */
-  int nRespCountLastEpoch;          /* responsibility count previous epoch */
-  double dblDistance;               /* distance to current input point     */
+	/* node structure -------------------------------------------------------- */
+	typedef struct tagALNNODE
+	{
+		struct tagALNNODE* pParent;       /* pointer to parent node              */
+		int nParentRegion;                /* index of parent region in ALN,      */
+																			/*   currently unused, must be 0       */
+		int fNode;                        /* node flags (NF_*, LF_*, GF_*)       */
+		int nRespCount;                   /* responsibility count current epoch  */
+		int nRespCountLastEpoch;          /* responsibility count previous epoch */
+		double dblDistance;               /* distance to current input point     */
 
-  union tagDATA
-  {
-    struct tagLFN
-    {
-      char* afVarMap;               /* var index bitmap,                   */
-                                    /*   currently unused, must be NULL    */ 
-      int nVDim;                    /* vector dimensions, except adblW     */
-      double* adblW;                /* weight vector, nVDim + 1 elements   */
-      double* adblC;                /* centroid vector                     */
-      double* adblD;                /* ave sq dist from centroid vector    */
-      ALNLFNSPLIT* pSplit;          /* split structure                     */
-    } LFN;
-    struct tagMINMAX
-    {
-      double dblRespActive;           /* response on active child          */
-      struct tagALNNODE* pActiveChild;/* active child on current input     */
-      struct tagALNNODE* pGoalChild;  /* goal child on current input       */
-      struct tagALNNODE* pEvalChild;  /* first eval child on current input */
-      union tagCHILDREN
-      {
-        struct tagCHILDSEPARATE
-        {
-          struct tagALNNODE* pLeftChild;  /* ptr to left child             */
-          struct tagALNNODE* pRightChild; /* ptr to right child            */
-        } CHILDSEPARATE;
-        struct tagCHILDARRAY
-        {
-          struct tagALNNODE* apChildren[2]; /* array of children           */
-        } CHILDARRAY;
-      } CHILDREN;
-    } MINMAX;
-  } DATA;
-} ALNNODE;
+		union tagDATA
+		{
+			struct tagLFN
+			{
+				char* afVarMap;               /* var index bitmap,                   */
+																			/*   currently unused, must be NULL    */
+				int nVDim;                    /* vector dimensions, except adblW     */
+				double* adblW;                /* weight vector, nVDim + 1 elements   */
+				double* adblC;                /* centroid vector                     */
+				double* adblD;                /* ave sq dist from centroid vector    */
+				ALNLFNSPLIT* pSplit;          /* split structure                     */
+			} LFN;
+			struct tagMINMAX
+			{
+				double dblRespActive;           /* response on active child          */
+				struct tagALNNODE* pActiveChild;/* active child on current input     */
+				struct tagALNNODE* pGoalChild;  /* goal child on current input       */
+				struct tagALNNODE* pEvalChild;  /* first eval child on current input */
+				union tagCHILDREN
+				{
+					struct tagCHILDSEPARATE
+					{
+						struct tagALNNODE* pLeftChild;  /* ptr to left child             */
+						struct tagALNNODE* pRightChild; /* ptr to right child            */
+					} CHILDSEPARATE;
+					struct tagCHILDARRAY
+					{
+						struct tagALNNODE* apChildren[2]; /* array of children           */
+					} CHILDARRAY;
+				} CHILDREN;
+			} MINMAX;
+		} DATA;
+	} ALNNODE;
 
-/* ALNREGION structure --------------------------------------------------- */
-typedef struct tagALNREGION
-{
-  int nParentRegion;                /* index of parent region in ALN       */ 
-                                    /*   currently unused, must be -1      */                                     
-  double dblLearnFactor;	          /* learning rate factor                */
-  char* afVarMap;                   /* var index bitmap,                   */
-                                    /*   currently unused, must be NULL    */ 
-  int nConstr;                      /* number of constraints in array      */
-  ALNCONSTRAINT* aConstr;           /* array of constraints                */ 
+	/* ALNREGION structure --------------------------------------------------- */
+	typedef struct tagALNREGION
+	{
+		int nParentRegion;                /* index of parent region in ALN       */
+																			/*   currently unused, must be -1      */
+		double dblLearnFactor;	          /* learning rate factor                */
+		char* afVarMap;                   /* var index bitmap,                   */
+																			/*   currently unused, must be NULL    */
+		int nConstr;                      /* number of constraints in array      */
+		ALNCONSTRAINT* aConstr;           /* array of constraints                */
 
-  double dblSmoothEpsilon;          /* smoothing epsilon                   */
+		double dblSmoothEpsilon;          /* smoothing epsilon                   */
 
-  /* auto calculated quantities */
-  double dbl4SE;                    /* 4 * smoothing epsilon               */
-  double dblOV16SE;                 /* 1 / 16 * smoothing epsilon          */
-} ALNREGION;
+		/* auto calculated quantities */
+		double dbl4SE;                    /* 4 * smoothing epsilon               */
+		double dblOV16SE;                 /* 1 / 16 * smoothing epsilon          */
+	} ALNREGION;
 
-/* confidence interval structure ----------------------------------------- */
-typedef struct tagALNCONFIDENCE
-{
-  double dblP;          /* one-sided tail probability, the actual          */
-                        /* symmetric confidence interval is 1 - 2p         */
-  double dblLowerBound; /* upper bound on error                            */
-  double dblUpperBound; /* lower bound on error                            */
-  int    nSamples;      /* number of samples used when calculating bounds  */
-} ALNCONFIDENCE;
+	/* confidence interval structure ----------------------------------------- */
+	typedef struct tagALNCONFIDENCE
+	{
+		double dblP;          /* one-sided tail probability, the actual          */
+													/* symmetric confidence interval is 1 - 2p         */
+		double dblLowerBound; /* upper bound on error                            */
+		double dblUpperBound; /* lower bound on error                            */
+		int    nSamples;      /* number of samples used when calculating bounds  */
+	} ALNCONFIDENCE;
 
-/* LFN analysis structures ----------------------------------------------- */
-typedef struct tagLFNSTATS
-{
-  double dblRSS;        /* regression sum of squares                       */
-  double dblESS;        /* Error (residual) sum of squares                 */
-  double dblDF;         /* degrees of freedom                              */
-  double dblR2;         /* doefficient of determination                    */
-  double dblSEE;        /* standard error of estimation                    */
-  double dblF;          /* F-statistic                                     */
-  double dblFp;         /* probability of F                                */
-} LFNSTATS;
+	/* LFN analysis structures ----------------------------------------------- */
+	typedef struct tagLFNSTATS
+	{
+		double dblRSS;        /* regression sum of squares                       */
+		double dblESS;        /* Error (residual) sum of squares                 */
+		double dblDF;         /* degrees of freedom                              */
+		double dblR2;         /* doefficient of determination                    */
+		double dblSEE;        /* standard error of estimation                    */
+		double dblF;          /* F-statistic                                     */
+		double dblFp;         /* probability of F                                */
+	} LFNSTATS;
 
-typedef struct tagLFNWEIGHTSTATS
-{
-  double dblW;          /* value of weight                                 */
-  double dblSEw;        /* standard error of the weight                    */
-  double dblT;          /* T-statistic                                     */
-  double dblTp;         /* probability of T                                */
-} LFNWEIGHTSTATS;
-
-
-/* ALN struct ------------------------------------------------------------ */
-typedef struct tagALN
-{
-  int nVersion;                     /* version of ALN                      */ 
-  int nDim;                         /* dim of space                        */
-  int nOutput;                      /* index of output var                 */
-  int nRegions;                     /* number of regions,                  */
-                                    /*   currently must be 1               */
-  ALNREGION* aRegions;              /* array of regions, nRegions elements */
-  ALNNODE* pTree;                   /* pointer to root node of tree        */
-} ALN;
-
-/*
-// structure used in training and evaluation for indicating
-// column index and time shift for each variable
-*/
-typedef struct tagVARINFO
-{
-  int nCol;   /* associated data array column, -1 if same as var index     */
-  int nDelta; /* "time" shift                                              */
-} VARINFO;
-
-/* structure used for passing training and eval data                       */
-typedef struct tagVECTORINFO
-{
-  int nPoint;               /* training or eval sequence number            */
-  int bNeedData;            /* TRUE if callback must supply data           */
-  const VARINFO* aVarInfo;  /* VARINFO array, may be NULL                  */
-  double* adblX;	          /* input vector, can be modified               */
-} VECTORINFO;
-
-/* structures used for passing info to training notification procedure     */
-typedef struct tagEPOCHINFO
-{
-	int nEpoch;					      /* epoch number                                */
-	int nLFNs;					      /* number of LFNs in ALN                       */
-	int nActiveLFNs;			    /* number of active LFNs in ALN                */
-	double dblEstRMSErr;	    /* estimated RMS error                         */
-} EPOCHINFO;
-
-typedef struct tagTRAININFO
-{
-	int nEpochs;					    /* total number of epochs required,            */
-	int nLFNs;						    /* number of LFNs in ALN                       */
-	int nActiveLFNs;			    /* number of resp. LFNs in ALN, 0 at start     */
-	double dblRMSErr;			    /* RMS error, 0 at start                       */
-} TRAININFO;
-
-typedef struct tagADAPTINFO
-{
-	int nAdapt;						    /* adaptation sequence number                  */
-	const double* adblX;	    /* training vector                             */
-  double dblErr;				    /* signed distance from point to surface       */
-} ADAPTINFO;
-
-typedef struct tagLFNADAPTINFO
-{
-  const double* adblX;      /* training vector                             */
-  ALNNODE* pLFN;            /* pointer to adapting LFN                     */
-  double dblResponse;       /* the weight on the adapting LFN              */
-  double dblError;          /* global error we are adapting to             */
-} LFNADAPTINFO;
-
-typedef struct tagALNDATAINFO
-{
-  int nPoints;              /* number of data points                       */
-  const VARINFO* aVarInfo;  /* variable info... may be NULL                */
-  const double* adblData;   /* data array... may be NULL                   */
-  int nCols;                /* number of columns in non-NULL data array    */
-} ALNDATAINFO;
-
-/*
-/////////////////////////////////////////////////////////////////////////////
-// ALN notification callback prototype
-*/
-
-/* return 0 if caller should halt, non-zero if caller should continue      */
-typedef int (ALNAPI* ALNNOTIFYPROC)(const ALN* pALN, int nCode, void* pParam,
-                                    void* pvData);
-
-typedef struct tagALNCALLBACKINFO
-{
-  int nNotifyMask;              /* notifications to send                   */
-  ALNNOTIFYPROC pfnNotifyProc;  /* notification callback                   */
-  void* pvData;                 /* user data                               */
-} ALNCALLBACKINFO;
+	typedef struct tagLFNWEIGHTSTATS
+	{
+		double dblW;          /* value of weight                                 */
+		double dblSEw;        /* standard error of the weight                    */
+		double dblT;          /* T-statistic                                     */
+		double dblTp;         /* probability of T                                */
+	} LFNWEIGHTSTATS;
 
 
-/* ALN notification callback codes and corresponding pParam meanings       */
+	/* ALN struct ------------------------------------------------------------ */
+	typedef struct tagALN
+	{
+		int nVersion;                     /* version of ALN                      */
+		int nDim;                         /* dim of space                        */
+		int nOutput;                      /* index of output var                 */
+		int nRegions;                     /* number of regions,                  */
+																			/*   currently must be 1               */
+		ALNREGION* aRegions;              /* array of regions, nRegions elements */
+		ALNNODE* pTree;                   /* pointer to root node of tree        */
+	} ALN;
+
+	/*
+	// structure used in training and evaluation for indicating
+	// column index and time shift for each variable
+	*/
+	typedef struct tagVARINFO
+	{
+		int nCol;   /* associated data array column, -1 if same as var index     */
+		int nDelta; /* "time" shift                                              */
+	} VARINFO;
+
+	/* structure used for passing training and eval data                       */
+	typedef struct tagVECTORINFO
+	{
+		int nPoint;               /* training or eval sequence number            */
+		int bNeedData;            /* TRUE if callback must supply data           */
+		const VARINFO* aVarInfo;  /* VARINFO array, may be NULL                  */
+		double* adblX;	          /* input vector, can be modified               */
+	} VECTORINFO;
+
+	/* structures used for passing info to training notification procedure     */
+	typedef struct tagEPOCHINFO
+	{
+		int nEpoch;					      /* epoch number                                */
+		int nLFNs;					      /* number of LFNs in ALN                       */
+		int nActiveLFNs;			    /* number of active LFNs in ALN                */
+		double dblEstRMSErr;	    /* estimated RMS error                         */
+	} EPOCHINFO;
+
+	typedef struct tagTRAININFO
+	{
+		int nEpochs;					    /* total number of epochs required,            */
+		int nLFNs;						    /* number of LFNs in ALN                       */
+		int nActiveLFNs;			    /* number of resp. LFNs in ALN, 0 at start     */
+		double dblRMSErr;			    /* RMS error, 0 at start                       */
+	} TRAININFO;
+
+	typedef struct tagADAPTINFO
+	{
+		int nAdapt;						    /* adaptation sequence number                  */
+		const double* adblX;	    /* training vector                             */
+		double dblErr;				    /* signed distance from point to surface       */
+	} ADAPTINFO;
+
+	typedef struct tagLFNADAPTINFO
+	{
+		const double* adblX;      /* training vector                             */
+		ALNNODE* pLFN;            /* pointer to adapting LFN                     */
+		double dblResponse;       /* the weight on the adapting LFN              */
+		double dblError;          /* global error we are adapting to             */
+	} LFNADAPTINFO;
+
+	typedef struct tagALNDATAINFO
+	{
+		int nPoints;              /* number of data points                       */
+		const VARINFO* aVarInfo;  /* variable info... may be NULL                */
+		const double* adblData;   /* data array... may be NULL                   */
+		int nCols;                /* number of columns in non-NULL data array    */
+	} ALNDATAINFO;
+
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// ALN notification callback prototype
+	*/
+
+	/* return 0 if caller should halt, non-zero if caller should continue      */
+	typedef int (ALNAPI* ALNNOTIFYPROC)(const ALN* pALN, int nCode, void* pParam,
+		void* pvData);
+
+	typedef struct tagALNCALLBACKINFO
+	{
+		int nNotifyMask;              /* notifications to send                   */
+		ALNNOTIFYPROC pfnNotifyProc;  /* notification callback                   */
+		void* pvData;                 /* user data                               */
+	} ALNCALLBACKINFO;
+
+
+	/* ALN notification callback codes and corresponding pParam meanings       */
 #define AN_TRAINSTART    0x0001
 	/* TRAININFO* pTrainInfo = (TRAININFO*)pParam                            */
 
@@ -420,7 +420,7 @@ typedef struct tagALNCALLBACKINFO
 	/* LFNADAPTINFO* pLFNAdaptInfo = (LFNADAPTINFO*)pParam                   */
 
 #define AN_VECTORINFO    0x0100
-  /* VECTORINFO* pVectorInfo = (VECTORINFO*)pParam                         */
+	/* VECTORINFO* pVectorInfo = (VECTORINFO*)pParam                         */
 
 #define AN_NONE     0
 #define AN_TRAIN    (AN_TRAINSTART|AN_TRAINEND)
@@ -437,243 +437,243 @@ typedef struct tagALNCALLBACKINFO
 /*
 // test ALN structure validity
 */
-ALNIMP int ALNAPI ALNTestValid(const ALN* pALN);
+	ALNIMP int ALNAPI ALNTestValid(const ALN* pALN);
 
-/*
-// seeding for ALN internal pseudo-random number generator
-*/
-ALNIMP void ALNAPI ALNSRand(unsigned int nSeed);
+	/*
+	// seeding for ALN internal pseudo-random number generator
+	*/
+	ALNIMP void ALNAPI ALNSRand(unsigned int nSeed);
 
-/*
-// return next value from ALN internal pseudo-random number generator
-*/
-ALNIMP unsigned long ALNAPI ALNRand(void);
+	/*
+	// return next value from ALN internal pseudo-random number generator
+	*/
+	ALNIMP unsigned long ALNAPI ALNRand(void);
 
-/* 
-// max value returned by ALNRand()
-*/
+	/*
+	// max value returned by ALNRand()
+	*/
 #define ALNRAND_MAX 0xffffffff
 
-/* 
-// quick way to get random float value in [0, 1]
-*/
-ALNIMP float ALNAPI ALNRandFloat(void);
+	/*
+	// quick way to get random float value in [0, 1]
+	*/
+	ALNIMP float ALNAPI ALNRandFloat(void);
 
-/*
-// TrainALN 
-*/
+	/*
+	// TrainALN
+	*/
 
-ALNIMP int ALNAPI ALNTrain(ALN* pALN,
-                           const ALNDATAINFO* pDataInfo,
-                           const ALNCALLBACKINFO* pCallbackInfo,
-                           int nMaxEpochs,
-                           double dblMinRMSErr,
-                           double dblLearnRate,
-                           BOOL bJitter);
+	ALNIMP int ALNAPI ALNTrain(ALN* pALN,
+		const ALNDATAINFO* pDataInfo,
+		const ALNCALLBACKINFO* pCallbackInfo,
+		int nMaxEpochs,
+		double dblMinRMSErr,
+		double dblLearnRate,
+		BOOL bJitter);
 
-/*
-// ALNCalcRMSError
-*/
+	/*
+	// ALNCalcRMSError
+	*/
 
-ALNIMP int ALNAPI ALNCalcRMSError(const ALN* pALN,
-                                  const ALNDATAINFO* pDataInfo,
-                                  const ALNCALLBACKINFO* pCallbackInfo,
-                                  double* pdblRMSErr);
+	ALNIMP int ALNAPI ALNCalcRMSError(const ALN* pALN,
+		const ALNDATAINFO* pDataInfo,
+		const ALNCALLBACKINFO* pCallbackInfo,
+		double* pdblRMSErr);
 
-/*
-// ALN variable monotonicity type
-*/
-ALNIMP int ALNAPI ALNVarMono(const ALN* pALN, int nVar, int* pnMono); 
+	/*
+	// ALN variable monotonicity type
+	*/
+	ALNIMP int ALNAPI ALNVarMono(const ALN* pALN, int nVar, int* pnMono);
 
-/* 
-// ALN inversion
-*/
-ALNIMP int ALNAPI ALNInvert(ALN* pALN, int nVar);
+	/*
+	// ALN inversion
+	*/
+	ALNIMP int ALNAPI ALNInvert(ALN* pALN, int nVar);
 
-/*
-// evaluation of ALN on data
-*/
+	/*
+	// evaluation of ALN on data
+	*/
 
-ALNIMP int ALNAPI ALNEval(const ALN* pALN,
-                          const ALNDATAINFO* pDataInfo,
-                          const ALNCALLBACKINFO* pCallbackInfo,
-                          double* adblResult,
-                          int* pnStart, int* pnEnd);
+	ALNIMP int ALNAPI ALNEval(const ALN* pALN,
+		const ALNDATAINFO* pDataInfo,
+		const ALNCALLBACKINFO* pCallbackInfo,
+		double* adblResult,
+		int* pnStart, int* pnEnd);
 
-/*
-// quick evaluation of ALN on single vector
-*/
-ALNIMP double ALNAPI ALNQuickEval(const ALN* pALN, const double* adblX,
-                                  ALNNODE** ppActiveLFN);
-
-
-/*
-/////////////////////////////////////////////////////////////////////////////
-// confidence intervals
-*/
-
-/*
-// calc the confidence intervals for a data set
-// the ALNCONFIDENCE structure must have its dblP member intialized
-// to contain the desired area in each tail outside the confidence 
-// interval - dblP must be greater than 0 and less than 0.5
-// returns ALN_* error code, (ALN_NOERROR on success)
-*/
-ALNIMP int ALNAPI ALNCalcConfidence(const ALN* pALN,
-                                    const ALNDATAINFO* pDataInfo,
-                                    const ALNCALLBACKINFO* pCallbackInfo,
-                                    ALNCONFIDENCE* pConfidence);
-
-/*
-// confidence in the confidence intervals:
-// calculates a value PLimit such that there is only a chance 
-// dblSignificance (usually 0.05 or 0.01) that the interval bounds 
-// in pConfidence would have been chosen to bound tails of area
-// dblPLimit
-*/
-ALNIMP int ALNAPI ALNConfidencePLimit(const ALNCONFIDENCE* pConfidence,
-                                      double dblSignificance,
-                                      double* pdblPLimit);
+	/*
+	// quick evaluation of ALN on single vector
+	*/
+	ALNIMP double ALNAPI ALNQuickEval(const ALN* pALN, const double* adblX,
+		ALNNODE** ppActiveLFN);
 
 
-/* 
-// confidence in the confidence intervals:
-// calculates probability that the confidence interval in pConfidence
-// covers a specified minimum fraction (tolerance interval) of the
-// symmetric distribution having area dblInterval (usually 
-// 1 - 4 * pConfidence->dblP)
-*/
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// confidence intervals
+	*/
 
-ALNIMP int ALNAPI ALNConfidenceTLimit(const ALNCONFIDENCE* pConfidence,
-                                      double dblInterval,
-                                      double* pdblTLimit);
+	/*
+	// calc the confidence intervals for a data set
+	// the ALNCONFIDENCE structure must have its dblP member intialized
+	// to contain the desired area in each tail outside the confidence
+	// interval - dblP must be greater than 0 and less than 0.5
+	// returns ALN_* error code, (ALN_NOERROR on success)
+	*/
+	ALNIMP int ALNAPI ALNCalcConfidence(const ALN* pALN,
+		const ALNDATAINFO* pDataInfo,
+		const ALNCALLBACKINFO* pCallbackInfo,
+		ALNCONFIDENCE* pConfidence);
 
-
-/*
-/////////////////////////////////////////////////////////////////////////////
-// LFN analysis
-*/
-
-ALNIMP int ALNAPI ALNLFNAnalysis(const ALN* pALN,
-                                 const ALNDATAINFO* pDataInfo,
-                                 const ALNCALLBACKINFO* pCallbackInfo,
-                                 void*& ppvAnalysis,
-                                 int& pnLFNStats);
-
-ALNIMP int ALNAPI ALNLFNStats(void* pvAnalysis, 
-                              int nLFNStat,
-                              LFNSTATS* pLFNStats,
-                              int* pnWeightStats,
-                              ALNNODE** ppLFN);
-
-// if nWeight == the output index of the ALN, 
-// then the weight is the bias weight of the LFN
-ALNIMP int ALNAPI ALNLFNWeightStats(void* pvAnalysis, 
-                                    int nLFNStat,
-                                    int nWeightStat,
-                                    LFNWEIGHTSTATS* pLFNWeightStats);
-
-ALNIMP int ALNAPI ALNLFNFreeAnalysis(void* pvAnalysis);
+	/*
+	// confidence in the confidence intervals:
+	// calculates a value PLimit such that there is only a chance
+	// dblSignificance (usually 0.05 or 0.01) that the interval bounds
+	// in pConfidence would have been chosen to bound tails of area
+	// dblPLimit
+	*/
+	ALNIMP int ALNAPI ALNConfidencePLimit(const ALNCONFIDENCE* pConfidence,
+		double dblSignificance,
+		double* pdblPLimit);
 
 
-/*
-/////////////////////////////////////////////////////////////////////////////
-// I/O
-*/
+	/*
+	// confidence in the confidence intervals:
+	// calculates probability that the confidence interval in pConfidence
+	// covers a specified minimum fraction (tolerance interval) of the
+	// symmetric distribution having area dblInterval (usually
+	// 1 - 4 * pConfidence->dblP)
+	*/
 
-/*
-// saving ALN to disk file
-*/
-ALNIMP int ALNAPI ALNWrite(const ALN* pALN, const char* pszFileName);
+	ALNIMP int ALNAPI ALNConfidenceTLimit(const ALNCONFIDENCE* pConfidence,
+		double dblInterval,
+		double* pdblTLimit);
 
-/*
-// loading ALN from disk file
-*/
-ALNIMP int ALNAPI ALNRead(const char* pszFileName, ALN** ppALN);
 
-/*
-// conversion to dtree
-*/
-ALNIMP int ALNAPI ALNConvertDtree(const ALN* pALN, int nMaxDepth, 
-                                  DTREE** ppDtree);
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// LFN analysis
+	*/
 
-/*
-/////////////////////////////////////////////////////////////////////////////
-// memory management
-*/
+	ALNIMP int ALNAPI ALNLFNAnalysis(const ALN* pALN,
+		const ALNDATAINFO* pDataInfo,
+		const ALNCALLBACKINFO* pCallbackInfo,
+		void*& ppvAnalysis,
+		int& pnLFNStats);
 
-/*
-// creates a new ALN
-*/
-ALNIMP ALN* ALNAPI ALNCreateALN(int nDim, int nOutput);
+	ALNIMP int ALNAPI ALNLFNStats(void* pvAnalysis,
+		int nLFNStat,
+		LFNSTATS* pLFNStats,
+		int* pnWeightStats,
+		ALNNODE** ppLFN);
 
-/*
-// destroys an ALN
-// returns 0 on failure, non-zero on success
-*/
-ALNIMP int ALNAPI ALNDestroyALN(ALN* pALN);
+	// if nWeight == the output index of the ALN, 
+	// then the weight is the bias weight of the LFN
+	ALNIMP int ALNAPI ALNLFNWeightStats(void* pvAnalysis,
+		int nLFNStat,
+		int nWeightStat,
+		LFNWEIGHTSTATS* pLFNWeightStats);
+
+	ALNIMP int ALNAPI ALNLFNFreeAnalysis(void* pvAnalysis);
+
+
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// I/O
+	*/
+
+	/*
+	// saving ALN to disk file
+	*/
+	ALNIMP int ALNAPI ALNWrite(const ALN* pALN, const char* pszFileName);
+
+	/*
+	// loading ALN from disk file
+	*/
+	ALNIMP int ALNAPI ALNRead(const char* pszFileName, ALN** ppALN);
+
+	/*
+	// conversion to dtree
+	*/
+	ALNIMP int ALNAPI ALNConvertDtree(const ALN* pALN, int nMaxDepth,
+		DTREE** ppDtree);
+
+	/*
+	/////////////////////////////////////////////////////////////////////////////
+	// memory management
+	*/
+
+	/*
+	// creates a new ALN
+	*/
+	ALNIMP ALN* ALNAPI ALNCreateALN(int nDim, int nOutput);
+
+	/*
+	// destroys an ALN
+	// returns 0 on failure, non-zero on success
+	*/
+	ALNIMP int ALNAPI ALNDestroyALN(ALN* pALN);
 
 #ifdef ENABLE_REGIONS
 
-/*
-// adding a new region to the ALN
-// returns index of new region in ALN, -1 on failure
-*/
-ALNIMP int ALNAPI ALNAddRegion(ALN* pALN, int nParentRegion, 
-                               double dblLearnFactor, 
-                               int nConstr, int* anConstr);
+	/*
+	// adding a new region to the ALN
+	// returns index of new region in ALN, -1 on failure
+	*/
+	ALNIMP int ALNAPI ALNAddRegion(ALN* pALN, int nParentRegion,
+		double dblLearnFactor,
+		int nConstr, int* anConstr);
 
 #endif /* ENABLE_REGIONS */
 
-/*
-// adding LFNs to a tree
-*/
-ALNIMP int ALNAPI ALNAddLFNs(ALN* pALN, ALNNODE* pParent, 
-                             int nParentMinMaxType, int nLFNs,
-                             ALNNODE** apLFNs);
+	/*
+	// adding LFNs to a tree
+	*/
+	ALNIMP int ALNAPI ALNAddLFNs(ALN* pALN, ALNNODE* pParent,
+		int nParentMinMaxType, int nLFNs,
+		ALNNODE** apLFNs);
 
-/*
-// adding multiple layers to a tree
-*/
-ALNIMP int ALNAPI ALNAddMultiLayer(ALN* pALN, ALNNODE* pParent, 
-                                   int nParentMinMaxType, int nLayers,
-                                   int nMinMaxFanin, int nLFNFanin,
-                                   int nFlags);
+	/*
+	// adding multiple layers to a tree
+	*/
+	ALNIMP int ALNAPI ALNAddMultiLayer(ALN* pALN, ALNNODE* pParent,
+		int nParentMinMaxType, int nLayers,
+		int nMinMaxFanin, int nLFNFanin,
+		int nFlags);
 
-/*
-// make a tree from a string
-*/
+	/*
+	// make a tree from a string
+	*/
 
-ALNIMP int ALNAPI ALNAddTreeString(ALN* pALN, ALNNODE* pParent, 
-                                   const char* pszTreeString,
-                                   int* pnParsed);
+	ALNIMP int ALNAPI ALNAddTreeString(ALN* pALN, ALNNODE* pParent,
+		const char* pszTreeString,
+		int* pnParsed);
 
-/*
-// make a growable subtree
-*/
+	/*
+	// make a growable subtree
+	*/
 
-ALNIMP int ALNAPI ALNSetGrowable(ALN* pALN, ALNNODE* pParent);
+	ALNIMP int ALNAPI ALNSetGrowable(ALN* pALN, ALNNODE* pParent);
 
 
-/*
-///////////////////////////////////////////////////////////////////////////////
-// Abort handling
-*/
+	/*
+	///////////////////////////////////////////////////////////////////////////////
+	// Abort handling
+	*/
 
-/*
-// set ALN abort procedure: if ALN needs to abort, it will call this 
-//   function; if not set, ALN will simply call abort()
-// you can use this to chain an abort proc for another library to the ALN
-//   library, and simply call ALNAbort
-*/
-typedef void (__stdcall* ALNABORTPROC)(void);
-ALNIMP void ALNAPI ALNSetAbortProc(ALNABORTPROC pfnAbortProc);
+	/*
+	// set ALN abort procedure: if ALN needs to abort, it will call this
+	//   function; if not set, ALN will simply call abort()
+	// you can use this to chain an abort proc for another library to the ALN
+	//   library, and simply call ALNAbort
+	*/
+	typedef void(__stdcall* ALNABORTPROC)(void);
+	ALNIMP void ALNAPI ALNSetAbortProc(ALNABORTPROC pfnAbortProc);
 
-/*
-// ALN library abort... cleans up internal ALN library, then calls
-// abort procedure defined by call to ALNSetAbortProc()
-*/
-ALNIMP void __stdcall ALNAbort(void);
+	/*
+	// ALN library abort... cleans up internal ALN library, then calls
+	// abort procedure defined by call to ALNSetAbortProc()
+	*/
+	ALNIMP void __stdcall ALNAbort(void);
 
 
 #ifdef __cplusplus

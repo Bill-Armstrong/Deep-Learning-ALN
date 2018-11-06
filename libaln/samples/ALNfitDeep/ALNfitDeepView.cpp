@@ -28,7 +28,7 @@
 
 
 
-#include <aln.h>
+#include "aln.h"
 #include "alnpp.h"
 #include "cmyaln.h"
 
@@ -47,10 +47,7 @@ static char THIS_FILE[] = __FILE__;
 #include <datafile.h>
 #include "alnextern.h"
 
-extern CMyAln * pOTTS;
-extern CMyAln * pOTVS;
 extern CMyAln * pALN;
-extern double computeGlobalNoiseVariance();
 
 #define INPUTDEC      0
 #define INPUT         1
@@ -553,7 +550,7 @@ void CALNfitDeepView::OnButtonData()
 	      int nheaderlines = 0;
         long nrows = 0;
         int ncols = 0;
-	      if(!analyzeinputfile((char *) LPCTSTR(m_strDataFileName), &nheaderlines, &nrows, &ncols,TRUE))
+	      if(!analyzeInputFile((char *) LPCTSTR(m_strDataFileName), &nheaderlines, &nrows, &ncols,TRUE))
 	      {
           MessageBox("Stopping: Input file analysis failed");
 		      exit(0);
@@ -822,33 +819,25 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     fflush(fpProtocol);
     if(bEstimateRMSError)  // We are doing RMS Error estimation (works also with two-class classification)
     {
-      // We do the following if we are doing regression and estimating RMS noise
-			// Noise estimation may work for two classes, but for more classes, it depends on which classes are close to one-another
+      // We do the following if we are doing regression and estimating noise variance.
+			// Noise estimation may work for classification, but more study is required.
 			fprintf(fpProtocol, "Linear regression and overfitting are used, the latter for estimating noise variance.\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVfile, here we don't use the VARfile
-      dolinearregression();
+			doLinearRegression();
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createTR_VARfiles(0); // 0 indicates we choose a training set about 50% of the TVfile
-			pALN = pOTTS;
-      overtrain(pOTTS);
-			createTR_VARfiles(1); // 1 indicates exchanging the previous training set and its complement in the TVfile
-			pALN = pOTVS;
-			overtrain(pOTVS);
-    }
+			createNoiseVarianceFile();
+		}
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-		createTR_VARfiles(2);
-		computeGlobalNoiseVariance(); // sets up the whole TVfile as TRfile with noise variance control from VARfile
-    approximate();
+		approximate();
     PassBackStatus(7,75);   
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-    outputtrainingresults();
+    outputTrainingResults();
     PassBackStatus(4,80);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-    trainaverage();
+    trainAverage();
     PassBackStatus(5,85);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
     constructDTREE(nDTREEDepth);

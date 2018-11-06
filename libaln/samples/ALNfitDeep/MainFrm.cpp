@@ -147,7 +147,7 @@ BOOL CMainFrame::Create(LPCTSTR lpszClassName, LPCTSTR lpszWindowName, DWORD dwS
 	// TODO: Add your specialized code here and/or call the base class
 
 	
-	return CWnd::Create(lpszClassName, "ALNfit Pro", dwStyle, rect, pParentWnd, nID, pContext);
+	return CWnd::Create(lpszClassName, "ALNfit Deep", dwStyle, rect, pParentWnd, nID, pContext);
 }
 
 

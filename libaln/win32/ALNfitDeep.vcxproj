@@ -97,7 +97,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -123,7 +123,7 @@
       <StackReserveSize>0</StackReserveSize>
       <StackCommitSize>0</StackCommitSize>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalLibraryDirectories>,\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>No</GenerateDebugInformation>
@@ -143,7 +143,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;WINVER=0x0A00</PreprocessorDefinitions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <WarningLevel>Level1</WarningLevel>
@@ -171,7 +171,7 @@
       <StackReserveSize>0</StackReserveSize>
       <StackCommitSize>0</StackCommitSize>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalLibraryDirectories>,\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <ImportLibrary>
       </ImportLibrary>
@@ -194,7 +194,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -221,7 +221,7 @@
       <StackReserveSize>0</StackReserveSize>
       <StackCommitSize>0</StackCommitSize>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalLibraryDirectories>,\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>Debug</GenerateDebugInformation>
@@ -241,7 +241,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <WarningLevel>Level1</WarningLevel>
@@ -269,7 +269,7 @@
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
-      <AdditionalLibraryDirectories>,\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <EnableUAC>false</EnableUAC>
       <GenerateDebugInformation>Debug</GenerateDebugInformation>

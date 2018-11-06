@@ -156,7 +156,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                                              pCallbackInfo->pfnNotifyProc;
 
 	// init traindata
-	traindata.dblLearnRate = dblLearnRate; // was 1 adapt per input variable (?), now an epoch is 1 pass through the training data
+	traindata.dblLearnRate = dblLearnRate; // an epoch is 1 pass through the training data
 	traindata.nNotifyMask = nNotifyMask;
 	traindata.pvData = pvData;
 	traindata.pfnNotifyProc = pfnNotifyProc;
@@ -168,7 +168,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 	try	// main processing block
 	{
     // allocate input vector
-    adblX = new double[nDim];
+		adblX = new double[nDim];
     if (!adblX) ThrowALNMemoryException();
     memset(adblX, 0, sizeof(double) * nDim); // this has space for all the inputs and the output value
 

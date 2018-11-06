@@ -44,16 +44,20 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+extern BOOL bDelaunay;
+
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 {
 	// since noise makes this decision uncertain, we only split if the piece doesn't fit within the noise limit
 	// and the direction of split will likely not be close
-	if (LFN_SPLIT_T(pNode) < 0) // This is TRUE if the ALN surface tends to be below the training values far from the centroid on the piece
+	if (bDelaunay || LFN_SPLIT_T(pNode) < 0) // This is TRUE if we are creating a Delaunay tesselation
+		      // or if the ALN surface tends to be below the training values far from the centroid on the piece.
+		      // In both cases we need a MAX.
 	{
-		return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max is concave up
+		return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max is convex down   \_/
 	}
 	else
 	{
-		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is concave down
+		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is convex up
 	}
 }

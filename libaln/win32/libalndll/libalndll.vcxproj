@@ -67,7 +67,7 @@
     </Midl>
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..\dtree;C:\Boost\boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\include;..\..\dtree;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_MT;_DLL;ALNDLL;ALN_NOFORCE_LIBS;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;LITTLE_ENDIAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeaderOutputFile>.\libalndll\Debug/libalndll.pch</PrecompiledHeaderOutputFile>
@@ -92,7 +92,7 @@
       <DataExecutionPrevention />
       <TargetMachine>MachineX86</TargetMachine>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
-      <AdditionalLibraryDirectories>C:\Boost\boost_1_60_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;C:\Boost\boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -111,7 +111,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>..\..\include;..\..\dtree;C:\Boost\boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\include;..\..\dtree;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;_MT;_DLL;ALNDLL;ALN_NOFORCE_LIBS;LITTLE_ENDIAN;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -136,7 +136,7 @@
       <DataExecutionPrevention />
       <TargetMachine>MachineX86</TargetMachine>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
-      <AdditionalLibraryDirectories>C:\Boost\boost_1_60_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;C:\Boost\boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>

@@ -92,7 +92,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:/Boost/boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_MT;_DLL;_AFXDLL;WIN32;_WINDOWS;ALN_NOFORCE_LIBS;LITTLE_ENDIAN;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -111,7 +111,7 @@
     <Lib>
       <OutputFile>.\lib\libalndmt.lib</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>C:/Boost/boost_1_60_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/Boost/boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -121,7 +121,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:/Boost/boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_MT;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;ALN_NOFORCE_LIBS;LITTLE_ENDIAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -143,7 +143,7 @@
     </ProjectReference>
     <Lib>
       <OutputFile>.\lib\libalnmtd.lib</OutputFile>
-      <AdditionalLibraryDirectories>C:/Boost/boost_1_60_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/Boost/boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmt.lib;msvcrt.lib;nafxcw.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -157,7 +157,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:/Boost/boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_MT;WIN32;_WINDOWS;ALN_NOFORCE_LIBS;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;LITTLE_ENDIAN;_SCL_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -175,7 +175,7 @@
     </ResourceCompile>
     <Lib>
       <OutputFile>.\lib\libalnmt.lib</OutputFile>
-      <AdditionalLibraryDirectories>C:/Boost/boost_1_60_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/Boost/boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmtd.lib;msvcrtd.lib;nafxcwd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -188,7 +188,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:/Boost/boost_1_60_0;C:\Eigen\eigen-eigen-07105f7124f9;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\dtree\32bit\inc;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_MT;_DLL;_AFXDLL;WIN32;_WINDOWS;ALN_NOFORCE_LIBS;LITTLE_ENDIAN;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -206,7 +206,7 @@
     <Lib>
       <OutputFile>.\lib\libalndmtd.lib</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>C:/Boost/boost_1_60_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:/Boost/boost_1_68_0;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>

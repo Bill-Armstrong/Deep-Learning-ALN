@@ -51,7 +51,7 @@ extern long nRowsVAR;
 extern CDataFile TRfile;
 extern CDataFile VARfile;
 extern BOOL bEstimateRMSError;
-BOOL bStopTraining = FALSE;
+extern BOOL bStopTraining;
 
 void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
 void dodivideTR(ALN* pALN, ALNNODE* pNode);
@@ -224,7 +224,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 	else
 	{
 		ASSERT(NODE_ISLFN(pNode));
-		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) < pALN->nDim))
+		if ( !LFN_CANSPLIT(pNode) || (NODE_RESPCOUNT(pNode) == 0)) // We have to allow pieces to share points
 		{
 			return;   // no splitting of this leaf node: already it can't split or has too few samples on it.
 		}

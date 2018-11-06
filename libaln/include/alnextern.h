@@ -27,20 +27,20 @@
 #define ALNAPI __stdcall
 // functions used externally
 void ALNAPI ALNfitSetup();  // sets up automatic noise measurement, bagging and evaluation
-int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint);	// Analyzes the given input data file 
+int ALNAPI analyzeInputFile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint);	// Analyzes the given input data file 
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI createTR_VARfiles(int nChooseTR);	// creates training TRfile and noise variance VARfile (several times for bagging)
-void ALNAPI dolinearregression();	// This does a truncated linear regression fit to get an upper bound on noise
+void ALNAPI createTR_VARfiles(int nChoose);	// Sets up TRfile and noise variance VARfile
+void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
+void ALNAPI createNoiseVarianceFile(); // Does two Delaunay tesselations of parts of the domain to create samples.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();	// Evaluate an existing DTREE on the data file after preprocessing
 void ALNAPI cleanup();	// destroys allocated items no longer needed
-void ALNAPI outputtrainingresults();	// outputs the results of training
-//void ALNAPI validate(CMyAln * pALN);// computes the error of the ALN on samples not used in training [This has been replaced by noise variance determination]
+void ALNAPI outputTrainingResults();	// outputs the results of training
 void ALNAPI overtrain(CMyAln * pOT);	// overtrains a single ALN to help obtain an estimate of the level of noise in the data
-void ALNAPI trainaverage();	// trains an average of several smoothed ALNs (i.e. with fillets)
+void ALNAPI trainAverage();	// trains an average of several smoothed ALNs (i.e. with fillets)
 void ALNAPI constructDTREE(int);	// constructs a DTREE from the average ALN from bagging
 int ALNAPI analyzeauxiliaryfile(char * szAuxiliaryFileName, int * pAuxheaderlines, long * pAuxrows, int * pAuxcols, BOOL bPrint);
 void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxiliary,long nAuxRows, int nAuxCols, CDataFile & AuxNumericalFile);

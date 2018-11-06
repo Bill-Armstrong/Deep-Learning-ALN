@@ -23,7 +23,7 @@
 
 // Description of the program
 //
-// ALNfit Pro for MS-Windows is a data analysis program for predicting one column
+// ALNfit Deep for MS-Windows is a data analysis program for predicting one column
 // in a given data file from values in other columns.  The result is expressed as
 // an ALN (adaptive logic network). The logic is not Boolean Logic, but rather
 // so-called fuzzy logic using minimum and maximum operators instead of AND and OR.
@@ -86,7 +86,7 @@
 
 // Details of the training procedure
 //
-// Unlike many other machine learning programs, ALNfit Pro depends on
+// Unlike many other machine learning programs, ALNfit Deep depends on
 // obtaining an estimate of the RMS error in the training data.
 // Of course, looking at any set of data points where no input vector is
 // repeated, we can interpolate that data as accurately as we wish and say that the
@@ -210,26 +210,26 @@ static char THIS_FILE[] = __FILE__;
 #include "alnextern.h"
 #include "alnintern.h"
 
+
 #define ALNAPI __stdcall
 
 // functions used externally
 void ALNAPI ALNfitSetup();
-int ALNAPI analyzeinputfile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given input data file 
+int ALNAPI analyzeInputFile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint); // Analyzes the given input data file 
 void ALNAPI preprocessDataFile(); // creates UNfile, the original dataset without header, with a column added at right
 void ALNAPI createTVTSfiles();      // The PreprocessedDataFile is used to create TV (training only) and TS files, which are written out..
 void ALNAPI analyzeTV();            // Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();          // The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();          // The TSfile created from the PreprocessedDataFile is read in 
-void computeNoiseVariance();  // This uses OTTS and OTVS and the samples in the Variance file to compute noise variance samples
 void ALNAPI reportFunctions();      // reports on the trained function ALNs with stats and plots
 void fillvector(double *, CMyAln*); // Used to input a data vector under program control
 
 // The main steps in training operations (train_ops.cpp)
-void ALNAPI dolinearregression();   // This does a linear regression fit, finding RMS error and weights
-void ALNAPI overtrain(CMyAln * pOT);// Overfits two parts of the TV file for use in noise variance samples
+void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
+void ALNAPI computeNoiseVariance();  // This makes two Delaunay tesselations which help to compute noise variance samples
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
-void ALNAPI trainaverage();         // Does bagging by averaging several ALNs created using noise variance stopping
-void ALNAPI outputtrainingresults();// Prints out the results of training 
+void ALNAPI trainAverage();         // Does bagging by averaging several ALNs created using noise variance stopping
+void ALNAPI outputTrainingResults();// Prints out the results of training 
 void ALNAPI constructDTREE(int);		// The DTREE is a VERY fast way of evaluating any ALN.
 void ALNAPI evaluate();			        // Evaluate an existing DTREE on the data file after preprocessing
 void ALNAPI cleanup();              // Destroys some objects previously allocated
@@ -326,7 +326,7 @@ double* adblStdevVar;        // Standard deviations of the variables
 double  dblTrainErr;         // Set in cmyaln.h at the end of training
 double  dblVarianceErr;    // Set equal to the rmse in the variance step
 double  dblLinRegErr;        // The error of linear regression for use in upper-bounding output tolerance
-
+long nRowsSet0 = 0; // used in setting up the tessellations
 
 // Files used only internally
 FILE *fpFileSetupProtocol = NULL;    // This protocol file records what happens as the data files are analyzed
@@ -346,12 +346,9 @@ int nColsNumericalValFile;
 CDataFile VARfile;            // used to hold samples not used in training, then converted to noise variance samples
 CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTS rows.
 CDataFile TRfile;             // Training file.  This file is setup separately for each ALN to implement bagging
-int* anInclude; // this creates an array that persists between calls to create TR and Variance files.
-extern CMyAln * pOTTS; // needed for temporary calculation of noise variance
-extern CMyAln * pOTVS; // needed for temporary calculation of noise variance
-//static char szVarName[100][3];
+int* anInclude; // this creates an array that persists between calls to create TRfile and VARfile.
 
-// this typedef allows a cast within ALNfit Pro of ALNLFNSPLIT in aln.h which uses
+// this typedef allows a cast within ALNfit Deep of ALNLFNSPLIT in aln.h which uses
 // the variables in a different way when a comparison between the average errors on training and noise variance sets
 // is needed to decide whether or not to allow splitting of a linear piece
 typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed before and after use
@@ -361,10 +358,11 @@ typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed b
   double dblRespTotal;      // Used during training and noise variance estimation
   double dblT_NotUsed;			 // Used in the SDK only
 } SPLIT;
+
 // now actually define the storage for weight and centroid values from linear regression
 double* adblLRW; // weight components
 double* adblLRC; // centroid components
-double computeGlobalNoiseVariance(); // this uses the TVfile in different ways for linear regression, overtraining, approximation, and averaging ALNs
+
 using namespace std;
 
 void ALNAPI ALNfitSetup() // routine
@@ -378,8 +376,8 @@ void ALNAPI ALNfitSetup() // routine
 	if ((fpProtocol=fopen(szProtocolFileName,"w")) != NULL)
   {
     fprintf(fpProtocol,"***********************************************************************\n");
-    fprintf(fpProtocol,"ALNfit Pro Automatic Regression and Classification Program\n");
-    fprintf(fpProtocol,"ALNfit Pro is an open-source program -- see LGPL license in source files\n");
+    fprintf(fpProtocol,"ALNfit Deep Automatic Regression and Classification Program\n");
+    fprintf(fpProtocol,"ALNfit Deep is an open-source program -- see LGPL license in source files\n");
     fprintf(fpProtocol,"********************** ALNfit setting up the run **********************\n");
   }
   else
@@ -413,7 +411,7 @@ void ALNAPI ALNfitSetup() // routine
 	nheaderlines = 0;
   nrows = 0;
   ncols = 0;
- 	if(!analyzeinputfile(szDataFileName, &nheaderlines, &nrows, &ncols,TRUE))
+ 	if(!analyzeInputFile(szDataFileName, &nheaderlines, &nrows, &ncols,TRUE))
 	{
     fprintf(fpProtocol,"Input file analysis failed\n");
     fflush(fpProtocol);
@@ -458,7 +456,7 @@ void ALNAPI ALNfitSetup() // routine
 	createTVTSfiles();
 }
 
-int ALNAPI analyzeinputfile(char * szDataFileName, int * pheaderlines, long * prows, int * pcols, BOOL bPrint) // routine
+int ALNAPI analyzeInputFile(char * szDataFileName, int * pheaderlines, long * prows, int * pcols, BOOL bPrint) // routine
 // input: szDataFileName file, outputs: number of header lines, variable names, number of data rows and columns
 // this routine accepts files with up to 101 columns
 {
@@ -1060,131 +1058,132 @@ void getTSfile()
 }
 */
 
-void ALNAPI createTR_VARfiles(int nChooseTR) // routine
+void ALNAPI createTR_VARfiles(int nChoose) // routine
 {
-	// For noise variance estimation, we have to split the TVfile into two about equal parts we call training set and complement
+	// The TVfile is all of the PreprocessedDataFile which is not used for testing in TSfile.
+	// This routine is used to set up TRfile and VARfile for various uses.
+	// nChoose = LinearRegression = 0.  The values 0 and 1 of the array anInclude determine a partition
+	// of the TVfile into two parts Set0 and Set1. The TVfile  is copied, with the same change of order,
+	// into both TRfile and TVfile. The above is done only once before linear regression is done.
 
-	// The parameter value 0 means randomly create samples in TRfile about half the size of TVfile, the rest is the "complement" set. Train OTTS
-	// The parameter value 1 means train OTVS on the complement and append the to the noise variance set the previous TRfile content
-	// The parameter value 2 means put the entire TVfile into the TRfile.
-	// Done only if bTrain is TRUE and we are training.
-	// Creates separate training and noise variance files in all cases.
-	// The TVfile is defined as all of the PreprocessedDataFile which is not used for testing.
-	// There are four types of training:
-	// 1. Linear regression does not allow tree growth, the one linear piece does linear regression to get information
-	// 2. Two overtrainings are done to create overtrained files on disjoint sets of the TVfile for noise estimation.
-	// 3. Several trainings are done on the whole TVfile using the noise variance information obtained in 2.
-	// 4. An average ALN is trained on the ALNs trained in step 3. This is made into a DTREE.
-	// A training file TRfile of about 50% of the samples not held back for testing, and the rest are put into the noise variance file.
-	// VARfile of the rest, chosen randomly.
-	long nOffset;
-	if (nChooseTR == 0)
+	// The parameter value 0 means linear regression (executed first and only once!).
+	// Initialize anInclude randomly 0 and 1.	We partition the TVfile into two about equal parts we call Set0 and Set1.
+	// Copy TVfile to both TRfile and VARfile with Set0 first and Set1 second. Do linear regression on the TRfile.
+
+	// The parameter value 1 means overtraining to do a Delaunay tesselation of the domain points of Set0.
+	// The nDim-1 components of the TRfile are replaced by the sum of squares of the other components in the row.
+	// The nDim-1 components of the VARfile have added to them the sum of squares of the other components in the row.
+	// Train on Set0, as modified, to get Del0, the convex hull of the domain points of Set0. 
+	// Subtract from all elements of Set1 in the VARfile the value of Del0, square the difference and multiply by 
+	// a factor VARcorr = (nDim - 1)/(nDim -3). This replaces the value component nDim - 1 in VARfile.
+	// Now train on Set1, as modified, to get Del1.
+	// Subtract from all elements of Set0 in the VARfile the value of Del1, square the difference and multiply by VARcorr.
+	// These values replace the value component of the Set0 in the VARfile.
+	// The parameter value 2 means put the entire TVfile into the TRfile using the permutation with Set0 first.
+	// The VARfile now contains all of the noise variance samples, averaged in the F-test whether to split a piece.
+	double acc, dblValue;
+	long i;
+	int j;
+	nRowsTR = nRowsVAR = nRowsTV;
+	TRfile.Create(nRowsTR, nALNinputs);  // We use this as a buffer for *all* training.
+	VARfile.Create(nRowsVAR, nALNinputs); // Both files contain samples of TVfile
+	// We are going to create two sets whose domain points will be tessellated.
+	nRowsSet0 = floor(nRowsTV / 2); // Declared at file scope for use in trainops.cpp.
+	long  nRowsSet1 = nRowsTV - nRowsSet0; // unequal if nRowsTV is odd
+	if (nChoose == 2) // LINEAR_REGRESSION This is done once before any training.
 	{
-		TRfile.Create(nRowsTV, nALNinputs);  // we use this as a buffer for *all* training, so it must be long enough for all possibilities
-		VARfile.Create(nRowsTV, nALNinputs); // VARfile contains tuples of TV in a different order with the original training data following its complement
-																				 // this is converted later so that samples of function values are converted into noise variance samples
-   	nRowsTR = nRowsVAR = nOffset = 0;
-		anInclude = (int*)malloc(nRowsPP * sizeof(int)); // we must call with nChoose 0, then 1, then several 2's; this array can persist between calls
-		if (bEstimateRMSError)
+		// anInclude determines where each row of TVfile will be copied
+		// into TRfile and VARfile. First we fill TRfile and VARfile equally
+		// with samples of TVfile in a different order.
+    // We send about half the TVfile to the front of TRfile & VARfile and half to the back
+		long tmp0 = 0; // Place for the next sample going to the front
+		long tmp1 = nRowsTV - 1;  // 1's start at the end of TRfile and VARfile
+		BOOL bSwitch;
+		for ( i = 0; i < nRowsTV; i++)
 		{
-			// Use part of the TVfile, chosen randomly, for training
-			// placing the rest into VARfile
-			// anInclude determines where each row of TVfile will be copied
-			// and calculates the sizes of TRfile and VARfile.
-			// We set nRowsTR and nRowsVAR here
-			for (long i = 0; i < nRowsTV; i++)
+			bSwitch = (ALNRandFloat() < 0.5)?FALSE:TRUE; // where does this row of TVfile go?
+			if (bSwitch == TRUE)
 			{
-				if (ALNRandFloat() < 0.5) // we use about half the TVfile for training
+				for (j = 0; j < nDim; j++)
 				{
-					anInclude[i] = 1;
-					nRowsTR++;
+					dblValue = TVfile.GetAt(i, j, 0);
+					TRfile.SetAt(tmp0, j, dblValue, 0);
+					VARfile.SetAt(tmp0, j, dblValue, 0);
 				}
-				else
+				tmp0++;
+			}
+			else
+			{
+				for (j = 0; j < nDim; j++)
 				{
-					anInclude[i] = 0;
-					nRowsVAR++;
+					dblValue = TVfile.GetAt(i, j, 0);
+					TRfile.SetAt(tmp1, j, dblValue, 0);
+					VARfile.SetAt(tmp1, j, dblValue, 0);
 				}
-			}
-		}
-		nOffset = 0; // there is zero offset used to place samples of the complement of TRfile in VARfile
-		ASSERT(nRowsTR + nRowsVAR == nRowsTV);
-	}
-	if (nChooseTR == 1) // we move the data in VARfile into TRfile and move the original TRfile data, shifted by nRowsVAR into VARfile
+				tmp1--;
+			} //if (bSwitch == TRUE)
+		} // end of i loop
+		ASSERT(tmp1 == tmp0 - 1); // invariant: tmp1-tmp0 + <rows filled> = nRowsTV - 1
+		// At this point the TRfile is set up for linear regression (the equal VARfile is not used).
+		// Note that anInclude[i] does NOT determine whether i is in the first half of the file
+	}	// end if(nChoose == 2) LINEAR_REGRESSION
+
+	if (nChoose == 0) // TESSELLATION0
 	{
-		for (long i = 0; i < nRowsTV; i++)
+		for ( i = 0; i < nRowsTV; i++)
 		{
-			anInclude[i] = 1 - anInclude[i]; // changing 1's to 0's and vice-versa (in effect) moves the data
-		}
-		nOffset = nRowsVAR; // this fills VAR file with the original training set samples, placed following the complement set
-		int temp = nRowsVAR; // now we interchange the sized of files to be processed
-		nRowsVAR = nRowsTR;
-		nRowsTR = temp;
-	}
-	if (nChooseTR == 2)
-	{
-		for (long i = 0; i < nRowsTV; i++)
-		{
-			anInclude[i] = 1; // This should put all TVfile data into TRfile and leavethe VARfile unchanged.				
-		}
-	// the VARfile has now all the function value samples that are in the TVfile, but in a different order, to be processed by computeGlobalNoiseVariance()
-		nOffset = 0; // this is not used, but we still set it
-	}
-	long tempTR, tempVAR;
-	tempTR = tempVAR = 0;
-	double value_temp = 0;
-	for (int i = 0; i < nRowsTV; i++)
-	{
-		if (anInclude[i] == 1)
-		{
-			//copy the row from the TVfile to the TRfile and leave the VARfile unchanged
-			for (int j = 0; j < nDim; j++)
+			// We move *all* the data onto a paraboloid one dimension higher than the domain.
+			acc = 0;
+			for ( j = 0; j < nDim - 1; j++) // we add up the squares of the domain components
 			{
-				value_temp = TVfile.GetAt(i, j, 0);
-				TRfile.SetAt(tempTR, j, value_temp, 0);
+				acc = TRfile.GetAt(i, j, 0);
+				acc *= acc;
 			}
-			tempTR++;
+			TRfile.SetAt(i, nDim - 1, acc, 0); // the value is *replaced* by acc
+			dblValue = VARfile.GetAt(i, nDim - 1, 0);
+			VARfile.SetAt(i, nDim - 1, dblValue + acc, 0); // we *add* acc to the value
+			// We are going to do overtraining in a convex world!
 		}
-		else
-		{
-			//copy the row from the TVfile to the VARfile with an offset the second time around
-			for (int j = 0; j < nDim; j++)
-			{
-				value_temp = TVfile.GetAt(i, j, 0);
-				VARfile.SetAt(tempVAR + nOffset, j, value_temp, 0);
-			}
-			tempVAR++;
-		}
-	}
-	ASSERT((tempTR + tempVAR) == nRowsTV);
-	nRowsTR = nRowsTV; // now we use the whole TVset for training
-	// we cheat and use now useless nOffset to temporarily hold nRowsVAR
-	nOffset = nRowsVAR;
-	VARfile.Write("DiagnoseVARfile.txt");
-	nRowsVAR = nOffset;
-	nOffset = 0;
-	if(bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
-  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTRfile.txt written\n");
-	if(bPrint&& bDiagnostics) VARfile.Write("DiagnoseVARfile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseVARfile.txt written\n");
-}
-double computeGlobalNoiseVariance()
-{
-	// All of the samples in TVfile are used in training from now on
-	// The sample noise variances are in VARfile
-	double samplevalue, accumulate;
-	long nCount;
-	accumulate = 0;
-	nCount = 0;
-	for (int j = 0; j < nRowsVAR; j++)
+		// Epochsize = nRowsSet0; 
+	}	// This is sufficient for overtraining to get TESSELATION0 on nRowsSet0 of the TRfile.
+
+	if (nChoose == 1) // TESSELATION1
 	{
+		for( i = nRowsSet0; i < nRowsTV; i++) // Move nRowsSet1 rows of TRfile ahead by
+			// nRowsSet0 places, starting at nRowsSet0 which moves to row 0 etc.
 		{
-			samplevalue = VARfile.GetAt(j, nDim - 1, 0);
+			for( j = 0; j < nDim; j++)
+			{
+				dblValue = TRfile.GetAt(i, j, 0);
+				TRfile.SetAt(i - nRowsSet0, j, dblValue, 0);
+			}
 		}
-		accumulate += samplevalue;
-		nCount++;
+		// This is sufficient for TESSELATION1 on nRowsSet1 of the changed TRfile. The VARfile is still not used.
+		// Epochsize = nRowsSet1;
+		if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
+		if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseTRfile.txt written\n");
+	} // This ends if(nChoose == 1) TESSELLATION1
+	// trainops.cpp will now transform the shifted values in VARfile into noise variance samples.
+
+	if (nChoose == 4) // APPROXIMATION
+	{
+		nRowsTR = nRowsTV; // Back to full size on the training set.
+		// We leave the VARfile in place and just copy the original TVfile, without
+		// reordering, into TRfile.
+		// The VARfile is processed separately ( if later we want more noise samples).
+		for (i = 0; i < nRowsTV; i++)
+		{
+			for (j = 0; j < nDim; j++)
+			{
+				dblValue = TVfile.GetAt(i, j, 0);
+				TRfile.SetAt(i, j, dblValue, 0);
+			} // end of j loop
+		} // end of i loop
+		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfile.txt");
+		if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseVARfile.txt written\n");
+ // This ends if (nChoose == 4) APPROXIMATION
 	}
-	return accumulate / nCount;
-}
+} // This ends createTR_VARfiles(int nChoose)
 
 // Why is this here? it is to do with training and processing not setup
 void ALNAPI evaluate() // routine
@@ -1587,7 +1586,8 @@ void ALNAPI evaluate() // routine
 	OutputData.Destroy();
 } // end evaluate
 
-void computeNoiseVariance()
+/*
+void ALNAPI computeNoiseVariance()
 {
 	// this routine uses the TRfile and the Variance file to replace the values of the samples in the variance file with estimators of the noise variance
 	long i;
@@ -1614,3 +1614,4 @@ void computeNoiseVariance()
 		}
 	}
 }
+ for reference */
