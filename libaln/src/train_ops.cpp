@@ -164,7 +164,7 @@ void ALNAPI doLinearRegression() // routine
 	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // Linear regression: nothing to smooth.
 	nNumberEpochs = 200; // We may have to do tests to see what is sufficient
 	dblMinRMSE = 0; // Don't stop early because of low training error.
-	dblLearnRate = 0.01;  // This rate seems ok for now.
+	dblLearnRate = 0.15;  // This rate seems ok for now.
 
 	// Set up the data
 	nRowsTR = nRowsVAR = nRowsTV;
@@ -176,7 +176,7 @@ void ALNAPI doLinearRegression() // routine
 	// TRAIN FOR LINEAR REGRESSION   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	// The reason for iterations is so that we can monitor progress in the ... TrainProtocol.txt file,
 	// and set new parameters for future training.
-	for (int iteration = 0; iteration < 15; iteration++)  // experimental
+	for (int iteration = 0; iteration < 10; iteration++)  // experimental
 	{
 		if (!pALN->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 		{
@@ -353,7 +353,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 		}
 		// The reason for iterations is so that we can monitor progress in the <timestamp>TrainProtocol.txt file,
 		// and set new parameters for future training.
-		for(int iteration = 0; iteration <5; iteration++)  // experimental
+		for(int iteration = 0; iteration <10; iteration++)  // experimental
 		{
 			// OVERTRAIN ALNS TO CREATE DELAUNAY TESSELATIONS vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 			if(!apDel[nDel]->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
@@ -387,7 +387,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 		{
 			adblX[j] = VARfile.GetAt(i, j, 0); // For the given domain point we have the original value plus "acc";
 		}
-		dblValue -= apDel[nDel]->QuickEval(adblX, &pActiveLFN);
+		dblValue = adblX[nDim - 1] - apDel[nDel]->QuickEval(adblX, &pActiveLFN);
 		VARfile.SetAt(i, nDim - 1, dblValue*dblValue*Factor, 0);
 	}	// This ends TESSELATION1 andcompletes the VARfile with noise variance samples.
 	// We don't need the tessellations any more.
@@ -406,11 +406,11 @@ void ALNAPI approximate() // routine
 	int nalns = nALNs;  // The number of ALNs over which we average (for "bagging")
 	createTR_VARfiles(APPROXIMATION);  // prepares for using the whole TVfile and the whole VARfile with noise variance samples for training and stopping
 	double dblGlobalNoiseVariance = 0;
-	for (long i = 0; i < nRowsVAR; i++)
+	for (long i = 0; i < nRowsTV; i++)
 	{
 		dblGlobalNoiseVariance += VARfile.GetAt(i, nDim - 1, 0);
 	}
-	dblGlobalNoiseVariance /= nRowsVAR;
+	dblGlobalNoiseVariance /= nRowsTV;
 	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblGlobalNoiseVariance);
 	fflush(fpProtocol);
 	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to stop splitting\n", nalns);
@@ -441,7 +441,7 @@ void ALNAPI approximate() // routine
 
 	dblFlimit = adblFconstant[dofIndex]; // This can determine splitting for linear pieces
 	//!!!!!!!!!!!!!!!!!
-	dblFlimit = 2.0; // Override for stopping splitting, but temporary until we can compute the dof for the pieces
+	dblFlimit = 1.2; // Override for stopping splitting, but temporary until we can compute the dof for the pieces
 	// from the training samples and noise variance samples.
 	// Other values for dblFlimit with other numbers of samples, i.e. degrees of freedom, are:
 	// n dblFlimit
@@ -1017,18 +1017,21 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 
 	if (nChoose == 0) // TESSELLATION0
 	{
+		double sum = 0;
 		for (i = 0; i < nRowsTV; i++)
 		{
 			// We move *all* the data onto a paraboloid one dimension higher than the domain.
+			sum = 0;
 			acc = 0;
 			for (j = 0; j < nDim - 1; j++) // we add up the squares of the domain components
 			{
 				acc = TRfile.GetAt(i, j, 0);
 				acc *= acc;
+				sum += acc;
 			}
-			TRfile.SetAt(i, nDim - 1, acc, 0); // the value is *replaced* by acc
+			TRfile.SetAt(i, nDim - 1, sum, 0); // the value is *replaced* by sum
 			dblValue = VARfile.GetAt(i, nDim - 1, 0);
-			VARfile.SetAt(i, nDim - 1, dblValue + acc, 0); // we *add* acc to the value
+			VARfile.SetAt(i, nDim - 1, sum + dblValue, 0); // we *add* sum to the value
 			// We are going to do overtraining in a convex world!
 		}
 		if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile0.txt");
@@ -1047,8 +1050,8 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			}
 		}
 		// This is sufficient for TESSELATION1 on nRowsSet1 of the changed TRfile. The VARfile is still not used.
-		//if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
-		//if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseTRfile.txt written\n");
+		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfile1.txt");
+		if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseVARfile1.txt written\n");
 	} // This ends if(nChoose == 1) TESSELLATION1
 	// trainops.cpp will now transform the shifted values in VARfile into noise variance samples.
 
