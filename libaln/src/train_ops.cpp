@@ -82,7 +82,7 @@ static CMyAln* pAvgALN;      // an ALN representing the bagged average of severa
 
 // Some global variables
 double dblMinRMSE = 0; // stops training when the training error is smaller than this
-double dblLearnRate = 0.2;  // roughly, 0.2 corrects most of the error for if we make 15 passes through the data in nRowsTR.
+double dblLearnRate = 0.2;  // roughly, 0.2 corrects most of the error for if we make 15 passes through TRfile
 int nNumberEpochs = 10; // if the learnrate is 0.2, then one will need 5 or 10 roughly to almost correct the errors
 long nRowsTR; // the number of rows in the current training set loaded into TRfile
 long nRowsVAR; // the number of rows in the noise variance file.  When approximation starts, this should be nRowsTV
@@ -153,8 +153,6 @@ void ALNAPI doLinearRegression() // routine
 	}
   // createTR_VARfiles(0); see ALNfitDeepView; for linear regression, training set TRfile is  about 50% of the TVfile.
 	// The rest is for noise variance samples in VARfile, not used until the approximation phase below.
-	fprintf(fpProtocol, "TRfile and VARfile created, we start linear regression\n");
-	fflush(fpProtocol);
 	// NB The region concept has not been completed.  It allows the user to impose constraints
 	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
 
@@ -169,6 +167,11 @@ void ALNAPI doLinearRegression() // routine
 	dblLearnRate = 0.01;  // This rate seems ok for now.
 
 	// Set up the data
+	nRowsTR = nRowsVAR = nRowsTV;
+	TRfile.Create(nRowsTR, nALNinputs);  // We use this as a buffer for *all* training.
+	VARfile.Create(nRowsVAR, nALNinputs); // Both files contain samples of TVfile
+	fprintf(fpProtocol, "TRfile and VARfile created, we start linear regression\n");
+	fflush(fpProtocol);
 	createTR_VARfiles(LINEAR_REGRESSION);
 	// TRAIN FOR LINEAR REGRESSION   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	// The reason for iterations is so that we can monitor progress in the ... TrainProtocol.txt file,
@@ -350,7 +353,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 		}
 		// The reason for iterations is so that we can monitor progress in the <timestamp>TrainProtocol.txt file,
 		// and set new parameters for future training.
-		for(int iteration = 0; iteration <10; iteration++)  // experimental
+		for(int iteration = 0; iteration <5; iteration++)  // experimental
 		{
 			// OVERTRAIN ALNS TO CREATE DELAUNAY TESSELATIONS vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 			if(!apDel[nDel]->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
@@ -972,9 +975,6 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	double acc, dblValue;
 	long i;
 	int j;
-	nRowsTR = nRowsVAR = nRowsTV;
-	TRfile.Create(nRowsTR, nALNinputs);  // We use this as a buffer for *all* training.
-	VARfile.Create(nRowsVAR, nALNinputs); // Both files contain samples of TVfile
 	// We are going to create two sets whose domain points will be tessellated.
 	nRowsSet0 = floor(nRowsTV / 2); // Declared at file scope for use in trainops.cpp.
 	long  nRowsSet1 = nRowsTV - nRowsSet0; // unequal if nRowsTV is odd
@@ -1031,7 +1031,6 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			VARfile.SetAt(i, nDim - 1, dblValue + acc, 0); // we *add* acc to the value
 			// We are going to do overtraining in a convex world!
 		}
-		// Epochsize = nRowsSet0; 
 		if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile0.txt");
 		if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseTRfile0.txt written\n");
 	}	// This is sufficient for overtraining to get TESSELATION0 on nRowsSet0 of the TRfile.
@@ -1048,7 +1047,6 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			}
 		}
 		// This is sufficient for TESSELATION1 on nRowsSet1 of the changed TRfile. The VARfile is still not used.
-		// Epochsize = nRowsSet1;
 		//if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile.txt");
 		//if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseTRfile.txt written\n");
 	} // This ends if(nChoose == 1) TESSELLATION1
@@ -1056,7 +1054,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 
 	if (nChoose == 4) // APPROXIMATION
 	{
-		//nRowsTR = nRowsTV; // Back to full size on the training set.IS THIS THE ERROR????????
+		nRowsTR = nRowsTV; // Back to full size on the training set.IS THIS THE ERROR????????
 		// We leave the VARfile in place and just copy the original TVfile, without
 		// reordering, into TRfile.
 		// The VARfile is processed separately ( if later we want more noise samples).

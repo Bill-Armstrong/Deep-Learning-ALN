@@ -212,7 +212,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 		///// begin epoch loop
 		// nEpochsBeforeSplit should be a divisor of nMaxEpochs e.g. 10 divides 100 evenly
-    int nEpochsBeforeSplit = 10;  // We reset counters for splitting when
+    int nEpochsBeforeSplit = 6;  // We reset counters for splitting when
                                  // adaptation has had a chance to adjust pieces almost
 		                             // as close as possible to the training samples.
 														     // This depends on epochsize, learning rate, RMS error, tolerance... etc.

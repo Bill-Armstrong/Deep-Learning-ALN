@@ -339,11 +339,10 @@ CDataFile UNfile;             // copy of the data file, but with missing values 
 CDataFile PreprocessedDataFile;             // The preprocessed file created from the Universal file
 CDataFile NumericalTestFile;  // These CDataFiles are for preprocessing the test and variance files
 CDataFile NumericalValFile;   // The original data file has headers and comments. These are removed in this file.
-CDataFile TSfile;
+CDataFile TSfile;							// Samples held back for testing
 CDataFile TVfile;             // The file used for training and, if no separate file is given, for variance, with nDim columns and nRowsUniv - nRowsTS rows.
 CDataFile OutputData;         // The result of evaluation with a column added for the DTREE output
 
-															// this typedef allows a cast within ALNfit Deep of ALNLFNSPLIT in aln.h which uses
 // the variables in a different way when a comparison between the average errors on training and noise variance sets
 // is needed to decide whether or not to allow splitting of a linear piece
 typedef struct tagSPLIT      // Used in inhibiting splitting -- must be zeroed before and after use
