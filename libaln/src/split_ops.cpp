@@ -41,15 +41,14 @@ static char THIS_FILE[] = __FILE__;
 #include ".\cmyaln.h"
 #include "aln.h"
 
+// We use dblRespTotal in two ways and the following definition helps.
+#define DBLNOISEVARIANCE dblRespTotal
+
 extern double dblMax;
 extern double* adblEpsilon;
 extern double dblFlimit;
 extern int nDim;
 extern double dblSetTolerance;
-extern long nRowsTR;
-extern long nRowsVAR;
-extern CDataFile TRfile;
-extern CDataFile VARfile;
 extern BOOL bEstimateRMSError;
 extern BOOL bStopTraining;
 
@@ -62,7 +61,7 @@ void dozerosplitvalues(ALN* pALN, ALNNODE* pNode);
 void dozerosplitNOISEVARIANCE(ALN* pALN, ALNNODE* pNode);
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 // the following tells us how to use the SPLIT typedef between trainings of an ALN
-#define DBLNOISEVARIANCE dblRespTotal
+
 
 void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 {
@@ -248,59 +247,3 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 		}
 	}
 }
-
-void spliterrorsetTR(ALN * pALN) // routine
-{
-	// assign the square errors on the training set to the leaf nodes of the ALN
-	double * adblX = (double *)malloc((nDim) * sizeof(double));
-	double desired = 0;
-	double predict = 0;
-	double      se = 0; // square error accumulator
-	ALNNODE* pActiveLFN;
-	for (int j = 0; j < nRowsTR; j++)
-	{
-		for (int i = 0; i < nDim; i++)
-		{
-			adblX[i] = TRfile.GetAt(j, i, 0);
-		}
-		desired = adblX[nDim - 1]; // get the desired result
-		adblX[nDim - 1] = 0; // not used in evaluation by ALNQuickEval
-		predict = ALNQuickEval(pALN, adblX, &pActiveLFN);
-	
-		//if (LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
-		{
-			se = (predict - desired) * (predict - desired);
-			(pActiveLFN->DATA.LFN.pSplit)->nCount++;
-			(pActiveLFN->DATA.LFN.pSplit)->dblSqError += se;
-		}
-	} // end loop over TRset
-	free(adblX);
-} // END of spliterrorsetTR
-
-
-void spliterrorsetVAR(ALN * pALN) // routine
-{
-		// NB  It might be possible to fuse this with spliterrorsetTR but then we couldn't do several noise decompositions
-		// and get a lot more noise variance samples in the future
-		// assign the noise variance samples to the leaf nodes of the ALN and add them up
-		double * adblX = (double *)malloc((nDim) * sizeof(double));
-		double desired = 0;
-		double value = 0;
-		ALNNODE* pActiveLFN;
-		double      se = 0; // sample value accumulator for LFN DBLNOISEVARIANCE
-		for (int j = 0; j < nRowsVAR; j++)   
-		{
-			for (int i = 0; i < nDim; i++)
-			{
-				adblX[i] = VARfile.GetAt(j, i, 0); // the value at nDim - 1 is used only for desired
-			}
-			// pAln has to be the current approximant! Is this correct?
-			value = ALNQuickEval(pALN, adblX, &pActiveLFN);  // all that matters is which LFN the X-vector lies on
-			//if (LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
-			{
-				(pActiveLFN->DATA.LFN.pSplit)->nCount++; // we have to zero this before this routine is called.
-				(pActiveLFN->DATA.LFN.pSplit)->DBLNOISEVARIANCE += adblX[nDim - 1]; //this is the value of a noise variance sample
-			}
-		} // end loop over VARfile
-		free(adblX);
-} // END of spliterrorsetVAR

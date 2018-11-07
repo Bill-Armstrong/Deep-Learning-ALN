@@ -42,8 +42,6 @@ extern int nNumberEpochs;
 extern int nNumberLFNs;  // used to control the epoch size, which should be proportional to this
 extern int nColsAuxVariance;
 extern int nColsAuxTest;
-extern long nRowsTR; // size of training file
-extern long nRowsVAR; // size of variance file
 extern BOOL bDecimal; // means numbers could have a decimal point
 extern BOOL bComma;   // means numbers could have a comma
 extern int nDim;
@@ -58,7 +56,6 @@ extern double  dblTrainErr;         // Set in cmyaln.h at the end of training
 extern double  dblLinRegErr;        // The error of linear regression for use in upper-bounding output tolerance
 extern double* adblLRW; // stores an ALN weight approximation from linear regression
 extern double* adblLRC; // ditto for centroids
-extern int* anInclude; // an array of 0 and 1 for dividing the TVfile into two parts in different ways.  The value is 1 for samples going into the training set.
 
 // Files used only internally
 extern FILE *fpData;                 // The data file which contains all data.
@@ -67,5 +64,4 @@ extern FILE *fpReplacement;
 extern CDataFile UNfile;             // copy of the data file, but with missing values replaced by special number
 extern CDataFile PreprocessedDataFile; // The preprocessed file created from the Universal file
 extern CDataFile TVfile;             // The file used for training approximants.  It is split in two to determine noise variance
-extern CDataFile TRfile;             // Training file.  This file is set up separately for each ALN training. Contains all TVfile for approximation and bagging
 

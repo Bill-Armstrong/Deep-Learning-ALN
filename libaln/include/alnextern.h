@@ -25,13 +25,13 @@
 #include ".\cmyaln.h"
 #include "datafile.h"
 #define ALNAPI __stdcall
+
 // functions used externally
 void ALNAPI ALNfitSetup();  // sets up automatic noise measurement, bagging and evaluation
 int ALNAPI analyzeInputFile(char * szDataFileName, int * nHeaderLines, long * nrows, int * ncols, BOOL bPrint);	// Analyzes the given input data file 
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI createTR_VARfiles(int nChoose);	// Sets up TRfile and noise variance VARfile
 void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
 void ALNAPI createNoiseVarianceFile(); // Does two Delaunay tesselations of parts of the domain to create samples.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
@@ -64,8 +64,6 @@ extern void fillvector(double *, CMyAln*); // inputs a training data vector, whi
 extern CDataFile AuxALNinputFile;
 extern CDataFile TSfile; // the test file with data that have not been used in training
 extern long nRowsTS;
-extern CDataFile VARfile;  // initially holds about half of the TVfile, the part not being used in training, and later contains noise variance samples
-extern long  nRowsVAR;
 extern double dblSetTolerance; // This used to be for setting the noise variance level when it was constant.  Now it is not used.
 extern BOOL bEstimateRMSError; // if TRUE we use overtraining to estimate RMS error which splits the TVfile into two parts - training and noise variance sets
 extern double  dblVarianceErr;    // Set equal to the rmse in the variance step
