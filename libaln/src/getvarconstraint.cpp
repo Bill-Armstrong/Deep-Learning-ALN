@@ -17,22 +17,10 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // getvarconstraint.cpp
-
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/getvarconstraint.cpp $
-//  $Workfile: getvarconstraint.cpp $
-//  $Revision: 6 $
-//  $Date: 7/17/07 6:45p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

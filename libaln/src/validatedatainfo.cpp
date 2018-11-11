@@ -20,17 +20,6 @@
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/validatedatainfo.cpp $
-//  $Workfile: validatedatainfo.cpp $
-//  $Revision: 6 $
-//  $Date: 7/17/07 7:06p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif

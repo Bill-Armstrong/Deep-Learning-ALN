@@ -23,16 +23,6 @@
 // evaltree.cpp
 // eval support routines
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/evaltree.cpp $
-//  $Workfile: evaltree.cpp $
-//  $Revision: 5 $
-//  $Date: 8/18/07 2:51p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

@@ -212,7 +212,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 		///// begin epoch loop
 		// nEpochsBeforeSplit should be a divisor of nMaxEpochs e.g. 10 divides 100 evenly
-    int nEpochsBeforeSplit = 14;  // We reset counters for splitting when
+    int nEpochsBeforeSplit = 1;  // We reset counters for splitting when
                                  // adaptation has had a chance to adjust pieces almost
 		                             // as close as possible to the training samples.
 														     // This depends on epochsize, learning rate, RMS error, tolerance... etc.
@@ -328,7 +328,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
         EPOCHINFO ei(epochinfo);  // make copy to send!
 				Callback(pALN, AN_EPOCHEND, &ei, pfnNotifyProc, pvData);
 			}
-			// RISKY moved this to here
+
 			// split candidate LFNs after an epoch following which counters are reset
 			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1))
 			{

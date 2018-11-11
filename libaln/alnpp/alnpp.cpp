@@ -23,17 +23,6 @@
 
 // alnpp.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/alnpp/alnpp.cpp $
-//  $Workfile: alnpp.cpp $
-//  $Revision: 31 $
-//  $Date: 11/02/07 6:30a $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #ifdef __GNUC__
 #include <typeinfo>
 #endif

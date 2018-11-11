@@ -28,16 +28,6 @@
 // (index term: LINEST). An ALN with a single linear piece is constructed
 // having weights given in that example.  The output values are very close.
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/samples/realestate/realestate.cpp $
-//  $Workfile: realestate.cpp $
-//  $Revision: 17 $
-//  $Date: 11/03/07 2:55p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 #ifdef __GNUC__
 #include <typeinfo>
 #endif

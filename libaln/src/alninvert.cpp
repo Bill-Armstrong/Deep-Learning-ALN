@@ -17,22 +17,10 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // alninvert.cpp
-
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/alninvert.cpp $
-//  $Workfile: alninvert.cpp $
-//  $Revision: 10 $
-//  $Date: 8/18/07 4:27p $
-//  $Authors: Monroe Thomas, William W. Armstrong $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

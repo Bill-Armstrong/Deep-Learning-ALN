@@ -18,7 +18,6 @@
 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 */
@@ -26,17 +25,6 @@
 /*
 // alndbg.h
 */
-
-/*///////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/include/alndbg.h $
-//  $Workfile: alndbg.h $
-//  $Revision: 4 $
-//  $Date: 7/11/07 6:59p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////*/
 
 #ifndef __ALNDBG_H__
 #define __ALNDBG_H__

@@ -23,17 +23,6 @@
 
 // calcdataendpoints.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/calcdataendpoints.cpp $
-//  $Workfile: calcdataendpoints.cpp $
-//  $Revision: 6 $
-//  $Date: 7/17/07 5:47p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif

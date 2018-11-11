@@ -17,22 +17,10 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // adaptevallfn.cpp
-
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/adaptevallfn.cpp $
-//  $Workfile: adaptevallfn.cpp $
-//  $Revision: 6 $
-//  $Date: 8/18/07 3:01p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

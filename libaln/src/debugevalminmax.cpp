@@ -22,16 +22,6 @@
 
 // debugevalminmax.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/debugevalgate.cpp $
-//  $Workfile: debugevalgate.cpp $
-//  $Revision: 7 $
-//  $Date: 8/18/07 4:27p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

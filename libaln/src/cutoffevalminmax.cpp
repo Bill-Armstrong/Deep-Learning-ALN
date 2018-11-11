@@ -22,17 +22,6 @@
 
 // cutoffevalminmax.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/cutoffevalgate.cpp $
-//  $Workfile: cutoffevalgate.cpp $
-//  $Revision: 7 $
-//  $Date: 8/18/07 4:27p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif

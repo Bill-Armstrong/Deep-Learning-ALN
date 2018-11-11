@@ -17,23 +17,11 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // freecolumnbase.cpp
 // data handling routines for training and evaluation
-
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/freecolumnbase.cpp $
-//  $Workfile: freecolumnbase.cpp $
-//  $Revision: 5 $
-//  $Date: 7/17/07 6:44p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

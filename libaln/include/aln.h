@@ -23,18 +23,6 @@
 
 // aln.h
 
-
-/*///////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/include/aln.h $
-//  $Workfile: aln.h $
-//  $Revision: 42 $
-//  $Date: 10/26/07 4:52p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////*/
-
 #ifndef __ALN_H__
 #define __ALN_H__
 

@@ -19,23 +19,11 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // alnver.h
 */
-
-/*///////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/include/alnver.h $
-//  $Workfile: alnver.h $
-//  $Revision: 13 $
-//  $Date: 7/18/07 12:03p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////*/
 
 
 #ifndef __ALNVER_H__

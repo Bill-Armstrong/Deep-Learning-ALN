@@ -23,16 +23,6 @@
 
 // calcrmserror.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/alncalcrmserror.cpp $
-//  $Workfile: alncalcrmserror.cpp $
-//  $Revision: 8 $
-//  $Date: 8/18/07 2:51p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

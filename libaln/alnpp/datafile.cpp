@@ -23,16 +23,6 @@
 
 // datafile.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/alnpp/datafile.cpp $
-//  $Workfile: datafile.cpp $
-//  $Revision: 12 $
-//  $Date: 6/05/07 7:45p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef __GNUC__
 #include <typeinfo>

@@ -23,16 +23,6 @@
 
 // datafile.h
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/include/datafile.h $
-//  $Workfile: datafile.h $
-//  $Revision: 11 $
-//  $Date: 7/18/07 12:04p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifndef __DATAFILE_H__
 #define __DATAFILE_H__

@@ -36,7 +36,7 @@ static char THIS_FILE[] = __FILE__;
 
 #define		MESSAGE0  "Analyzing the data file"
 #define		MESSAGE1  "Using linear regression to find an upper bound on noise etc."
-#define		MESSAGE2  "Overtraining two or more ALNs to help in creating noise variance samples"
+#define		MESSAGE2  "Making two Delaunay tessellations by overtraining to fit a paraboloid"
 #define		MESSAGE3  "Training one or more ALNs using the noise estimate to prevent overtraining."
 #define		MESSAGE4  "Training a new ALN with samples of the average of the trained ALNs"
 #define		MESSAGE5  "Constructing a DTREE from the average ALN and writing the .dtr file "
@@ -99,9 +99,9 @@ void CALNfitDeepDoc::GenerateReportString()
 	const int nMessageCount = 14;
 	const char * apMessages[nMessageCount] = 
 	{
-		MESSAGE0,  //"Analyzing training/noise variance -- TVfile",
-		MESSAGE1,  //"Using linear regression to find an upper bound on noise",
-		MESSAGE2,  //"Overtraining two ALNs to help estimate the noise variance",
+		MESSAGE0,  //"Analyzing data files",
+		MESSAGE1,  //"Using linear regression to support further training",
+		MESSAGE2,  //"Making two Delaunay tessellations to help create noise variance samples",
 		MESSAGE3,  //"Training one or more ALNs using the noise variance samples to guide ALN growth",
 		MESSAGE4,  //"Training a new ALN with samples of the average of the trained ALNs",
 		MESSAGE5,  //"Constructing a DTREE from the average ALN and writing the .dtr file ",

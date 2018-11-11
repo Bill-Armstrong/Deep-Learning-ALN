@@ -17,24 +17,12 @@
 // 
 // For further information contact 
 // William W. Armstrong
-
 // 3624 - 108 Street NW
 // Edmonton, Alberta, Canada  T6J 1B4
 
 // Some matrix routines are taken from Eigen and are under the Mozilla Public License MPL2
 
 // calccovariance.cpp
-
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/calccovariance.cpp $
-//  $Workfile: calccovariance.cpp $
-//  $Revision: 7 $
-//  $Date: 10/30/07 11:47p $
-//  $Author: Arms $
-//
-///////////////////////////////////////////////////////////////////////////////
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)

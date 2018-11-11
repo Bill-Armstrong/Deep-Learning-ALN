@@ -21,13 +21,6 @@
 // Edmonton, Alberta, Canada  T6J 1B4
 // alnaddtreestring.cpp
 
-///////////////////////////////////////////////////////////////////////////////
-//  File version info:
-// 
-//  $Archive: /ALN Development/libaln/src/alnaddtreestring.cpp $
-//  $Workfile: alnaddtreestring.cpp $
-///////////////////////////////////////////////////////////////////////////////
-
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
 #endif
