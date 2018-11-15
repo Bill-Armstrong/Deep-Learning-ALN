@@ -11,11 +11,14 @@
     <Filter Include="Header Files">
       <UniqueIdentifier>{230a422b-c20c-487c-b59c-6616eaaaf004}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\ql">
-      <UniqueIdentifier>{98199cf4-87be-4d2b-9813-baf1334581c3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{5dfa91d4-7c4d-452f-a1e0-a6b76142f4c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\boost">
+      <UniqueIdentifier>{20bf29b0-ed14-424e-90b5-927bff0dc86a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\boost\config">
+      <UniqueIdentifier>{1fbe904b-0726-4569-b4f9-87c6adc51808}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -184,6 +187,15 @@
     <ClCompile Include="..\..\src\dtree\dtree.c">
       <Filter>Source Files\dtree</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\alnfitdeepsetup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\split_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\train_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\dtree\DTR_PRIV.H">
@@ -210,25 +222,37 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\ql\config.ansi.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ql\config.msvc.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ql\errors.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ql\qldefines.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ql\types.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ql\userconfig.hpp">
-      <Filter>Header Files\ql</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\boost\config.hpp">
+      <Filter>Header Files\boost</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\boost\version.hpp">
+      <Filter>Header Files\boost</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\boost\config\select_compiler_config.hpp">
+      <Filter>Header Files\boost\config</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\boost\config\user.hpp">
+      <Filter>Header Files\boost\config</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\alnextern.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\alnintern.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\alnpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\cmyaln.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\datafile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\StdAfx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

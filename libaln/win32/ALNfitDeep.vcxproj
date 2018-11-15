@@ -71,29 +71,29 @@
     <_ProjectFileVersion>14.0.24720.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
-    <OutDir>..\..\..\ALN2018tests\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeepDebug</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
-    <OutDir>..\..\..\ALN2018tests\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeep</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
-    <OutDir>..\samples\ALNfitDeep\DebugDLL\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <EnableManagedIncrementalBuild>false</EnableManagedIncrementalBuild>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeepDebugDLL</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
-    <OutDir>..\samples\ALNfitDeep\ReleaseDLL\</OutDir>
     <IntDir>.\ALNfitDeep\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>ALNfitDeepDLL</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
     <ClCompile>
@@ -110,6 +110,9 @@
       <StringPooling>false</StringPooling>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <AdditionalOptions>/FS</AdditionalOptions>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>.\lib\libalndmt.lib;.\lib\libalnppdmt.lib</AdditionalDependencies>
@@ -158,6 +161,9 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <AdditionalOptions>/FS</AdditionalOptions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>.\lib\libalnmt.lib;.\lib\libalnppmt.lib</AdditionalDependencies>
@@ -208,6 +214,9 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <AdditionalOptions>/FS</AdditionalOptions>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>.\lib\libalnmtd.lib;.\lib\libalnppmtd.lib</AdditionalDependencies>
@@ -255,6 +264,9 @@
       <StringPooling>false</StringPooling>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <AdditionalOptions>/FS</AdditionalOptions>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>.\lib\libalndmtd.lib;.\lib\libalnppdmtd.lib</AdditionalDependencies>

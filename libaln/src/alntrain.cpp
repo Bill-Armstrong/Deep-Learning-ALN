@@ -212,7 +212,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 		///// begin epoch loop
 		// nEpochsBeforeSplit should be a divisor of nMaxEpochs e.g. 10 divides 100 evenly
-    int nEpochsBeforeSplit = 1;  // We reset counters for splitting when
+    int nEpochsBeforeSplit = 10;  // We reset counters for splitting when
                                  // adaptation has had a chance to adjust pieces almost
 		                             // as close as possible to the training samples.
 														     // This depends on epochsize, learning rate, RMS error, tolerance... etc.
@@ -221,13 +221,13 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     //traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ???? WIERD
 		for (int nEpoch = 0; nEpoch < nMaxEpochs; nEpoch++)
 		{
-      int nCutoffs = 0;
-           
-      // notify beginning of epoch
+			int nCutoffs = 0;
+
+			// notify beginning of epoch
 			epochinfo.nEpoch = nEpoch;
 			if (CanCallback(AN_EPOCHSTART, pfnNotifyProc, nNotifyMask))
 			{
-        EPOCHINFO ei(epochinfo);  // make copy to send!
+				EPOCHINFO ei(epochinfo);  // make copy to send!
 				Callback(pALN, AN_EPOCHSTART, &ei, pfnNotifyProc, pvData);
 			}
 
@@ -237,14 +237,15 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //Reset split values befpre the actions of the last epoch
 			}
 
-     
 
-      // track squared error
-      double dblSqErrorSum = 0;	
+
+			// track squared error
+			double dblSqErrorSum = 0;
 			// We prepare a random reordering of the training data for the next set of epochs
-      Shuffle(nStart, nEnd, anShuffle);
+			Shuffle(nStart, nEnd, anShuffle);
 
 			int nPoint;
+
 			for (nPoint = nStart; nPoint <= nEnd; nPoint++) // this does all the samples in an epoch in a randomized order
 			{
 				int nTrainPoint = anShuffle[nPoint - nStart]; //a sample is picked for training
@@ -288,6 +289,16 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				{
 					Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
 				}
+				/*
+				else
+				{
+					// We have the ablX here with its value (twice!) and
+					// we should be able to group by pLFN and do a linear regression if there are enough samples.
+					(aCutoffInfo[nPoint - nStart]).dblValue;
+					(aCutoffInfo[nPoint - nStart]).pLFN;
+
+				}  THIS IS A STEP TOWARDS USING TESSELATIONS
+				*/
 
 				// notify end of adapt
 				if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))

@@ -35,8 +35,6 @@ void dodivideVAR(ALN*, ALNNODE*); // divides the sum of noise variance samples o
 UINT TakeActionProc(LPVOID pParam);  // separate thread
 
 //global variables used only internally
-//extern CMyAln** apDel;  // ALNs that do Delaunay tesselation of blocks of a partition of the domain.
-//extern CMyAln** apALN;  // an array of pointers to ALNs used in making approximations for bagging
 extern BOOL bTrainingAverage;// Switch to tell fillvector whether get a training vector or compute an average
 extern int nNumberEpochs;
 extern int nNumberLFNs;  // used to control the epoch size, which should be proportional to this

@@ -19,13 +19,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v141</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
+    <UseOfMfc>Dynamic</UseOfMfc>
     <CLRSupport>false</CLRSupport>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v140</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
+    <UseOfMfc>Dynamic</UseOfMfc>
     <CLRSupport>false</CLRSupport>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -160,6 +160,7 @@
     <ClCompile Include="..\..\src\alnconvertdtree.cpp" />
     <ClCompile Include="..\..\src\alneval.cpp" />
     <ClCompile Include="..\..\src\alnex.cpp" />
+    <ClCompile Include="..\..\src\alnfitdeepsetup.cpp" />
     <ClCompile Include="..\..\src\alninvert.cpp" />
     <ClCompile Include="..\..\src\alnio.cpp" />
     <ClCompile Include="..\..\src\alnlfnanalysis.cpp" />
@@ -198,21 +199,27 @@
     <ClCompile Include="..\..\src\resetcounters.cpp" />
     <ClCompile Include="..\..\src\shuffle.cpp" />
     <ClCompile Include="..\..\src\splitlfn.cpp" />
+    <ClCompile Include="..\..\src\split_ops.cpp" />
+    <ClCompile Include="..\..\src\train_ops.cpp" />
     <ClCompile Include="..\..\src\validatedatainfo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\aln.h" />
     <ClInclude Include="..\..\include\alncfg.h" />
     <ClInclude Include="..\..\include\alndbg.h" />
+    <ClInclude Include="..\..\include\alnextern.h" />
+    <ClInclude Include="..\..\include\alnintern.h" />
+    <ClInclude Include="..\..\include\alnpp.h" />
     <ClInclude Include="..\..\include\alnpriv.h" />
     <ClInclude Include="..\..\include\alnver.h" />
+    <ClInclude Include="..\..\include\boost\config.hpp" />
+    <ClInclude Include="..\..\include\boost\config\select_compiler_config.hpp" />
+    <ClInclude Include="..\..\include\boost\config\user.hpp" />
+    <ClInclude Include="..\..\include\boost\version.hpp" />
+    <ClInclude Include="..\..\include\cmyaln.h" />
+    <ClInclude Include="..\..\include\datafile.h" />
     <ClInclude Include="..\..\include\dtree.h" />
-    <ClInclude Include="..\..\include\ql\config.ansi.hpp" />
-    <ClInclude Include="..\..\include\ql\config.msvc.hpp" />
-    <ClInclude Include="..\..\include\ql\errors.hpp" />
-    <ClInclude Include="..\..\include\ql\qldefines.hpp" />
-    <ClInclude Include="..\..\include\ql\types.hpp" />
-    <ClInclude Include="..\..\include\ql\userconfig.hpp" />
+    <ClInclude Include="..\..\include\StdAfx.h" />
     <ClInclude Include="..\..\include\targetver.h" />
     <ClInclude Include="..\..\src\dtree\DTR_PRIV.H" />
     <ClInclude Include="resource.h" />
