@@ -33,13 +33,13 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-extern BOOL bDelaunay;
+extern BOOL bTessellate;
 
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 {
 	// since noise makes this decision uncertain, we only split if the piece doesn't fit within the noise limit
 	// and the direction of split will likely not be close
-	if (bDelaunay || LFN_SPLIT_T(pNode) < 0) // This is TRUE if we are creating a Delaunay tesselation
+	if (bTessellate || LFN_SPLIT_T(pNode) < 0) // This is TRUE if we are creating a tesselation
 		      // or if the ALN surface tends to be below the training values far from the centroid on the piece.
 		      // In both cases we need a MAX.
 	{
