@@ -73,6 +73,7 @@ void ALNAPI createTR_VARfiles(int nChoose);
 void spliterrorsetTR(ALN * pALN);
 void splitNoiseSetVAR(ALN * pALN);
 int SplitDtree(DTREE** ppDest, DTREE* pSrc, int nMaxDepth);
+void createSamples();
 
 // ALN pointers
 CMyAln * pALN = NULL; // declares a pointer to an ALN used in linear regression
@@ -336,7 +337,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 	bTessellate = TRUE; // This creates a tesselation of the TVfile domain points.
 	bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average
 	nEpochSize = nRowsTR; // splitting occurs after nEpochsBeforeSplit epochs, see alntrain.cpp -- OnEpochEnd.
-	(pTess->GetRegion(0))->dblSmoothEpsilon = 0.01; // A bit of smoothing is better than none here.
+	(pTess->GetRegion(0))->dblSmoothEpsilon = 0.001; // A bit of smoothing is better than none here.
 	dblMinRMSE = 0.0; // We don't stop overtraining upon reaching even a very low training error.
 	dblLearnRate = 0.2; // This rate needs experimentation.
 	dblFlimit = 0; // This allows unlimited splitting of eligible pieces.
@@ -350,7 +351,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 	pTess->SetDataInfo(nRowsTR, nColumns, adblData, NULL);
 	// The reason for iterations is so that we can monitor progress in the ...TrainProtocol.txt file,
 	// and set new parameters for future training.
-	for(int iteration = 0; iteration < 4; iteration++)  // experimentation required!
+	for(int iteration = 0; iteration < 15; iteration++)  // experimentation required!
 	{
 		// Overtrain Tess to divide up the domain of all samples by activity of the linear pieces.
 		// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -374,7 +375,6 @@ void ALNAPI createNoiseVarianceFile() // routine
 	// We now restore the TRfile from the VARfile and add new information to
 	// a parallel file that tracks which piece of which tesselation it belongs to.
 	apLFN = (ALNNODE**)malloc((nRowsTR) * sizeof(ALNNODE*)); // apLFN declared at file scope
-	double * adblX = (double *)malloc((nDim) * sizeof(double));
 	double dblValue = 0;
 	for (long i = 0; i < nRowsTR; i++)
 	{
@@ -384,11 +384,13 @@ void ALNAPI createNoiseVarianceFile() // routine
 			TRfile.SetAt(i, j, adblX[j], 0);   // We now restore the TRfile to its original state.
 		}
 		double dummy = pTess->QuickEval(adblX, &pActiveLFN); // this finds a pointer to the linear piece
-		apLFN[i] = pActiveLFN; // assign the X vector to its linear piece.
+		apLFN[i] = pActiveLFN; // assign to the X vector index its linear piece.
 	}	// This ends the assignment of vectors X to LFNs of their tessellation.
 	// We don't need the tessellation any more.
 	pTess->Destroy();
-	void createNoiseVarianceSamples();
+	createSamples();
+	free(adblX);
+	free(apLFN);
 	// We keep the VARfile for the noise level F-tests determining piece-splitting during approximation.
   // In future versions of the program we will create a weight-bounded ALN to learn the noise variance
   //  as an ALN function and store it for the present and future evaluations.
@@ -408,11 +410,11 @@ void ALNAPI approximate() // routine
 	const double* adblData = TRfile.GetDataPtr();
 	pALN->SetDataInfo(nSamples, nColumns, NULL, NULL);
 	double dblGlobalNoiseVariance = 0;
-	for (long i = 0; i < nRowsTV; i++)
+	for (long i = 0; i < nNoiseVarianceSamples; i++) // nNoiseVarianceSamples is set in createSamples()
 	{
 		dblGlobalNoiseVariance += VARfile.GetAt(i, nDim - 1, 0);
 	}
-	dblGlobalNoiseVariance /= nRowsTV;
+	dblGlobalNoiseVariance /= nNoiseVarianceSamples;
 	fprintf(fpProtocol, "The initial sample noise variance computed from all samples in the VARfile is %f\n", dblGlobalNoiseVariance);
 	fprintf(fpProtocol,"Training %d approximation ALNs starts, using local noise variance to stop splitting\n", nalns);
 	fflush(fpProtocol);
@@ -1094,11 +1096,11 @@ void splitNoiseSetVAR(ALN * pALN) // routine
 	double value = 0;
 	ALNNODE* pActiveLFN;
 	double      se = 0; // sample value accumulator for LFN DBLNOISEVARIANCE
-	for (int j = 0; j < nNoiseVarianceSamples; j++)
+	for (long i = 0; i < nNoiseVarianceSamples; i++)
 	{
-		for (int i = 0; i < nDim; i++)
+		for (int j = 0; j < nDim; j++)
 		{
-			adblX[i] = VARfile.GetAt(j, i, 0); // the value at nDim - 1 is used only for desired
+			adblX[j] = VARfile.GetAt(i, j, 0); // the value at nDim - 1 is used only for desired
 		}
 		// pAln has to be the current approximant! Is this correct?
 		value = ALNQuickEval(pALN, adblX, &pActiveLFN);  // all that matters is which LFN the X-vector lies on
@@ -1111,25 +1113,24 @@ void splitNoiseSetVAR(ALN * pALN) // routine
 	free(adblX);
 } // END of splitNoiseSetVAR
 
-void createNoiseVarianceSamples()
+void createSamples()  // routine
 {
 	// We have the original TRfile, VARfile and the array apLFN of pointers to LFNs for corresponding X's.
 	long i, ii, nVAR;
 	nVAR = 0; // This keeps track of the next place to enter a noise variance sample in VARfile
+	double dblValue1, dblValue2, temp;
 	ALNNODE * pRemember; // This is the leaf node pointer for which we are developing noise variance samples
 	long iRemember, iiRemember;
 	// Find the current first non-NULL pointer entry in the array apLFN
-	for (i = 0; i < nRowsTR; i++)
+	for (i = 0; i < nRowsTR -1; i++)
 	{
-		if (apLFN[i] != NULL) break;
-		iRemember = i; // This remembers the index of X where we first found a non-NULL pointer.
-		pRemember = apLFN[i]; // We look for all equal pointers in the array apLFN to create noise variance samples
-		apLFN[i] = NULL; // We don't want to use entry i again
-		if (i < nRowsTR - 1) // If we found a non-NULL pointer value in apLFN before the last entry
+		if (apLFN[i] != NULL) // We found a non-NULL pointer, collect all the X's and make noise variance samples
 		{
+			iRemember = i; // This remembers the index of X where we first found a non-NULL pointer.
+			pRemember = apLFN[i]; // We look for all equal pointers in the array apLFN to create noise variance samples
+			apLFN[i] = NULL; // We don't want to use entry i again
 			// Remember that index
 			iiRemember = i;
-			double dblValue1, dblValue2, temp;
 			for (ii = i + 1; ii < nRowsTR; ii++)// Now find the next pointer equal to that one
 			{
 				if (apLFN[ii] == pRemember) // We have another point with the same pointer, i.e. on the same linear piece
@@ -1151,12 +1152,28 @@ void createNoiseVarianceSamples()
 					VARfile.SetAt(nVAR, nDim - 1, temp, 0);
 					// increment the counter in VARfile
 					nVAR++;
-				}
-				if (nVAR > nRowsVAR) break;
-				iiRemember = ii; // if we haven't reached the end of VARfile
-			} // continue looking for pointers equal to pRemember.
-		}	// end if (i < nRowsTR - 1) there are no more such pointers
-	} // so go on to the next i looking for a non-NULL pointer
-	// i equals nRowsTR - 1 so we can't pair up any more X's.
+					if (nVAR > nRowsVAR) break;
+					iiRemember = ii; // Remember the last successful find of the same pointer
+				} // end if (apLFN[ii] == pRemember)
+			} // otherwise look at the next ii for this i
+			if (iiRemember != ii) // if you're at the end of this loop and there is more than one X in it, make a cycle
+			{
+				// We can pair up the last ii with i TO DO
+			}
+			// Finished the processing of pointer apLFN[i]
+			// Check again if we haven't reached the end of VARfile
+		} // end if apLFN[i] != NULL i; keep looking for a non-NULL pointer
+	} // end for (i = 0; i < nRowsTR; i++)
+	// Finished all the clusters of X's and assigned noise variance samples
+	// Now check to see the global noise variance (comment out what follows if it's OK)
 	nNoiseVarianceSamples = nVAR;
+	// Check known case of constant noise variance
+	dblValue1 = 0;
+	for (long i = 0; i < nNoiseVarianceSamples; i++)
+	{
+		dblValue1 += VARfile.GetAt(i, nDim - 1, 0);
+	}
+	dblValue1 /= nNoiseVarianceSamples;
+	fprintf(fpProtocol, "Average of noise variance samples = %f",dblValue1);
+	fflush(fpProtocol);
 }
