@@ -225,7 +225,7 @@ void fillvector(double *, CMyAln*); // Used to input a data vector under program
 
 // The main steps in training operations (train_ops.cpp)
 void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
-void ALNAPI computeNoiseVariance();  // This makes two tesselations of domain samples which help to compute noise variance samples
+void ALNAPI computeNoiseVariance();  // This makes a tesselations of domain samples which helps to compute noise variance samples
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void ALNAPI trainAverage();         // Does bagging by averaging several ALNs created using noise variance stopping
 void ALNAPI outputTrainingResults();// Prints out the results of training 
@@ -289,7 +289,6 @@ void splitcontrol(ALN*, double); // if average variance error of a piece is high
 void dosplitcontrol(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
 void dozerosplitvalues(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
 void spliterrorsetTR(ALN*); // accumulates the training square error and number of hits on each linear piece
-void spliterrorsetVAR(ALN*); // accumulates the variance square error and number of hits on each linear piece
 void dodivideTR(ALN*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
 void dodivideVAR(ALN*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
 

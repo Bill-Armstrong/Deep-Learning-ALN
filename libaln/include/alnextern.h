@@ -33,7 +33,7 @@ void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
 void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
-void ALNAPI createNoiseVarianceFile(); // Does two tesselations of parts of the domain to create samples.
+void ALNAPI createNoiseVarianceFile(); // Creates a tesselation of the domain to create samples.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();	// Evaluate an existing DTREE on the data file after preprocessing

@@ -56,7 +56,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
 void dodivideTR(ALN* pALN, ALNNODE* pNode);
 void dodivideVAR(ALN* pALN, ALNNODE* pNode);
 void spliterrorsetTR(ALN * pALN);
-void spliterrorsetVAR(ALN * pALN);
+void splitNoiseSetVAR(ALN * pALN);
 void dozerosplitvalues(ALN* pALN, ALNNODE* pNode);
 void dozerosplitNOISEVARIANCE(ALN* pALN, ALNNODE* pNode);
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
@@ -77,7 +77,7 @@ void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 		// zero the NOISEVARIANCE component of split
 		dozerosplitNOISEVARIANCE(pALN, pALN->pTree); 
 		// get the values in VARfile which estimate the local noise variance
-		spliterrorsetVAR(pALN);
+		splitNoiseSetVAR(pALN);
 		// divide the sum of local noise estimates on each piece by its count of hits
 		dodivideVAR(pALN,pALN->pTree);
 		//} I removed the test above so that we can get the noise samples analyzed
