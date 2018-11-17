@@ -158,7 +158,7 @@ void dodivideTR(ALN* pALN, ALNNODE* pNode) // routine
 		if (LFN_CANSPLIT(pNode)) // skip this leaf node if it has stopped splitting
 		{
 			long nCountTemp = (pNode->DATA.LFN.pSplit)->nCount;
-			if (nCountTemp >= nDim) // avoid division by 0 as well as having enough hits
+			if (nCountTemp >= nDim/2) // avoid division by 0 as well as having enough hits
 			{
 				(pNode->DATA.LFN.pSplit)->dblSqError /= nCountTemp;
 				(pNode->DATA.LFN.pSplit)->nCount = 0; // after we get the value of the MSE, this can be zeroed.

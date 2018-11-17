@@ -47,6 +47,6 @@ int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 	}
 	else
 	{
-		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is convex up
+		return ALNAddLFNs(pALN, pNode, GF_MIN, 2, NULL); // A min is convex up      ^
 	}
 }

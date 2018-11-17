@@ -339,8 +339,11 @@ void ALNAPI createNoiseVarianceFile() // routine
 	nEpochSize = nRowsTR; // splitting occurs after nEpochsBeforeSplit epochs, see alntrain.cpp -- OnEpochEnd.
 	(pTess->GetRegion(0))->dblSmoothEpsilon = 0.001; // A bit of smoothing is better than none here.
 	dblMinRMSE = 0.0; // We don't stop overtraining upon reaching even a very low training error.
-	dblLearnRate = 0.2; // This rate needs experimentation.
-	dblFlimit = 0; // This allows unlimited splitting of eligible pieces.
+	dblLearnRate = 0.05; // This rate needs experimentation.
+	dblFlimit = 0.05; // This allows splitting of eligible pieces until the error is very small
+	// Rationale: the ALNs fitting the convex surface need to fit well enough to partition the
+	// data points but must stop unlimited splitting when they fit nDim points (shared).
+	// We should explore the relationship between amount of smoothing and the F-limit.
 	nNumberEpochs = 40; // TO DO: We have to do tests to see what is sufficient
 	fprintf(fpProtocol, "Tesselation learning rate %f, Smoothing set to %f\n", dblLearnRate, (pTess->GetRegion(0))->dblSmoothEpsilon);
 	fflush(fpProtocol);
