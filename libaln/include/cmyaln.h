@@ -11,6 +11,8 @@ extern FILE* fpProtocol;
 extern double dblTrainErr;
 extern int nNumberEpochs;
 extern int nNumberLFNs;
+extern long nRowsTR;
+extern int nDim;
 
 
 
@@ -50,7 +52,6 @@ class CMyAln : public CAln
       nNumberLFNs = pEpochInfo->nActiveLFNs;
 		  fprintf(fpProtocol,"Estimated RMSE %f Active/Total LFNs %d/%d\n", pEpochInfo->dblEstRMSErr,
 			        pEpochInfo->nActiveLFNs, pEpochInfo->nLFNs);
-			fflush(fpProtocol);
 		}
 	  return TRUE;
   }

@@ -289,16 +289,6 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				{
 					Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
 				}
-				/*
-				else
-				{
-					// We have the ablX here with its value (twice!) and
-					// we should be able to group by pLFN and do a linear regression if there are enough samples.
-					(aCutoffInfo[nPoint - nStart]).dblValue;
-					(aCutoffInfo[nPoint - nStart]).pLFN;
-
-				}  THIS IS A STEP TOWARDS USING TESSELATIONS
-				*/
 
 				// notify end of adapt
 				if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))

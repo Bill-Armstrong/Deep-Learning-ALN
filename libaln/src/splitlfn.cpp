@@ -37,11 +37,11 @@ extern BOOL bTessellate;
 
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 {
-	// since noise makes this decision uncertain, we only split if the piece doesn't fit within the noise limit
+	// We only split if the piece doesn't fit within the noise limit
 	// and the direction of split will likely not be close
 	if (bTessellate || LFN_SPLIT_T(pNode) < 0) // This is TRUE if we are creating a tesselation
-		      // or if the ALN surface tends to be below the training values far from the centroid on the piece.
-		      // In both cases we need a MAX.
+		      // or if the ALN surface tends to be below the training values far from the centroid.
+		      // In both cases we need a new MAX node.
 	{
 		return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max is convex down   \_/
 	}

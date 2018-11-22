@@ -189,7 +189,6 @@
     <ClCompile Include="..\..\src\dtree\dtr_mem.c" />
     <ClCompile Include="..\..\src\evaltree.cpp" />
     <ClCompile Include="..\..\src\fillinputvector.cpp" />
-    <ClCompile Include="..\..\src\findsplitlfn.cpp" />
     <ClCompile Include="..\..\src\freecolumnbase.cpp" />
     <ClCompile Include="..\..\src\getvarconstraint.cpp" />
     <ClCompile Include="..\..\src\initlfns.cpp" />

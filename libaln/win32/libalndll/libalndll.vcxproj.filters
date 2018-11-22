@@ -139,9 +139,6 @@
     <ClCompile Include="..\..\src\fillinputvector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\findsplitlfn.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\freecolumnbase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
