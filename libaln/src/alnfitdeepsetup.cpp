@@ -263,7 +263,6 @@ double dblMax = 1e12;  // maximum number allowed for weight
 double dblMaxWeight[101]; // the maximum weight a given input can have
 double dblMinWeight[101]; // the minimum weight a given input can have
 double dblImportance[101]; // the importance value, computed during a run and retained for the next run
-double dblSmoothingFraction; // the fraction of the tolerance used for approximation and averaging to get a smoothed ALN
 
 // Files used externally
 char szDataFileName[256];        // The name of the data file.;                   
@@ -304,7 +303,7 @@ char szVarName[100][3];
 //long nRowsUniv = 0;
 int nColsAuxVariance = 0;
 int nColsAuxTest = 0;
-BOOL bEstimateRMSError = TRUE; // if TRUE we use onealnfit to estimate error and we have a variance set
+BOOL bEstimateNoiseVariance = TRUE; // if TRUE we use a tessellation to estimate noise variance
 BOOL bDecimal = TRUE; // means numbers could have a decimal point
 BOOL bComma = TRUE;   // means numbers could have a comma
 //double dblSetTolerance; // this is the value of tolerance set in the options dialog
@@ -885,15 +884,6 @@ void ALNAPI createTVTSfiles()  // routine
 			nRowsTV = nRowsPP - nRowsTS;
 			TVfile.Create(nRowsTV, nALNinputs);
 			TSfile.Create(nRowsTS, nALNinputs);
-			if (bPrint && bDiagnostics)
-			{
-				TVfile.Write("DiagnoseTVfile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseTVfile.txt written\n");
-				fflush(fpFileSetupProtocol);
-				TSfile.Write("DiagnoseTSfile.txt");
-				fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written\n");
-				fflush(fpFileSetupProtocol);
-			}
 			double dblVal;
 			long TVrows = 0;
 			long TSrows = 0;
@@ -920,8 +910,15 @@ void ALNAPI createTVTSfiles()  // routine
 			} // end of writing TVfile and TSfile
 			ASSERT((TVrows == nRowsTV) && (TSrows == nRowsTS));
 		}
-    if(bPrint && bDiagnostics) TVfile.Write("DiagnoseTVfile.txt");
-	  if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTVfile.txt written with %d rows.\n", k);
+		if (bPrint && bDiagnostics)
+		{
+			TVfile.Write("DiagnoseTVfile.txt");
+			fprintf(fpFileSetupProtocol, "DiagnoseTVfile.txt written with %d rows.\n", nRowsTV);
+			fflush(fpFileSetupProtocol);
+			TSfile.Write("DiagnoseTSfile.txt");
+			fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
+			fflush(fpFileSetupProtocol);
+		}
 
 	} // end if(bTrain)
 

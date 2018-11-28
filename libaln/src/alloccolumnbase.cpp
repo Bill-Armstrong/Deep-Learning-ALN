@@ -47,6 +47,10 @@ const double** ALNAPI AllocColumnBase(int nStart,
   int nDim = pALN->nDim;
   int nCols = pDataInfo->nCols;
   const VARINFO* aVarInfo = pDataInfo->aVarInfo;
+	// aVarInfo tells which column of the training file has the i-th ALN input in it and how much
+	// it is time-shifted (nDelta).
+	// This is a different approach from ours where the file is processed to put all the inputs
+	// in the same row.
   const double* adblData = pDataInfo->adblData;
 
   const double** apdblBase = NULL;

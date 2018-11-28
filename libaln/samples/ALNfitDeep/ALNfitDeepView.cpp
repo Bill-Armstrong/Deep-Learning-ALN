@@ -817,7 +817,7 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
       fprintf(fpProtocol, "\n**************  The problem is to fit samples with a smooth function  *****\n");
     }
     fflush(fpProtocol);
-    if(bEstimateRMSError)  // We are doing RMS Error estimation (works also with two-class classification)
+    if(bEstimateNoiseVariance)  // We are doing RMS Error estimation (works also with two-class classification)
     {
       // We do the following if we are doing regression and estimating noise variance.
 			// Noise estimation may work for classification, but more study is required.
@@ -1391,16 +1391,15 @@ void CALNfitDeepView::OnButtonoptions()
 				// using a variance set, we convert the field to a double and
 				// transmit that to the doc and its global variable
 				pDoc->m_dblSetTolerance = dblSetTolerance = atof(LPCTSTR(dlg.m_strSetTolerance));
-				bEstimateRMSError = FALSE;
+				bEstimateNoiseVariance = FALSE;
 			}
 			else
 			{
 				// the tolerance will be set by estimating RMS noise
-				bEstimateRMSError = TRUE;
+				bEstimateNoiseVariance = TRUE;
 			}
 			
 			pDoc->m_nZeroSmoothing = dlg.m_nZeroSmoothing;
-			dblSmoothingFraction = (dlg.m_nZeroSmoothing == 0) ? 0.0 : 0.5;
 			pDoc->m_nNoJitter = dlg.m_nNoJitter;
 			bJitter = (dlg.m_nNoJitter == 0) ? FALSE : TRUE;
 			pDoc->m_nDTREEDepth = nDTREEDepth = dlg.m_nDTREEDepth;

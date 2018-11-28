@@ -42,7 +42,7 @@ int ALNAPI CalcActiveChild(double& dblRespActive, double& dblDistance,
 {
   int nActive = -1;
 
-  // OR node handling
+  // MAX node handling
 	if (MINMAX_ISMAX(pNode)) 
 	{
 		if(dbl1 > dbl0 + dbl4SE)	//  this puts child 1 100% active

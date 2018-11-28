@@ -65,9 +65,9 @@ extern CDataFile AuxALNinputFile;
 extern CDataFile TSfile; // the test file with data that have not been used in training
 extern long nRowsTS;
 extern double dblSetTolerance; // This used to be for setting the noise variance level when it was constant.  Now it is not used.
-extern BOOL bEstimateRMSError; // if TRUE we use overtraining to estimate RMS error which splits the TVfile into two parts - training and noise variance sets
+extern BOOL bEstimateNoiseVariance; // if TRUE we use tessellation and generalized
+								// cross-correlation to create noise variance samples.
 extern double  dblVarianceErr;    // Set equal to the rmse in the variance step
-extern double  dblSmoothingFraction; // When smoothing is done at approximation and later, this is the fraction of tolerance used
 
 // variables used and viewed or set in a dialog
 // nDim is always the number of input variables plus one for the output
@@ -100,7 +100,7 @@ extern FILE *fpFileSetupProtocol;    // This protocol file records what happens 
 
 // Parameters used externally
 extern int nPercentForTest;   // the percentage of the data file used for testing, between 0 and 50 percent
-extern BOOL bEstimateRMSError; // This is TRUE when the TVfile is split into two parts to determine the noise variance in the data. 
+extern BOOL bEstimateNoiseVariance; // This is TRUE when the TVfile is split into two parts to determine the noise variance in the data. 
 extern int nMaxLag; // The maximum lag of any input determined in preprocUniversalFile.
 extern double dblFracTest;    // The fraction of the PreprocessedDataFile used for TSfile (default 10%) if no separate test file is provided.
 extern CDataFile OutputData;  // The result of evaluation with a column added for the DTREE output

@@ -186,6 +186,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     if (!aCutoffInfo) ThrowALNMemoryException();
 		for (int i = nStart; i <= nEnd; i++)
 			aCutoffInfo[i - nStart].pLFN = NULL;
+		// The aCutoffInfo[i - nStart].pLFN will contain a pointer to the active LFN of a piece
+		// when the input is on that piece.  It will speed up cutoffs in evaluation.
     
 		// count total number of LFNs in ALN
 		int nLFNs = 0;
