@@ -233,12 +233,13 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				Callback(pALN, AN_EPOCHSTART, &ei, pfnNotifyProc, pvData);
 			}
 
+			/* this is probably useless because we have to go through TRfile and
 			// Just one epoch before splitcontrol is called to split linear pieces, counters are reset
 			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1)) // nEpoch count starts at 0
 			{
 				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //Reset split values befpre the actions of the last epoch
 			}
-
+			*/
 
 
 			// track squared error
