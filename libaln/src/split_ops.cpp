@@ -215,7 +215,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 {
 	// This routine visits all the leaf nodes and determines whether or not to split.
 	// During linear regression, there is no splitting anyway,so dblFlimit doesn't matter.
-	// During tessellation the dblFlimit should be zero, which causes much splitting
+	// During overtraining the dblFlimit should be zero, which causes a lot of splitting
 	// until the pieces all have nDim samples defining them (at least that's the hope!).
 	double dblPieceSquareTrainError;
 	double dblPieceNoiseVariance;
@@ -231,7 +231,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 		if (LFN_CANSPLIT(pNode))
 		{
 			dblPieceSquareTrainError = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on the piece
-			if (((pNode->DATA.LFN.pSplit)->nCount > 0)) // For tessellation, the count is zero and dblFlimit <= 1.0
+			if (((pNode->DATA.LFN.pSplit)->nCount > 0)) // For overtraining, the count is zero and dblFlimit <= 1.0
 			{
 				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE / (pNode->DATA.LFN.pSplit)->nCount;
 			}

@@ -33,7 +33,7 @@ void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
 void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
-void ALNAPI createNoiseVarianceFile(); // Creates a tesselation of the domain to create samples.
+void ALNAPI createNoiseVarianceFile(); // Creates an overtraining of the domain to create samples.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();	// Evaluate an existing DTREE on the data file after preprocessing
@@ -65,7 +65,7 @@ extern CDataFile AuxALNinputFile;
 extern CDataFile TSfile; // the test file with data that have not been used in training
 extern long nRowsTS;
 extern double dblSetTolerance; // This used to be for setting the noise variance level when it was constant.  Now it is not used.
-extern BOOL bEstimateNoiseVariance; // if TRUE we use tessellation and generalized
+extern BOOL bEstimateNoiseVariance; // if TRUE we use overtraining and generalized
 								// cross-correlation to create noise variance samples.
 extern double  dblVarianceErr;    // Set equal to the rmse in the variance step
 

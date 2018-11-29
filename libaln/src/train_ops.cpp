@@ -54,7 +54,7 @@ using namespace Eigen;
 //defines used to set up TRfile and VARfile
 
 #define LINEAR_REGRESSION 0
-#define TESSELLATION 1
+#define OVERTRAINING 1
 #define APPROXIMATION 2
 #define BAGGING 3
 
@@ -67,7 +67,7 @@ CDataFile VARfile;
 
 //routines
 void ALNAPI doLinearRegression(); // Determines an upper bound on error, and provides a start for other training.
-void ALNAPI createNoiseVarianceFile(); // This creates tesselations and the noise variance file VARfile.
+void ALNAPI createNoiseVarianceFile(); // This does overtraining and creates the noise variance file VARfile.
 void ALNAPI approximate(); // Actually does training avoiding overtraining using samples in VARfile.
 void ALNAPI outputTrainingResults();
 void ALNAPI trainAverage(); // Takes several ALNs created in approximate() and creates an ALN of their average
@@ -91,11 +91,11 @@ long nRowsVAR; // the number of rows in the noise variance file.  When approxima
 double dblFlimit = 0 ;// For linear regression can be anything, for overtraining must be zero
 int nEpochSize; // the number of input vectors in the current training set
 BOOL bALNgrowable = TRUE; // FALSE for linear regression, TRUE otherwise
-BOOL bTessellate = FALSE; // Controls setup of training for creating two Delaunay tessellations of a partition of the TVfile.
+BOOL bOvertrain = FALSE; // Controls setup of training for creating two overtrainings of a partition of the TVfile.
 BOOL bStopTraining; // Set to TRUE and becomes FALSE if any (active) linear piece needs training
 int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO; // used with callbacks
 double * adblX = NULL;
-ALNNODE** apLFN; // This stores the LFN of the tessellation a sample X belongs to.
+ALNNODE** apLFN; // This stores the LFN of the overtraining a sample X belongs to.
 long nNoiseVarianceSamples; // The number of noise variance samples in VARfile
 double dblFlatten; // This number is the sum of the squares of domain coordinates
    // which forms a paraboloid for tessallation.  Smoothing 0.01 is 1% of the depth.
@@ -162,7 +162,7 @@ void ALNAPI doLinearRegression() // routine
 	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
 
 	bALNgrowable = FALSE; // The ALN consists of one leaf node LFN for linear regression.
-	bTessellate = FALSE; // TRUE only during creation of tesselations.
+	bOvertrain = FALSE; // TRUE only during overtraining.
 	bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average.
 	int nEpochSize = nRowsTV; // nEpochsize gives the number of training samples. Later nRowsTR=nRowsTV.
 	(pALN->GetRegion(0))->dblSmoothEpsilon = 0.0; // Linear regression: nothing to smooth.
@@ -273,58 +273,50 @@ void ALNAPI doLinearRegression() // routine
 }
 
 void ALNAPI createNoiseVarianceFile() // routine
-	// This routine splits creates a tessellation Tess of the domain points of TRfile.
-	// This is probably not a Delaunay tessellation, but good enough for our purpose.
+	// This routine creates an overtraining OTTR of the domain points of TRfile.
+	// This is probably not a Delaunay tesselation overtraining, but good enough for our purpose.
 	// Using it we create noise variance samples in VARfile.
-	// The domain points of TRfile are turned into a convex-down set in one-higher dimension
-	// by replacing the sample values with the squares of the domain components.
-	// When leaf nodes split, they turn into MAX nodes only. They should be overdetermined before splitting
-	// i.e. have more than nDim training points, except that the points at the corners of the simplices
-	// of the tessellation are shared among up to nDim other simplices, so the total responsibility of
-	// a simplex is about 1. We don't know how to  make sure there are exactly nDim different samples on each piece
-	// being points of a Delaunay tessellation. The tessellation, instead, functions to break up the domain
-	// into pieces whose points are close to each other. This is good for sampling.
 {
-	fprintf(fpProtocol,"\n*** Tessellation creation for use with noise variance estimation begins***\n");
+	fprintf(fpProtocol,"\n*** OTTR overtraining for use with noise variance estimation begins***\n");
 	fflush(fpProtocol);
 	// Allocate space for samples
 	adblX = (double *)malloc((nDim) * sizeof(double));
-	CMyAln * pTess = NULL; 
-	pTess = new CMyAln;
-	if (!(pTess->Create(nDim, nDim - 1))) //create a tessellation ALN
+	CMyAln * pOTTR = NULL; 
+	pOTTR = new CMyAln;
+	if (!(pOTTR->Create(nDim, nDim - 1))) //create a overtraining ALN
 	{
-		fprintf(fpProtocol, "ALN creation for tessellation failed!\n");
+		fprintf(fpProtocol, "ALN creation for overtraining failed!\n");
 		fflush(fpProtocol);
 		exit(0);
 	}
-	if (!pTess->SetGrowable(pTess->GetTree()))
+	if (!pOTTR->SetGrowable(pOTTR->GetTree()))
 	{
-		fprintf(fpProtocol,"Setting tessellation ALN for growable failed!\n");
+		fprintf(fpProtocol,"Setting overtraining ALN growable failed!\n");
 		fflush(fpProtocol);
 		exit(0);
 	}
 	// Set constraints on variables for the ALN
 	for( int m = 0; m < nDim-1; m++) // NB Excludes the output variable of the ALN, index nDim -1.
 	{
-		pTess->SetEpsilon(adblEpsilon[m],m);
-		pTess->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m); // the minimum value of the domain is a bit smaller than the min of the data points in TVfile
-		pTess->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m); // the max is a bit larger
-		pTess->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // The range of output (for a uniform dist.) divided by...
-		pTess->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m.
+		pOTTR->SetEpsilon(adblEpsilon[m],m);
+		pOTTR->SetMin(adblMinVar[m] - 0.1 * adblStdevVar[m],m); // the minimum value of the domain is a bit smaller than the min of the data points in TVfile
+		pOTTR->SetMax(adblMaxVar[m] + 0.1 * adblStdevVar[m],m); // the max is a bit larger
+		pOTTR->SetWeightMin(- pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // The range of output (for a uniform dist.) divided by...
+		pOTTR->SetWeightMax(  pow(2.0,0.5) * adblStdevVar[nDim - 1]/adblEpsilon[m],m); // ...the likely distance between samples in axis m.
 		// Impose the a priori bounds on weights.
-		if(dblMinWeight[m] > pTess->GetWeightMin(m))
+		if(dblMinWeight[m] > pOTTR->GetWeightMin(m))
 		{
-			pTess->SetWeightMin(dblMinWeight[m],m);
+			pOTTR->SetWeightMin(dblMinWeight[m],m);
 		}
-		if(dblMaxWeight[m] < pTess->GetWeightMax(m))
+		if(dblMaxWeight[m] < pOTTR->GetWeightMax(m))
 		{
-			pTess->SetWeightMax(dblMaxWeight[m],m);
+			pOTTR->SetWeightMax(dblMaxWeight[m],m);
 		}
 	}
-	fprintf(fpProtocol, "\nStart new tessellation **************************************\n");
+	fprintf(fpProtocol, "\nStart new overtraining **************************************\n");
 	fflush(fpProtocol);
 	ALNNODE* pActiveLFN;
-	pActiveLFN = pTess->GetTree(); // Initially the ALN is a leaf node.
+	pActiveLFN = pOTTR->GetTree(); // Initially the ALN is a leaf node.
 	// Start training using the weights and centroid from linear regression to save time.
 	for(int m = 0; m < nDim -1; m++)
 	{
@@ -341,7 +333,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 	// Training parameters
 	bALNgrowable = TRUE; // Used in rest of program
 	bStopTraining = FALSE; // This becomes TRUE and stops training when all leaf nodes fit well enough.
-	bTessellate = TRUE; // This creates a tesselation of the TVfile domain points.
+	bOvertrain = TRUE; // This creates an overtraining of the TVfile domain points.
 	bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average
 	bJitter = FALSE;
 	if (bJitter)
@@ -354,7 +346,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 	}
 	fflush(fpProtocol);
 	nEpochSize = nRowsTR; // splitting occurs after nEpochsBeforeSplit epochs, see alntrain.cpp -- OnEpochEnd.
-	(pTess->GetRegion(0))->dblSmoothEpsilon = 0.001; // A bit of smoothing so pieces share points (maybe?)
+	(pOTTR->GetRegion(0))->dblSmoothEpsilon = 0.001; // A bit of smoothing so pieces share points (maybe?)
 	  // is better than none here. The paraboloid is , 1.0 deep so smoothing is 1/10000 of this. 
 	dblMinRMSE = 0.0; // We don't stop overtraining upon reaching even a very low training error.
 	dblLearnRate = 0.15; // This rate needs experimentation.
@@ -362,46 +354,39 @@ void ALNAPI createNoiseVarianceFile() // routine
 	dblFlimit = 0.001; // This allows splitting of eligible pieces until the error is very small
 	// Rationale: the ALNs fitting the convex surface need to fit well enough to partition the
 	// data points but must stop unlimited splitting when they fit nDim points (shared).
-	// This amounts to just one sample per piece of the tessellation.
+	// This amounts to just one sample per piece of the overtraining.
 	nNumberEpochs = 40; // TO DO: We have to do tests to see what is sufficient
-	fprintf(fpProtocol, "Tess learning rate %f, Smoothing %f, split if piece MSE > %f\n", dblLearnRate,
-		(pTess->GetRegion(0))->dblSmoothEpsilon, dblFlimit*dblFlimit);
+	fprintf(fpProtocol, "OTTR learning rate %f, Smoothing %f, split if piece MSE > %f\n", dblLearnRate,
+		(pOTTR->GetRegion(0))->dblSmoothEpsilon, dblFlimit*dblFlimit);
 	fflush(fpProtocol);
-	createTR_VARfiles(TESSELLATION);
+	createTR_VARfiles(OVERTRAINING);
 	nRowsTR = TRfile.RowCount();
 	int nColumns = TRfile.ColumnCount();
 	const double* adblData = TRfile.GetDataPtr();
-	pTess->SetDataInfo(nRowsTR, nColumns, adblData, NULL);
+	pOTTR->SetDataInfo(nRowsTR, nColumns, adblData, NULL);
 	// The reason for iterations is so that we can monitor progress in the ...TrainProtocol.txt file,
 	// and set new parameters for future training.
-	for(int iteration = 0; iteration < 15; iteration++)  // experimentation required!
+	for(int iteration = 0; iteration < 40; iteration++)  // experimentation required!
 	{
-		// Train a tessellation to divide up the domain of all samples by activity of the linear pieces.
+		// Overtrain on some data to take the difference with samples not used to create noise variance samples.
 		// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-		if(!pTess->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
+		if(!pOTTR->Train(nNumberEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 		{
-			fprintf(fpProtocol,"Tessellation failed!\n");
+			fprintf(fpProtocol,"OTTR overtraining failed!\n");
 			fflush(fpProtocol);
 			exit(0);
 		}
-		// We need more than nDim samples in a tessellation LFN for measuring noise variance.
-		// But these have to be shared so it amounts to one sample per LFN.
-		if (nNumberLFNs  >= nRowsTR) 
-		{
-			fprintf(fpProtocol, "The tessellation is now fine enough to estimate noise\n");
-			fflush(fpProtocol);
-			break;
-		}
-		fflush(fpProtocol);
+
 
 		if (bStopTraining == TRUE)
 		{
 			fprintf(fpProtocol, "Iterations stopped at %d because all leaf nodes have stopped changing!\n", iteration);
+			fflush(fpProtocol); 
 			bStopTraining = FALSE;
 			break;
 		}
 	}
-	fprintf(fpProtocol,"\nCreation of tesselation completed. Training RMSE = %f \n", dblTrainErr);
+	fprintf(fpProtocol,"\nOvertraining completed. Training RMSE = %f \n", dblTrainErr);
 	fflush(fpProtocol);
 	// We now restore the TRfile from the TVfile and add new information to
 	// a parallel file that tracks which piece of which tesselation it belongs to.
@@ -414,11 +399,11 @@ void ALNAPI createNoiseVarianceFile() // routine
 			adblX[j] = TVfile.GetAt(i, j, 0); // We stored the values of the original TRfile in VARfile.
 			TRfile.SetAt(i, j, adblX[j], 0);   // We now restore the TRfile to its original state.
 		}
-		double dummy = pTess->QuickEval(adblX, &pActiveLFN); // this finds a pointer to the linear piece
+		double dummy = pOTTR->QuickEval(adblX, &pActiveLFN); // this finds a pointer to the linear piece
 		apLFN[i] = pActiveLFN; // assign to the X vector index its linear piece.
-	}	// This ends the assignment of vectors X to LFNs of their tessellation.
-	// We don't need the tessellation any more.
-	pTess->Destroy();
+	}	// This ends the assignment of vectors X to LFNs of their overtraining.
+	// We don't need the overtraining any more.
+	pOTTR->Destroy();
 	createSamples();
 	free(adblX);
 	free(apLFN);
@@ -538,7 +523,7 @@ void ALNAPI approximate() // routine
 		} // end of loop over m
 
 		bTrainingAverage = FALSE;
-		bTessellate = FALSE;
+		bOvertrain = FALSE;
 
     if(bClassify)
     {
@@ -973,15 +958,15 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	// nChoose = 0: LinearRegression. The TVfile  is copied, in the same order,
 	// into both TRfile and TVfile. It is done only once prior to linear regression.
 	// 
-	// nChoose = 1: Create Noise Variance Samples does a tesselation of the domain
+	// nChoose = 1: Create Noise Variance Samples does an overtraining of the domain
 	// points of the samples in TRfile. The nDim-1 components in the TRfile samples are
 	// replaced by the L2 distance from the global centroid found by linear regression. This
 	// creates the dataset for a convex-down surface which the ALN can easily
 	// train on by constraining all non-leaf nodes to be maximum nodes. 
 	// This is similar to the idea of finding the convex hull to generate a
-	// Delaunay tessellation. However, in our case, the groups of samples on the LFNs
+	// Delaunay overtraining. However, in our case, the groups of samples on the LFNs
 	// are used to do a generalized cross-validation for the noise. We can't do a Delaunay
-	// tessellation because we can't control well enough how many points are on each LFN
+	// overtraining because we can't control well enough how many points are on each LFN
 	// and their sharing between LFNs. (Future ALN research??)
 	// After this routine, VARfile contains all of the noise variance samples, used
 	// in the F-test to decide whether or not the training error requires splitting a piece.
@@ -1001,7 +986,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 		// First we fill TRfile and VARfile equally with samples of TVfile.
 		// We tried randomly sending about half the TVfile to the front
 		// of TRfile & VARfile and half to the back. We did this in order to
-		// have two tessellations, each on half the samples, but now it is not needed.
+		// have two overtrainings, each on half the samples, but now it is not needed.
 		ASSERT((nRowsTV == nRowsTR) && (nRowsTR == nRowsVAR));
 		long tmp0 = 0; // Index for the next sample going to the front
 		long tmp1 = nRowsTR - 1;  // Index for the next sample going to the back.
@@ -1065,7 +1050,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 				sumSq += temp * temp;
 			}
 			sumSq *= dblFlatten;  // This controls the paraboloid depth. The RMS error will
-			// give a better idea of how the tessellation is fitting the paraboloid.
+			// give a better idea of how the overtraining is fitting the paraboloid.
 			TRfile.SetAt(i, nDim - 1, sumSq, 0); // the output value in TRfile defines the paraboloid.
 			// We are going to train to fit the convex-down paraboloid! \_/
 		}
@@ -1107,7 +1092,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 
 void createSamples()  // routine
 {
-	// We have the TRfile used to create a tesselation, the VARfile which is equal to the original TRfile
+	// We have the TRfile used to create an overtraining, the VARfile which is equal to the original TRfile
 	// and the array apLFN of pointers to LFNs corresponding to X's in those two files.
 	long i; // loop indices
 	int nX, nRow; // nX will indicate the current size of various Eigen dynamic matrices using nRow

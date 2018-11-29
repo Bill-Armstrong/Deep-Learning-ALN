@@ -225,7 +225,7 @@ void fillvector(double *, CMyAln*); // Used to input a data vector under program
 
 // The main steps in training operations (train_ops.cpp)
 void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
-void ALNAPI computeNoiseVariance();  // This makes a tesselations of domain samples which helps to compute noise variance samples
+void ALNAPI computeNoiseVariance();  // This makes an overtraining of domain samples which helps to compute noise variance samples
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void ALNAPI trainAverage();         // Does bagging by averaging several ALNs created using noise variance stopping
 void ALNAPI outputTrainingResults();// Prints out the results of training 
@@ -303,7 +303,7 @@ char szVarName[100][3];
 //long nRowsUniv = 0;
 int nColsAuxVariance = 0;
 int nColsAuxTest = 0;
-BOOL bEstimateNoiseVariance = TRUE; // if TRUE we use a tessellation to estimate noise variance
+BOOL bEstimateNoiseVariance = TRUE; // if TRUE we use overtraining to estimate noise variance
 BOOL bDecimal = TRUE; // means numbers could have a decimal point
 BOOL bComma = TRUE;   // means numbers could have a comma
 //double dblSetTolerance; // this is the value of tolerance set in the options dialog
