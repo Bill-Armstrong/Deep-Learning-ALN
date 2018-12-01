@@ -36,7 +36,7 @@ UINT TakeActionProc(LPVOID pParam);  // separate thread
 
 //global variables used only internally
 extern BOOL bTrainingAverage;// Switch to tell fillvector whether get a training vector or compute an average
-extern int nNumberEpochs;
+//extern int nMaxEpochs;
 extern int nNumberLFNs;  // used to control the epoch size, which should be proportional to this
 extern int nColsAuxVariance;
 extern int nColsAuxTest;

@@ -24,7 +24,7 @@
 // training support routines
 
 // libaln/src/alntrain.cpp
-// Revision date: October 24, 2018
+// Revision date: November 30, 2018
 // Changes by: WWA
 
 #ifdef ALNDLL
@@ -40,6 +40,20 @@
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
+
+// Train calls ALNTrain, which expects data in a monolithic array, row major order, ie,
+//   row 0 col 0, row 0 col 1, ..., row 0 col n,
+//   row 1 col 0, row 1 col 1, ..., row 1 col n,
+//   ...,
+//   row m col 0, row m col 1, ..., row m col n,
+// If aVarInfo is NULL, then there must be nDim columns in the data array
+// otherwise aVarInfo must have nDim elements giving columns and delays.
+// If adblData is NULL, then application must provide a training proc,
+// and must fill the data vector during AN_FILLVECTOR message
+// else adblData ponts to a file with nPoints rows and nCols >0 columns.
+// nNotifyMask is the bitwise OR of all the notifications that should
+// be sent during training callbacks. Special cases: AN_ALL, AN_NONE.
+// ALN train returns an ALN_* error code, (ALN_NOERROR on success).
 
 // helper declarations
 static int ALNAPI ValidateALNTrainInfo(const ALN* pALN,
@@ -66,26 +80,14 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                              double dblLearnRate,
                              BOOL bJitter);
 
-void splitcontrol(ALN*, double); // does an F-test to see if a piece is fitted well or is ready to split
-void dozerosplitvalues(ALN* pALN, ALNNODE* pNode); // this zeros the split items just before the last epoch
-extern double dblFlimit; // pieces split according to this limit (should vary with the number of samples on the piece0
-int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // splits any piece that's ready
-extern BOOL bALNgrowable; // used to stop the splitting operations for linear regression
-extern BOOL bStopTraining; // this allows training to stop when all leaf nodes have stopped adapting
+// helper declarations relating to ALN tree growth
+void splitcontrol(ALN*, double); // This does a test to see if a piece fits well or must be split.
+void dozerosplitvalues(ALN* pALN, ALNNODE* pNode); // This zeros the split items.
+extern double dblFlimit; // Pieces split according to this limit. (Not implemented per piece yet.)
+int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // Splits any piece that's ready.
+extern BOOL bALNgrowable; //If FALSE, no splitting happens, e.g. for linear regression.
+extern BOOL bStopTraining; // This causes training to stop when all leaf nodes have stopped splitting.
 
-// TrainALN expects data in monolithic array, row major order, ie,
-//   row 0 col 0, row 0 col 1, ..., row 0 col n,
-//   row 1 col 0, row 1 col 1, ..., row 1 col n,
-//   ...,
-//   row m col 0, row m col 1, ..., row m col n,
-// if aVarInfo is NULL, then there must be nDim columns in data array
-// else aVarInfo must have pALN->nDim elements
-// if adblData is NULL, then application must provide a training proc,
-// and must fill the data vector during AN_FILLVECTOR message
-// else adblData must have nPoints rows and nCols must be greater than zero
-// nNotifyMask is the bitwise OR of all the notifications that should
-// be sent during training, or AN_ALL, or AN_NONE
-// returns ALN_* error code, (ALN_NOERROR on success)
 
 ALNIMP int ALNAPI ALNTrain(ALN* pALN,
                            const ALNDATAINFO* pDataInfo,
@@ -131,13 +133,9 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 #endif
 
   int nReturn = ALN_NOERROR;		    // assume success
-    
 	int nDim = pALN->nDim;
   int nPoints = pDataInfo->nPoints;
-	
   ALNNODE* pTree = pALN->pTree;	    
-	ASSERT(pTree != NULL);
-
   double* adblX;                    // input vector
 	int* anShuffle = NULL;				    // point index shuffle array
   const double** apdblBase = NULL;  // data column base pointers
@@ -147,13 +145,9 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 	EPOCHINFO epochinfo;					    // epoch info
   TRAINDATA traindata;              // training data
 
-
-  int nNotifyMask = (pCallbackInfo == NULL) ? AN_NONE : 
-                                              pCallbackInfo->nNotifyMask;
-  void* pvData = (pCallbackInfo == NULL) ? NULL : 
-                                           pCallbackInfo->pvData;
-  ALNNOTIFYPROC pfnNotifyProc = (pCallbackInfo == NULL) ? NULL : 
-                                             pCallbackInfo->pfnNotifyProc;
+  int nNotifyMask = (pCallbackInfo == NULL) ? AN_NONE : pCallbackInfo->nNotifyMask;
+  void* pvData = (pCallbackInfo == NULL) ? NULL : pCallbackInfo->pvData;
+  ALNNOTIFYPROC pfnNotifyProc = (pCallbackInfo == NULL) ? NULL : pCallbackInfo->pfnNotifyProc;
 
 	// init traindata
 	traindata.dblLearnRate = dblLearnRate; // an epoch is 1 pass through the training data
@@ -162,7 +156,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 	traindata.pfnNotifyProc = pfnNotifyProc;
 
   // calc start and end points of training
-  int nStart, nEnd; 
+  long nStart, nEnd;
   CalcDataEndPoints(nStart, nEnd, pALN, pDataInfo);
 
 	try	// main processing block
@@ -182,13 +176,13 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			anShuffle[i - nStart] = i - nStart;
 
     // allocate and init cutoff info array
+		// pLFN will contain a pointer to the active LFN of a piece
+		// when the input is on that piece.  It will speed up cutoffs in evaluation.
     aCutoffInfo = new CCutoffInfo[nEnd - nStart + 1];
     if (!aCutoffInfo) ThrowALNMemoryException();
 		for (int i = nStart; i <= nEnd; i++)
 			aCutoffInfo[i - nStart].pLFN = NULL;
-		// The aCutoffInfo[i - nStart].pLFN will contain a pointer to the active LFN of a piece
-		// when the input is on that piece.  It will speed up cutoffs in evaluation.
-    
+
 		// count total number of LFNs in ALN
 		int nLFNs = 0;
     int nAdaptedLFNs = 0;
@@ -213,14 +207,12 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		}
 
 		///// begin epoch loop
-		// nEpochsBeforeSplit should be a divisor of nMaxEpochs e.g. 10 divides 100 evenly
-    int nEpochsBeforeSplit = 10;  // We reset counters for splitting when
-                                 // adaptation has had a chance to adjust pieces almost
-		                             // as close as possible to the training samples.
-														     // This depends on epochsize, learning rate, RMS error, tolerance... etc.
-	
-		// ResetCounters(pTree, pALN,TRUE); // we now use dozerosplitvalues(ALN*, ALNNODE*) instead
-    //traininfo.dblRMSErr = dblMinRMSErr + 1.0;	// ...to enter epoch loop ???? WIERD
+
+		// We reset counters for splitting when adaptation has had a chance to adjust pieces very
+		// closely to the training samples, e.g. the limited number of pieces fits well.
+		// We do nMaxEpochs training, then allow splitting after the last epoch.
+		// We must set nMaxEpochs considering epochsize, learning rate,  prescribed RMS error, etc.
+		// dozerosplitvalues(ALN*, ALNNODE*) zeros the components of split after the last training epoch.
 		for (int nEpoch = 0; nEpoch < nMaxEpochs; nEpoch++)
 		{
 			int nCutoffs = 0;
@@ -233,23 +225,16 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				Callback(pALN, AN_EPOCHSTART, &ei, pfnNotifyProc, pvData);
 			}
 
-			/* this is probably useless because we have to go through TRfile and
-			// Just one epoch before splitcontrol is called to split linear pieces, counters are reset
-			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1)) // nEpoch count starts at 0
-			{
-				if (bALNgrowable)dozerosplitvalues(pALN, pTree); //Reset split values befpre the actions of the last epoch
-			}
-			*/
-
-
 			// track squared error
 			double dblSqErrorSum = 0;
-			// We prepare a random reordering of the training data for the next set of epochs
+
+			// We prepare a random reordering of the training data for the next epoch
 			Shuffle(nStart, nEnd, anShuffle);
 
-			int nPoint;
+			long nPoint; // The number of training samples may be huge.
+			 // this does all the samples in an epoch in a randomized order.
 
-			for (nPoint = nStart; nPoint <= nEnd; nPoint++) // this does all the samples in an epoch in a randomized order
+			for (nPoint = nStart; nPoint <= nEnd; nPoint++)
 			{
 				int nTrainPoint = anShuffle[nPoint - nStart]; //a sample is picked for training
 				ASSERT((nTrainPoint + nStart) <= nEnd);
@@ -258,13 +243,12 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				FillInputVector(pALN, adblX, nTrainPoint, nStart, apdblBase,
 					pDataInfo, pCallbackInfo);
 
-				// if we have first data point, init LFNs on first pass
+				// if we have our first data point, init LFNs on first pass
 				if (nEpoch == 0 && nPoint == nStart)
 					InitLFNs(pTree, pALN, adblX);
 
 				// jitter the data point
-				if (bJitter)
-					Jitter(pALN, adblX);
+				if (bJitter) Jitter(pALN, adblX);
 
 				// do an adapt eval to get active LFN and distance, and to prepare
 				// tree for adaptation
@@ -288,11 +272,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 				// do a useful adapt to correct any error
 				traindata.dblGlobalError = dbl;
-				if (nEpoch%nEpochsBeforeSplit != nEpochsBeforeSplit - 1)
-				{
-					Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
-				}
-
+				Adapt(pTree, pALN, adblX, 1.0, TRUE, &traindata);// we should not adapt in the epoch when counting hits!!
 				// notify end of adapt
 				if (CanCallback(AN_ADAPTEND, pfnNotifyProc, nNotifyMask))
 				{
@@ -306,9 +286,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 			// estimate RMS error on training set for this epoch
 			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / nPoints);
-						
-			// calc true RMS if estimate below min, or if last epoch, or every
-      // 10 epochs when jittering
+
+			// calc true RMS if estimate below min, or if last epoch, or every 10 epochs when jittering
 			if (epochinfo.dblEstRMSErr <= dblMinRMSErr || nEpoch == (nMaxEpochs - 1) ||
           (bJitter && (nEpoch % 10 == 9)))
 			{
@@ -333,18 +312,12 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				Callback(pALN, AN_EPOCHEND, &ei, pfnNotifyProc, pvData);
 			}
 
-			// split candidate LFNs after an epoch following which counters are reset
-			if (nEpoch > 0 && (nEpoch%nEpochsBeforeSplit == nEpochsBeforeSplit - 1))
+			// Split candidate LFNs after the last epoch in this call to ALNTrain.
+			if ((nEpoch == (nMaxEpochs - 1)) && bALNgrowable)
 			{
-				// Don't use splitcontrol when the leaf node is not splitable! (e.g. for linear regression)
-				ASSERT(pALN->pTree);
 				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
-				if (bALNgrowable)splitcontrol(pALN, dblFlimit);  // This leads to leaf nodes splitting
+				splitcontrol(pALN, dblFlimit);  // This leads to leaf nodes splitting
 			}
-
-
-
-
 		} // end epoch loop
 
 		// notify end of training

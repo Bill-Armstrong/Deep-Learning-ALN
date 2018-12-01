@@ -163,7 +163,7 @@ void ALNAPI DebugValidateALNDataInfo(const ALN* pALN,
 
 
 // calculate start and end points of data set given varinfo deltas
-void ALNAPI CalcDataEndPoints(int& nStart, int& nEnd, 
+void ALNAPI CalcDataEndPoints(long& nStart, long& nEnd, 
                               const ALN* pALN,
                               const ALNDATAINFO* pDataInfo);
 

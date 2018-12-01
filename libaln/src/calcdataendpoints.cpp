@@ -35,7 +35,7 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-void ALNAPI CalcDataEndPoints(int& nStart, int& nEnd, const ALN* pALN,
+void ALNAPI CalcDataEndPoints(long& nStart, long& nEnd, const ALN* pALN,
                               const ALNDATAINFO* pDataInfo)
 {
   ASSERT(pALN);

@@ -269,7 +269,6 @@
     <ClCompile Include="..\src\jitter.cpp" />
     <ClCompile Include="..\src\plimit.cpp" />
     <ClCompile Include="..\src\prepaln.cpp" />
-    <ClCompile Include="..\src\resetcounters.cpp" />
     <ClCompile Include="..\src\shuffle.cpp" />
     <ClCompile Include="..\src\splitlfn.cpp" />
     <ClCompile Include="..\src\split_ops.cpp" />

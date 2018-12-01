@@ -71,7 +71,7 @@ int ALNAPI EvalTree(const ALNNODE* pNode,
   int nPoints = pDataInfo->nPoints;
 
   // calc start and end points
-  int nStart, nEnd; 
+  long nStart, nEnd; 
   CalcDataEndPoints(nStart, nEnd, pALN, pDataInfo);
   
   if (pnStart != NULL)

@@ -140,12 +140,10 @@ void spliterrorsetTR(ALN * pALN) // routine
 		{
 			adblX[i] = TRfile.GetAt(j, i, 0);
 		}
-		desired = adblX[nDim - 1]; // get the desired result
-		// adblX[nDim - 1] is not used in evaluation by ALNQuickEval
 		predict = ALNQuickEval(pALN, adblX, &pActiveLFN); // the current ALN value
-
-		//if (LFN_ISINIT(pActiveLFN)) // skip this leaf node if it has stopped training
+		if (LFN_CANSPLIT(pActiveLFN)) // Skip this leaf node if it can't split anyway.
 		{
+			desired = adblX[nDim - 1]; //adblX[nDim - 1] is not used in evaluation by ALNQuickEval
 			se = (predict - desired) * (predict - desired);
 			(pActiveLFN->DATA.LFN.pSplit)->nCount++;
 			(pActiveLFN->DATA.LFN.pSplit)->dblSqError += se;
@@ -235,13 +233,16 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 			{
 				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE / (pNode->DATA.LFN.pSplit)->nCount;
 			}
-			// average noise variance on the piece
-			if (((dblFlimit > 1.0) && (dblPieceSquareTrainError < dblPieceNoiseVariance * dblFlimit))||
-				 ((dblFlimit <= 1.0) && (dblPieceSquareTrainError < dblFlimit*dblFlimit)))
+			else
+			{
+				dblPieceNoiseVariance = 1.0;
+			}
+			// average noise variance on the piece or 1.0 as the case may be
+			if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblFlimit)
 			{
 				// This implements the F-test criterion for stopping training (here stopping splitting).
 				// If we get here, this piece is fitting within the noise variance by the F-test.
-				// Splitting is also stopped if dblFlimit <= 1.0 and the training MSE < dblFlimit^2
+				// Splitting is also stopped if noise variance is zero (e.g. overtraining) and the training MSE < dblFlimit.
 				// Since this piece fits well enough, we stop all future splitting of this leaf node (LFN).
 				LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting
 			}

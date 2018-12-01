@@ -9,7 +9,7 @@ extern "C" int _kbhit();
 extern "C" int _getch();
 extern FILE* fpProtocol;
 extern double dblTrainErr;
-extern int nNumberEpochs;
+extern int nMaxEpochs;
 extern int nNumberLFNs;
 extern long nRowsTR;
 extern int nDim;
@@ -47,7 +47,7 @@ class CMyAln : public CAln
 
   virtual BOOL OnEpochEnd(EPOCHINFO* pEpochInfo, void* pvData) 
   {
-		if(pEpochInfo->nEpoch == (nNumberEpochs -1))
+		if(pEpochInfo->nEpoch == (nMaxEpochs -1))
 		{
       nNumberLFNs = pEpochInfo->nActiveLFNs;
 		  fprintf(fpProtocol,"Estimated RMSE %f Active/Total LFNs %d/%d\n", pEpochInfo->dblEstRMSErr,

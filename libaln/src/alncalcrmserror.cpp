@@ -85,7 +85,7 @@ double ALNAPI DoCalcRMSError(const ALN* pALN,
   DebugValidateALNDataInfo(pALN, pDataInfo, pCallbackInfo);
 #endif
 
-  int nStart, nEnd;
+  long nStart, nEnd;
   CalcDataEndPoints(nStart, nEnd, pALN, pDataInfo);
   
   double dblRMSError = -1.0;

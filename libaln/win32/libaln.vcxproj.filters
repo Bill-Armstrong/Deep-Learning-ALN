@@ -161,9 +161,6 @@
     <ClCompile Include="..\src\prepaln.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\resetcounters.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\shuffle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
