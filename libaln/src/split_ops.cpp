@@ -54,6 +54,7 @@ extern BOOL bStopTraining;
 extern CDataFile VARfile;
 extern CDataFile TRfile;
 
+void splitcontrol(ALN* pALN, double dblFlimit);
 void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
 void dozerosplitvalues(ALN* pALN, ALNNODE* pNode);
 void spliterrorsetTR(ALN * pALN);
@@ -62,7 +63,6 @@ void splitNoiseSetVAR(ALN * pALN);
 void dodivideVAR(ALN* pALN, ALNNODE* pNode);
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 // the following routines use the SPLIT typedef between trainings of an ALN
-
 
 void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 {
@@ -133,8 +133,10 @@ void spliterrorsetTR(ALN * pALN) // routine
 	double desired = 0;
 	double predict = 0;
 	double      se = 0; // square error accumulator
+
 	ALNNODE* pActiveLFN;
-	for (long j = 0; j < nRowsTR; j++)
+	long nrows = TRfile.RowCount();
+	for (long j = 0; j < nrows; j++)
 	{
 		for (int i = 0; i < nDim; i++)
 		{

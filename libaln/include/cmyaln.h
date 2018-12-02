@@ -11,14 +11,10 @@ extern FILE* fpProtocol;
 extern double dblTrainErr;
 extern int nMaxEpochs;
 extern int nNumberLFNs;
-extern long nRowsTR;
-extern int nDim;
-
-
-
 
 class CMyAln;
 void fillvector(double *, CMyAln *);
+
 class CMyAln : public CAln
 {
   // notification overrides

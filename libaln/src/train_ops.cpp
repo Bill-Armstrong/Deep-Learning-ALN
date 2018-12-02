@@ -65,9 +65,7 @@ using namespace Eigen;
 // files used in training operations
 CDataFile TRfile;
 CDataFile VARfile;
-CDataFile TRfile1;
-CDataFile TRfile2;
-
+CDataFile TRfileCopy;
 //routines
 void ALNAPI doLinearRegression(); // Determines an upper bound on error, and provides a start for other training.
 void ALNAPI createNoiseVarianceFile(); // This does overtraining and creates the noise variance file VARfile.
@@ -137,28 +135,32 @@ void ALNAPI doLinearRegression() // routine
 	bOvertrain = FALSE; // TRUE only during overtraining.
 	bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average.
 	prepareQuickStart(pALN);
-	nMaxEpochs = 15; // nMaxEpochs is the number of passes through the data (epochs); if the tree is
-	// growable, this is epochs before each splitting. For linear regression, it is just a number of epochs.
+	nMaxEpochs = 20; // nMaxEpochs is the number of passes through the data (epochs) for each call to Train.
+	// If the tree is growable, this is epochs before each splitting.
+	// For linear regression, it is just a number of epochs.
+	// A learning rate of 0.2 means that the error for a training sample is reduced by 20%.
+	// Reducing the error on one training point may make the error of a different sample greater.
+	// The theoretical best would be that 0.2 in 20 epochs reduces the error to 1.15% of what it was.
 	dblMinRMSE = 0; // Don't stop early because of low training error.
-	dblLearnRate = 0.15;  // This rate seems ok for linear regression.
+	dblLearnRate = 0.2;  // This rate seems ok for linear regression.
 	// Set up the data
 	createTR_VARfiles(LINEAR_REGRESSION);
-	int nEpochSize = TRfile.RowCount();	// nEpochsize gives the number of training samples. Later nRowsVAR=nRowsTR.
+	int nRowsTR = TRfile.RowCount();	// nEpochsize gives the number of training samples. Later nRowsVAR=nRowsTR.
 	int nColumns = TRfile.ColumnCount(); // This is always nDim for training.
 	ASSERT(nColumns == nDim);
-	const double* adblData = TRfile.GetDataPtr();
-	// The following could also set NULL instead of adblData which leads
-	// to fillvector() below controlling the input vectors to the ALN.  fillvector() allows the
-	// system to choose training vectors more flexibly, even online.
-	// The advantage of giving the pointer adblData is that epochs consistently
-	// permute the order of the samples and go through all samples exactly once per epoch.
-	pALN->SetDataInfo(nEpochSize, nColumns, adblData, NULL);
-	
+	const double* adblData = TRfile.GetDataPtr(); // This is where training gets samples.
+	// The third parameter in thefollowing could also set to NULL instead of adblData which leads
+	// to fillvector() controlling the input vectors to the ALN.  fillvector() allows the
+	// system to choose training vectors more flexibly, even online with proper programming.
+	// The advantage of giving the pointer adblData is that training permutes
+	// the order of the samples and goes through all samples exactly once per epoch.
+	pALN->SetDataInfo(nRowsTR, nDim, adblData, NULL);
+	int nIterations = 15;
 	// TRAIN FOR LINEAR REGRESSION   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	// The reason for iterations is so that we can monitor progress in the ... TrainProtocol.txt file,
 	// and set new parameters for subsequent training.
 
-	for (int iteration = 0; iteration < 100; iteration++)  // experimental
+	for (int iteration = 0; iteration < nIterations; iteration++)  // experimental
 	{
 		if (!pALN->Train(nMaxEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask))
 		{
@@ -166,13 +168,16 @@ void ALNAPI doLinearRegression() // routine
 			fflush(fpProtocol);
 			exit(0);
 		}
-		fprintf(fpProtocol, "\nIteration %d of linear regression completed. Training RMSE = %f \n",iteration, dblTrainErr);
+		fprintf(fpProtocol, " %d ",iteration);
+		if (iteration == (nIterations * 1) / 5) dblLearnRate = 0.15;
+		if (iteration == (nIterations * 2) / 5) dblLearnRate = 0.10;
+		if (iteration == (nIterations * 3) / 5) dblLearnRate = 0.05;
+		if (iteration == (nIterations * 4) / 5) dblLearnRate = 0.01;
 	}
 	fprintf(fpProtocol, "Linear regression training succeeded!\n");
 	fflush(fpProtocol);
-  // We should now have a good linear regression fit.
+  // We should now have a good linear regression fit and we harvest the important results.
   // Find the weights on the linear piece using an evaluation at the 0 vector (could be any other place!).
-	
 	ALNNODE* pActiveLFN;
   for(int m=0; m < nDim; m++)
 	{
@@ -290,24 +295,18 @@ void ALNAPI createNoiseVarianceFile() // routine
 		if (nOTTR == 1) // We inform the ALN that only about half the samples are used in each overtraining.
 		{
 			createTR_VARfiles(OVERTRAINING1);
-			long nRowsTR1 = TRfile1.RowCount();
-			ASSERT(nRowsTR1 == nRowsSet1);
-			nRowsTR = nRowsTR1; // Temporarily needed to communicate with routines that use nRowsTR
-			const double* adblData1 = TRfile1.GetDataPtr();
-			pOTTR->SetDataInfo(nRowsTR1, nDim, adblData1, NULL);
 		}
 		else // nOTTR == 2
 		{
 			createTR_VARfiles(OVERTRAINING2);
-			long nRowsTR2 = TRfile2.RowCount();
-			nRowsTR = nRowsTR2; // Temporarily needed to communicate with routines that use nRowsTR
-			const double* adblData2 = TRfile2.GetDataPtr();
-			pOTTR->SetDataInfo(nRowsTR2, nDim, adblData2, NULL);
 		}
-		int nNumberIterations = 120; // TO DO:experiment
+		long nRowsTR = TRfile.RowCount();
+		const double* adblData = TRfile.GetDataPtr();
+		pOTTR->SetDataInfo(nRowsTR, nDim, adblData, NULL);
+		int nIterations = 80; // TO DO:experiment
 		// The reason for iterations is so that we can monitor progress between splittings in TrainProtocol.txt,
 		// and set new parameters for further training. Reporting is before the splitting.
-		for (int iteration = 0; iteration < nNumberIterations; iteration++)  // experimentation required!
+		for (int iteration = 0; iteration < nIterations; iteration++)  // experimentation required!
 		{
 			// Overtrain on some data to take the difference with samples not used to create noise variance samples.
 			// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -317,6 +316,7 @@ void ALNAPI createNoiseVarianceFile() // routine
 				fflush(fpProtocol);
 				exit(0);
 			}
+			fprintf(fpProtocol, " %d ", iteration);
 			if (bStopTraining == TRUE)
 			{
 				fprintf(fpProtocol, "Iterations stopped at %d because all leaf nodes have stopped changing!\n", iteration);
@@ -324,6 +324,11 @@ void ALNAPI createNoiseVarianceFile() // routine
 				bStopTraining = FALSE;
 				break;
 			}
+			fprintf(fpProtocol, " %d ", iteration);
+			if (iteration == (nIterations * 1) / 5) dblLearnRate = 0.15;
+			if (iteration == (nIterations * 2) / 5) dblLearnRate = 0.10;
+			if (iteration == (nIterations * 3) / 5) dblLearnRate = 0.05;
+			if (iteration == (nIterations * 4) / 5) dblLearnRate = 0.01;
 		}
 		fprintf(fpProtocol, "\nOvertraining %d completed. Training RMSE = %f \n", nOTTR, dblTrainErr);
 		fflush(fpProtocol);
@@ -437,10 +442,9 @@ void ALNAPI approximate() // routine
     }
 		(apALN[n]->GetRegion(0))->dblSmoothEpsilon = 0.0;
 		fprintf(fpProtocol, "The smoothing for training each approximation is %f\n", 0.0); 
-		if(bEstimateNoiseVariance)
-		nMaxEpochs = 100;
+		nMaxEpochs = 20;
 		dblMinRMSE = 0.0;
-		dblLearnRate = 0.15;
+		dblLearnRate = 0.2;
 		bStopTraining = FALSE; // Set TRUE in alntrain.cpp. Set FALSE by any piece needing more training. 
     nNumberLFNs = 1;  // initialize at 1
 		// Set up the data
@@ -451,7 +455,7 @@ void ALNAPI approximate() // routine
 		apALN[n]->SetDataInfo(nRowsTR, nDim, adblData, NULL);
 		fprintf(fpProtocol,"----------  Training approximation ALN %d ------------------\n",n);
 		fflush(fpProtocol);
-		for(int iteration = 0; iteration < 40; iteration++) // is 40 iterations enough?
+		for(int iteration = 0; iteration < 100; iteration++) // is 40 iterations enough?
 		{
 			fprintf(fpProtocol, "\nStart iteration %d of approximation with ALN %d, learning rate %f\n", iteration,
 				n, dblLearnRate);
@@ -465,10 +469,8 @@ void ALNAPI approximate() // routine
 			}
 			if(bEstimateNoiseVariance)
       {
-				fprintf(fpProtocol,"Training RMSE = %f\n", dblTrainErr);
+				fprintf(fpProtocol, " %d ", iteration);
 			}
-			fprintf(fpProtocol,"Number of active LFNs = %d. Tree growing\n", nNumberLFNs);
-			fflush(fpProtocol);
 			if (bStopTraining == TRUE)
 			{
 				fprintf(fpProtocol, "\nTraining of approximation ALN %d completed at iteration %d \n", n, iteration);
@@ -643,16 +645,20 @@ void ALNAPI trainAverage() // routine
 	// Tell the training algorithm about the data, in particular that fillvector must be used (second last NULL)
 	nRowsTR = TRfile.RowCount();
 	pAvgALN->SetDataInfo(nRowsTR, nDim, NULL, NULL);
-	dblMinRMSE = 0; // Stopping splitting uses the F-test
+	nMaxEpochs = 20;
+	dblMinRMSE = 0; // Stopping splitting uses the F-test with a noise variance divided by nALNs.
 	dblLearnRate = 0.2;
-	//*********
+	int numberIterations = 20;
 	if(bEstimateNoiseVariance)
 	{
-		nMaxEpochs = 10;
-		// TRAIN AVERAGE ALN vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-		if(!pAvgALN->Train(nMaxEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
+		for (int iteration = 0; iteration < numberIterations; iteration++)
 		{
-			 fprintf(fpProtocol,"Training failed!\n");
+			// TRAIN AVERAGE ALN vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+			if (!pAvgALN->Train(nMaxEpochs, dblMinRMSE, dblLearnRate, FALSE, nNotifyMask)) // fast change to start, dblLearnRate 1.0 for 2 epochs
+			{
+				fprintf(fpProtocol, "Training failed!\n");
+			}
+			fprintf(fpProtocol, " %d ", iteration);
 		}
 	}
 	else // we have opened a .fit file
@@ -855,11 +861,12 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	if (nChoose == 1) // OVERTRAINING1
 	{
 		nRowsVAR = nRowsTV;
+		TRfileCopy.Create(nRowsTR, nALNinputs);
 		VARfile.Create(nRowsVAR, nALNinputs); // We fill VARfile first
 		long tmp0 = 0; // Index for the next sample going to TRfile1
 		long tmp1 = nRowsTR - 1;  // Index for the next sample going to TRfile2
 		BOOL bSwitch;
-		// We first randomize TRfile by itself.
+		// We first randomize TRfile by itself and make TRfileCopy and VARfile the same.
 		for (i = 0; i < nRowsTV; i++)
 		{
 			bSwitch = (ALNRandFloat() < 0.5) ? FALSE : TRUE; //  Where does  the i-th
@@ -870,6 +877,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 				{
 					dblValue = TVfile.GetAt(i, j, 0);
 					TRfile.SetAt(tmp0, j, dblValue, 0);
+					TRfileCopy.SetAt(tmp0, j, dblValue, 0);
 					VARfile.SetAt(tmp0, j, dblValue, 0);
 				}
 				tmp0++;
@@ -880,6 +888,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 				{
 					dblValue = TVfile.GetAt(i, j, 0);
 					TRfile.SetAt(tmp1, j, dblValue, 0);
+					TRfileCopy.SetAt(tmp1, j, dblValue, 0);
 					VARfile.SetAt(tmp1, j, dblValue, 0);
 				}
 				tmp1--;
@@ -887,32 +896,33 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 		} // end of i loop
 		ASSERT(tmp1 == tmp0 - 1); // invariant: tmp1-tmp0 + <rows filled> = nRowsTR - 1
 		nRowsSet1 = nRowsTV / 2; // This is how we'll divide the TVfile into 2 almost equal parts.
-		TRfile1.Create(nRowsSet1, nALNinputs);
-		for (i = 0; i < nRowsSet1; i++)
+		// We use the VARfile as a source of samples that preserves the order
+		// First we fill the second half of TRfile with copies of the first half
+		int k;
+		for (i = 0; i < nRowsTR; i++)
 		{
+			k = i % nRowsSet1; // This doubles the first half of TRFile
+			ASSERT((k >= 0) && (k < nRowsTR));
 			for (j = 0; j < nDim; j++) // ... to the back.
 			{
-				dblValue = TRfile.GetAt(i, j, 0);
-				TRfile1.SetAt(tmp1, j, dblValue, 0);
-				// Now the part of the VARfile to be compared to the training on TRfile2
-				VARfile.SetAt(tmp1, j, dblValue, 0);
+				dblValue = TRfileCopy.GetAt(k, j, 0);
+				TRfile.SetAt(i , j, dblValue, 0);
 			}
 		}
 		if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile1OT.txt");
-		// The VARfile is not yet finished.
 	} // end (nChoose == 1) // OVERTRAINING1
 
 	if (nChoose == 2) // OVERTRAINING2
 	{
-		TRfile2.Create(nRowsTV - nRowsSet1, nALNinputs);
-		for (i = 0; i < nRowsTR - nRowsSet1; i++)
+		int k;
+		for (i = 0; i < nRowsVAR; i++)
 		{
+			k = (i % nRowsSet1) + nRowsSet1; // if nRowsTR is odd, we may miss a sample 2* nRowsSet1 < nRowsTR
+			ASSERT((k >= nRowsSet1) && (k < nRowsTR));
 			for (j = 0; j < nDim; j++) // ... to the back.
 			{
-				dblValue = TRfile.GetAt(i+nRowsSet1, j, 0);
-				TRfile2.SetAt(i, j, dblValue, 0);
-				// Now the part of the VARfile to be compared to the training on TRfile1
-				VARfile.SetAt(i+nRowsSet1, j, dblValue, 0);
+				dblValue = TRfileCopy.GetAt(k, j, 0); // The half we need of VARfile has been replaced with NV samples.
+				TRfile.SetAt(i, j, dblValue, 0);
 			}
 		}
 		if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfile2OT.txt");
@@ -922,8 +932,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	if (nChoose == 3) // APPROXIMATION
 	{
 		ASSERT((nRowsTV == nRowsTR) && (nRowsTV == nRowsVAR));
-		TRfile1.Destroy();
-		TRfile2.Destroy();
+		TRfileCopy.Destroy();
 		// We have TRfile and VARfile from previous steps.
 		// if (bPrint && bDiagnostics) TRfile.Write("DiagnoseTRfileAP.txt");
 		// if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAP.txt");
@@ -962,7 +971,7 @@ void createSamples(int nOTTR, CMyAln* pOTTR)  // routine
 				adblX[j] = VARfile.GetAt(i + nRowsSet1, nDim - 1, 0);
 			}
 			dblALNValue = pOTTR->QuickEval(adblX, &pActiveLFN);
-			VARfile.SetAt(i + nRowsSet1, nDim - 1, pow((adblX[nDim - 1] - dblALNValue), 2) / (1 + 1 / nDim));
+			VARfile.SetAt(i + nRowsSet1, nDim - 1, pow((adblX[nDim - 1] - dblALNValue), 2) / (1.0 + 1.0 / (float) nDim));
 		}
 	}
 	else // nOTTR = 2
@@ -974,7 +983,7 @@ void createSamples(int nOTTR, CMyAln* pOTTR)  // routine
 				adblX[j] = VARfile.GetAt(i, nDim - 1, 0);
 			}
 			dblALNValue = pOTTR->QuickEval(adblX, &pActiveLFN);
-			VARfile.SetAt(i, nDim - 1, pow((adblX[nDim - 1] - dblALNValue), 2) / (1 + 1 / nDim));
+			VARfile.SetAt(i, nDim - 1, pow((adblX[nDim - 1] - dblALNValue), 2) / (1.0 + 1.0 / (float)nDim));
 		}
 	}
 	// Now check to see the global noise variance (You can comment out what follows if it's proven OK)
