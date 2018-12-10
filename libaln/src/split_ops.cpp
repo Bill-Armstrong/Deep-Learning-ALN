@@ -44,15 +44,11 @@ static char THIS_FILE[] = __FILE__;
 // We use dblRespTotal in two ways and the following definition helps.
 #define DBLNOISEVARIANCE dblRespTotal
 
-extern double dblMax;
-extern double* adblEpsilon;
-extern double dblFlimit;
-extern int nDim;
-extern double dblSetTolerance;
-extern BOOL bEstimateNoiseVariance;
-extern BOOL bStopTraining;
-extern CDataFile VARfile;
-extern CDataFile TRfile;
+extern CDataFile TRfile; // The training file (global).
+extern CDataFile VARfile;// The file containing noise variance samples. Its purpose is to prevent overtraining.
+extern int nDim; // The dimension of the domain of the function to be learned plus one. Equals the number of ALN inputs .
+extern double dblFlimit; // The limit for deciding whether to split a piece.
+extern BOOL bStopTraining; // This becomes TRUE and stops training when pieces are no longer splitting.
 
 void splitcontrol(ALN* pALN, double dblFlimit);
 void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
@@ -62,7 +58,17 @@ void dodivideTR(ALN* pALN, ALNNODE* pNode);
 void splitNoiseSetVAR(ALN * pALN);
 void dodivideVAR(ALN* pALN, ALNNODE* pNode);
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
-// the following routines use the SPLIT typedef between trainings of an ALN
+
+// We use the first three fields in ALNLFNSPLIT (declared in aln.h)
+// in two different ways: for training and between training intervals.
+// The following routines use the SPLIT typedef between trainings, at the end of alntrain.cpp.
+// Between nMaxEpochs epochs of training, where the hyperplanes in leaf nodes change weights,
+// the pieces should be doing the best they can and decisions must be made on whether to split each leaf node. 
+// To do that, splitcontrol, takes an average of the square training errors of
+// each piece. This is compared to the average of the noise
+// variance samples on the piece from VARfile.  If the average square training error is 
+// greater than dblFlimit times the average of the noise variance samples on the piece, then using
+// an F-test, the piece is split because it does not yet fit within the limits of noise.
 
 void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 {
@@ -75,34 +81,20 @@ void splitcontrol(ALN* pALN, double dblFlimit)  // routine
 	// divide the training errors of the pieces by the hit counts and
 	// set nCount component of split to zero
 	dodivideTR(pALN,pALN->pTree);
-	if (dblFlimit > 1.0)
+	if (dblFlimit > 1.0) // dblFlimit is <= 1.0 when we compare it directly to the MSE of training.
 	{
 		// get the values in VARfile which estimate the local noise variance
 		splitNoiseSetVAR(pALN);
-		// divide the sum of local noise estimates on each piece by its count of hits
-		// now done in dosplitcontrol along with the F-test
+		// Dividing the sum of noise estimates on each piece by the count of hits
+		// on the piece is done in dosplitcontrol, along with the F-test.
 	}
-	// splitcontrol also splits with dblLimit <= 1.0 without noise variance
+	// splitcontrol also splits pieces with dblLimit <= 1.0 without using noise variance.
 	// With the above statistics, dosplitcontol actually splits eligible pieces.
   dosplitcontrol(pALN, pALN->pTree, dblFlimit);
-  // reset the SPLIT components to zero
-	//dozerosplitvalues(pALN, pALN->pTree); This is done in alntrain.
+  // Resetting the SPLIT components to zero by dozerosplitvalues is done in alntrain.
 }
 
-// We use the first three fields in ALNLFNSPLIT (declared in aln.h)
-// in two different ways: first for training and second between training intervals.
-// Between trainings, where the hyperplanes in leaf nodes change weights,
-// those changes stop and decisions must be made on whether or not to split each leaf node. 
-// To do that, this routine, splitcontrol, takes an average of the square errors of
-// each piece on the training set hits. This is compared to the average of the noise
-// variance samples on the piece from VARfile.  If the average square training error is 
-// greater than a specified fraction of the average of the noise variance samples on the piece, then according to
-// an F-test with limit dblFlimit, the piece is not split. It does not yet fit within the limits of noise.
-// We want to implement a new idea: when a linear piece does not satisfy the criterion
-// for fitting within the limits of noise, and a whole training epoch has passed without
-// significant progress towards fitting, we do split it so training can continue.
-// The hope is that eventually all pieces will satisfy the F-test criterion for fitting
-// and the training of the ALN can be stopped.
+
 
 // Routines that set some fields to zero
 
@@ -136,11 +128,11 @@ void spliterrorsetTR(ALN * pALN) // routine
 
 	ALNNODE* pActiveLFN;
 	long nrows = TRfile.RowCount();
-	for (long j = 0; j < nrows; j++)
+	for (long i = 0; i < nrows; i++)
 	{
-		for (int i = 0; i < nDim; i++)
+		for (int j = 0; j < nDim; j++)
 		{
-			adblX[i] = TRfile.GetAt(j, i, 0);
+			adblX[j] = TRfile.GetAt(i, (long) j, 0);
 		}
 		predict = ALNQuickEval(pALN, adblX, &pActiveLFN); // the current ALN value
 		if (LFN_CANSPLIT(pActiveLFN)) // Skip this leaf node if it can't split anyway.

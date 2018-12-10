@@ -1,0 +1,51 @@
+The files used in ALNfitDeep
+CDataFile is the type of file used in the program, it can store only doubles.
+Text (.txt) files are used for input and output to ALNfitDeep.
+szDataFileName is the name of the data file read in on clicking button Browse
+
+analyzeinputfile takes szDataFileName and produces some numbers: nHeaderLines,
+the number of header lines, and the number of rows and columns of the actual data.
+It replaces commas with decimal points in number lines, ie data lines.
+It checks that the number of items in each data line is the same, otherwise
+it stops and outputs a message.
+It is called twice in alnfitdeepsetup, once from the view after clicking on button
+to Browse for data:
+	if(!analyzeinputfile((char *) LPCTSTR(m_strDataFileName), &nheaderlines,
+        &nrows, &ncols,TRUE))
+and once from ALNfitSetup when it gets the model datafile name from the .fit file
+	if(!analyzeinputfile(szDataFileName, &nheaderlines, &nrows, &ncols,TRUE))
+
+void ALNAPI preprocessDataFile() input: original text data file,
+outputs: UNfile, PreprocessedDataFile.
+It takes the original data text file, and, based on the information from
+analyzeinputfile(), it first strips off the header and the comments and
+puts the rest into UNfile. 
+UNfile.Create(nRowsUniv,nColsUniv + 1) this file has all the numerical
+data of the original data file,that is, without the header and comment lines;
+and it has an extra column at the right (initialized to 0) for
+evaluated outputs (like the E and scatterplot output files).
+The UNfile may contain missing values indicated by 99999 or -9999.
+It ignores comment lines starting with //. It changes commas in numbers to decimal points.
+The PreprocessedDataFile is created with nRowsUniv and nALNinputs columns and by removing from
+the UNfile those rows which contain missing values one ends up with nRowsPP good rows in the
+PreprocessedDataFile that can be used in training.
+Unlike the UNfile, the PreprocessedDataFile doesn't have the extra column at right.
+
+void ALNAPI createTVTSfiles(); The PreprocessedDataFile is used to create the
+TVfile (for training) and the TSfile (held back for testing).
+
+void ALNAPI createTR_VARfiles(int nChooseTR) This creates training TRfile and
+noise variance samples in VARfile.  It does this in several stages:
+a. It creates a TRfile for linear regression (nChooseTR= 0), its complement
+   in the TVfile is the  VAR file and is not used here.
+b. It creates a TRfile of about half of the TVfile and overtrains on it (nChoose = 0)
+   The VARfile merely stores the complement.
+c. It creates a TRfile which in step b was the VARfile and overtrains on it.
+   What was the TRfile before is place into the VARfile but shifted down
+   to leave the samples of TV already in the VARfile. (nChoose = 1). At this point
+   the VARfile contains all of the samples of the TVfile, but in a different order.
+   A sample of the TV file is always opposite one of its samples not used in creating the
+   overtrained files.
+d. It changes the samples in the VARfile to noise variance samples for use in
+   stopping training in approximation and average ALN creation.(nChoose =2)
+    

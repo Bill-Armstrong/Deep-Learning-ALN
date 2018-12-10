@@ -186,12 +186,12 @@ extern "C" {
 		double dblWMin, dblWMax;          /* weight constraints                  */
 
 		/* auto calculated quantities */
-		double dblSqEpsilon;  						/* space for epsilon squared calc      */
+		double dblSqEpsilon;  						/* store for epsilon squared value      */
 	} ALNCONSTRAINT;
 
-	/* lfn split structure - the variables are used in two different ways:
-		 1. as below during training of linear pieces and
-		 2. during tree growth by splitting */
+	/* LFN split structure - dblRespTotal is used in two different ways:
+		 1. during training of linear pieces and
+		 2. during tree growth by pieces splitting */
 	typedef struct tagALNLFNSPLIT
 	{
 		int nCount;
