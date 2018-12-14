@@ -33,15 +33,12 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-extern BOOL bOvertrain;
-
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode)
 {
 	// We only split if the piece doesn't fit within the noise limit
 	// and the direction of split will likely not be close
-	if (bOvertrain || LFN_SPLIT_T(pNode) < 0) // This is TRUE if we are overtraining
-		      // or if the ALN surface tends to be below the training values far from the centroid.
-		      // In both cases we need a new MAX node.
+	if (LFN_SPLIT_T(pNode) < 0) // This is TRUE if the ALN surface tends to be below
+		// the training values far from the centroid.
 	{
 		return ALNAddLFNs(pALN, pNode, GF_MAX, 2, NULL);  // A max is convex down   \_/
 	}

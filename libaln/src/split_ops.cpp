@@ -49,7 +49,7 @@ extern CDataFile VARfile;// The file containing noise variance samples. Its purp
 extern int nDim; // The dimension of the domain of the function to be learned plus one. Equals the number of ALN inputs .
 extern double dblFlimit; // The limit for deciding whether to split a piece.
 extern BOOL bStopTraining; // This becomes TRUE and stops training when pieces are no longer splitting.
-
+extern BOOL bTrainNV_ALN; // TRUE when a noise variance ALN is being trained.
 void splitcontrol(ALN* pALN, double dblFlimit);
 void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit);
 void dozerosplitvalues(ALN* pALN, ALNNODE* pNode);
@@ -207,8 +207,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 {
 	// This routine visits all the leaf nodes and determines whether or not to split.
 	// During linear regression, there is no splitting anyway,so dblFlimit doesn't matter.
-	// During overtraining the dblFlimit should be zero, which causes a lot of splitting
-	// until the pieces all have nDim samples defining them (at least that's the hope!).
+	// During noise estimation training has bounds on slopes so the estimates are smoothed
 	double dblPieceSquareTrainError;
 	double dblPieceNoiseVariance;
 	ASSERT(pNode);
@@ -223,7 +222,7 @@ void dosplitcontrol(ALN* pALN, ALNNODE* pNode, double dblFlimit) // routine
 		if (LFN_CANSPLIT(pNode))
 		{
 			dblPieceSquareTrainError = (pNode->DATA.LFN.pSplit)->dblSqError; // average square error on the piece
-			if (((pNode->DATA.LFN.pSplit)->nCount > 0)) // For overtraining, the count is zero and dblFlimit <= 1.0
+			if (!bTrainNV_ALN && ((pNode->DATA.LFN.pSplit)->nCount > 0)) // For noise variance estimation, the count is zero and dblFlimit <= 1.0
 			{
 				dblPieceNoiseVariance = (pNode->DATA.LFN.pSplit)->DBLNOISEVARIANCE / (pNode->DATA.LFN.pSplit)->nCount;
 			}

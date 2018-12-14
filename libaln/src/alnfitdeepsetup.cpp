@@ -96,9 +96,9 @@
 // A good ALN fit should have much smaller error, since an ALN can use more than one linear piece.
 // Then we try to fit the training data very closely, which means something like interpolation. This amounts to
 // what is called "overtraining", and leads to poor "generalization". However
-// we use overtraining on one set of data to compare its values to the
-// values of other samples not used in overfitting. This gives us values we can use for
-// estimating the noise variance in a subregion. We arrive at a "noise variance function", such that subsequently
+// we need something like overtraining so values of the function can be compared to 
+// values of nearby samples to estimate noise variance in a subregion.
+// We arrive at a "noise variance function", that smooths noise variance samples such that subsequently
 // when we train ALNs on the same data for a good fit, we stop growing the tree (splitting linear
 // pieces into two) when the error is below the level of noise variance. 
 //
@@ -225,7 +225,7 @@ void fillvector(double *, CMyAln*); // Used to input a data vector under program
 
 // The main steps in training operations (train_ops.cpp)
 void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
-void ALNAPI computeNoiseVariance();  // This makes an overtraining of domain samples which helps to compute noise variance samples
+void ALNAPI computeNoiseVariance();  // This makes noise variance samples. These are then used to train an ALN so samples are smoothed.
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
 void ALNAPI trainAverage();         // Does bagging by averaging several ALNs created using noise variance stopping
 void ALNAPI outputTrainingResults();// Prints out the results of training 
@@ -303,7 +303,7 @@ char szVarName[100][3];
 //long nRowsUniv = 0;
 int nColsAuxVariance = 0;
 int nColsAuxTest = 0;
-BOOL bEstimateNoiseVariance = TRUE; // if TRUE we use overtraining to estimate noise variance
+BOOL bEstimateNoiseVariance = TRUE; // if TRUE we estimate noise variance
 BOOL bDecimal = TRUE; // means numbers could have a decimal point
 BOOL bComma = TRUE;   // means numbers could have a comma
 //double dblSetTolerance; // this is the value of tolerance set in the options dialog

@@ -719,7 +719,7 @@ void CALNfitDeepView::OnButtonHelp()
 5. The Scatterplot output file is like the E file, but is for the test set. Use a spreadsheet to make a scatterplot of the two rightmost columns.\n\
 \n\
    Additional things to try:\n\
-A. The tolerance (options dialog) used to be the constant RMS error level below which a flat piece won't split into two. It is now not used since the noise variance need not be constant. It is determined with the help of overtraining.\n\
+A. The tolerance (options dialog) used to be the constant RMS error level below which a flat piece won't split into two. It is now not used since the noise variance need not be constant. It is determined using estimates of noise variance.\n\
 B. You can maybe improve results on new data sets by averaging over more ALNs (bagging up to 10).\n\
 C. You can use an earlier setup by opening a .fit file (menu Open). Then choose a data file from the same source. Click Start to evaluate the new file using the previous training.\n\
 D. This program is not optimized for classification, which is done by regression with integer outputs. If you try it, it may work.\n\
@@ -828,6 +828,7 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			createNoiseVarianceFile();
+			trainNoiseVarianceALN();
 		}
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
