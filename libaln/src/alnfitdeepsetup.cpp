@@ -284,12 +284,12 @@ double dblSetTolerance;
 
 
 // Functions used only internally
-void splitcontrol(ALN*, double); // if average variance error of a piece is high, splitting is prevented
-void dosplitcontrol(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
-void dozerosplitvalues(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
-void spliterrorsetTR(ALN*); // accumulates the training square error and number of hits on each linear piece
-void dodivideTR(ALN*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
-void dodivideVAR(ALN*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
+//void splitControl(ALN*, double); // if average variance error of a piece is high, splitting is prevented
+//void doSplits(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
+//void zeroSplitValues(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
+//void splitUpdateValues(ALN*); // accumulates the training square error and number of hits on each linear piece
+//void dodivideTR(ALN*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
+//void dodivideVAR(ALN*, ALNNODE*); // divides the total square variance errors of the pieces by their hit count
 
 // thread procedures
 UINT TakeActionProc(LPVOID pParam);  // separate thread
@@ -837,10 +837,6 @@ void ALNAPI createTVTSfiles()  // routine
 	// Evaluation: of the PreprocessedDataFile is the TSfile.
 
   // First we set up the Test file in all cases
-  // there is no else here, the separate test file has been set up elsewhere
-	if(bPrint && bDiagnostics) TSfile.Write("DiagnoseTSfile.txt");
-	if(bPrint && bDiagnostics) fprintf(fpProtocol,"DiagnoseTSfile.txt written\n");
-
   // Now we produce the TV file (only the the case of training)
  	// get the remaining rows of the PreprocessedDataFile and produce the TVfile
 	// which is written to disk

@@ -821,14 +821,13 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     {
       // We do the following if we are doing regression and estimating noise variance.
 			// Noise estimation may work for classification, but more study is required.
-			fprintf(fpProtocol, "Linear regression and overfitting are used, the latter for estimating noise variance.\n");
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			doLinearRegression();
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
 			createNoiseVarianceFile();
-			trainNoiseVarianceALN();
+			//trainNoiseVarianceALN();
 		}
     PassBackStatus(3,30);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);

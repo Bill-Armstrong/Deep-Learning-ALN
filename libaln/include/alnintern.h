@@ -23,10 +23,10 @@
 
 
 // Functions used only internally
-void splitcontrol(ALN*, double); // if average variance error of a piece is high, splitting is prevented
-void dosplitcontrol(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
-void dozerosplitvalues(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
-void spliterrorsetTR(ALN*); // accumulates the training square error and number of hits on each linear piece
+void splitControl(ALN*, double); // if average variance error of a piece is high, splitting is prevented
+void doSplits(ALN*, ALNNODE*, double); //does the recursion of splitcontrol
+void zeroSplitValues(ALN*, ALNNODE*);  // sets the square error to zero in each LFN
+void splitUpdateValues(ALN*); // accumulates the training square error and number of hits on each linear piece
 void splitNoiseSetVAR(ALN*); // accumulates the variance square error and number of hits on each linear piece
 void dodivideTR(ALN*, ALNNODE*); // divides the total square training set errors of the pieces by their hit count
 void dodivideVAR(ALN*, ALNNODE*); // divides the sum of noise variance samples of the pieces by their respective hit counts

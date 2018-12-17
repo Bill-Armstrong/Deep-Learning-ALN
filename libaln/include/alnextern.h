@@ -34,7 +34,7 @@ void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is 
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
 void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
 void ALNAPI createNoiseVarianceFile(); // Creates samples estimating the noise variance.
-void ALNAPI trainNoiseVarianceALN(); // Trains on the noise variance samples to smooth them.
+//void ALNAPI trainNoiseVarianceALN(); // Trains on the noise variance samples to smooth them.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();	// Evaluate an existing DTREE on the data file after preprocessing

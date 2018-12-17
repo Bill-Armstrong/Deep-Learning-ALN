@@ -81,10 +81,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
                              BOOL bJitter);
 
 // helper declarations relating to ALN tree growth
-void splitcontrol(ALN*, double); // This does a test to see if a piece fits well or must be split.
-void dozerosplitvalues(ALN* pALN, ALNNODE* pNode); // This zeros the split items.
-extern double dblFlimit; // Pieces split according to this limit. (Not implemented per piece yet.)
-int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode); // Splits any piece that's ready.
+void splitControl(ALN*, double); // This does a test to see if a piece fits well or must be split.
+extern double dblLimit; // if > 0 pieces split when training MSE > dblLimit; if <= 0 an F test is used. 
 extern BOOL bALNgrowable; //If FALSE, no splitting happens, e.g. for linear regression.
 extern BOOL bStopTraining; // This causes training to stop when all leaf nodes have stopped splitting.
 
@@ -212,7 +210,6 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		// closely to the training samples, e.g. the limited number of pieces fits well.
 		// We do nMaxEpochs training, then allow splitting after the last epoch.
 		// We must set nMaxEpochs considering epochsize, learning rate,  prescribed RMS error, etc.
-		// dozerosplitvalues(ALN*, ALNNODE*) zeros the components of split after the last training epoch.
 		for (int nEpoch = 0; nEpoch < nMaxEpochs; nEpoch++)
 		{
 			int nCutoffs = 0;
@@ -288,8 +285,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / nPoints);
 
 			// calc true RMS if estimate below min, or if last epoch, or every 10 epochs when jittering
-			if (epochinfo.dblEstRMSErr <= dblMinRMSErr || nEpoch == (nMaxEpochs - 1) ||
-          (bJitter && (nEpoch % 10 == 9)))
+			if (epochinfo.dblEstRMSErr <= dblMinRMSErr || nEpoch == (nMaxEpochs - 1))
 			{
         epochinfo.dblEstRMSErr = DoCalcRMSError(pALN, pDataInfo, pCallbackInfo);
 			}
@@ -316,7 +312,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			if ((nEpoch == (nMaxEpochs - 1)) && bALNgrowable)
 			{
 				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
-				splitcontrol(pALN, dblFlimit);  // This leads to leaf nodes splitting
+				splitControl(pALN, dblLimit);  // This leads to leaf nodes splitting
 			}
 		} // end epoch loop
 
