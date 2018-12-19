@@ -359,7 +359,7 @@ void ALNAPI createNoiseVarianceFile()
 		// the simplex defined by the closest nDim points to X actually contains X. 
 		// alpha = M.colPivHouseholderQr().solve(z);
 		// Express the Noise Variance related to dB using the ratio of aplitudes
-		double NV = pow(q - yAtBarycentre, 2)* Correction * 0.75; // the 0.75 is a tweak to compensate for slope
+		double NV = pow(q - yAtBarycentre, 2)* Correction; // the 0.75 is a tweak to compensate for slope
 		noiseSampleSum += NV;
 		VARfile.SetAt(i, nDim - 1, NV, 0); // the domain components should be unchanged
 	} // end i loop over nRowsTR
@@ -390,17 +390,19 @@ void ALNAPI createNoiseVarianceFile()
 	}
 	fprintf(fpProtocol, "Average Noise Variance after smoothing %f ",
 		noiseSampleSum / nRowsVAR);
-	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
-	/*
-	// TEST  put in the real value of noise variance!
+	// VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
+	// Comment out either what is above or what is below this line.
+	// TEST  put in the real value of noise variance for NoisySin.txt!
 	// For this to be correct, there must be no test set.
+	// In addition, NoisySin.txt has a middle column with the correct output
+	// which must be removed before training.
+	double correct;
 	for (i = 0; i < nRowsVAR; i++)
 	{
-		ASSERT(fabs(VARfile.GetAt(i, 0, 0) - i) < 0.0001);
-		ASSERT(fabs(TRfile.GetAt(i, 0, 0) - i) < 0.0001);
-		VARfile.SetAt(i, 1, 0.01333333 * (i + 1) * (i + 1), 0);
+		VARfile.SetAt(i, 1, 0.0001333333 * pow((double) i + 1.0, 2) * Correction, 0);
 	}
-	*/
+	VARfile.Write("DiagnoseVARfileWithCorrrectNoise.txt");
+	//
 	free(aX);
 	free(aY);
 	free(adisc);
@@ -579,10 +581,6 @@ void ALNAPI approximate() // routine
 			{
 			  fprintf(fpProtocol,"Training failed!\n");
         exit(0);
-			}
-			if(bEstimateNoiseVariance)
-      {
-				fprintf(fpProtocol, " %d ", iteration);
 			}
 			if (bStopTraining == TRUE)
 			{
