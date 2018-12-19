@@ -73,7 +73,9 @@ int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 // samples on it. This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
 // For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops sooner
 // and the training error will generally be larger than with a lower F-value.
-static const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
+// static const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
+// Following is for 75%
+static const double adblFconstant[13]{ 3.00, 2.36, 2.06, 1.89, 1.78, 1.70, 1.64, 1.59, 1.55, 1.36, 1.28, 1.24, 1.19 };
 
 
 void splitControl(ALN* pALN, double dblLimit)  // routine

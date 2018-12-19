@@ -359,7 +359,7 @@ void ALNAPI createNoiseVarianceFile()
 		// the simplex defined by the closest nDim points to X actually contains X. 
 		// alpha = M.colPivHouseholderQr().solve(z);
 		// Express the Noise Variance related to dB using the ratio of aplitudes
-		double NV = pow(q - yAtBarycentre, 2)* Correction;
+		double NV = pow(q - yAtBarycentre, 2)* Correction * 0.75; // the 0.75 is a tweak to compensate for slope
 		noiseSampleSum += NV;
 		VARfile.SetAt(i, nDim - 1, NV, 0); // the domain components should be unchanged
 	} // end i loop over nRowsTR
@@ -385,12 +385,22 @@ void ALNAPI createNoiseVarianceFile()
 			smooth += VARfile.GetAt(i, nDim - 1, 0);
 			smooth /= Dimp1;
 			VARfile.SetAt(i, nDim - 1, smooth, 0);
-			if(iteration == nIter -1) noiseSampleSum += smooth;
+			if (iteration == nIter - 1) noiseSampleSum += smooth;
 		}
 	}
 	fprintf(fpProtocol, "Average Noise Variance after smoothing %f ",
 		noiseSampleSum / nRowsVAR);
 	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
+	/*
+	// TEST  put in the real value of noise variance!
+	// For this to be correct, there must be no test set.
+	for (i = 0; i < nRowsVAR; i++)
+	{
+		ASSERT(fabs(VARfile.GetAt(i, 0, 0) - i) < 0.0001);
+		ASSERT(fabs(TRfile.GetAt(i, 0, 0) - i) < 0.0001);
+		VARfile.SetAt(i, 1, 0.01333333 * (i + 1) * (i + 1), 0);
+	}
+	*/
 	free(aX);
 	free(aY);
 	free(adisc);
@@ -561,8 +571,7 @@ void ALNAPI approximate() // routine
 		fflush(fpProtocol);
 		for(int iteration = 0; iteration < 15; iteration++) // is 15 iterations enough?
 		{
-			fprintf(fpProtocol, "\nStart iteration %d of approximation with ALN %d, learning rate %f\n", iteration,
-				n, dblLearnRate);
+			fprintf(fpProtocol, "\nIteration %d ALN %d ", iteration, n);
 			fflush(fpProtocol);
 
 			// TRAIN ALNS WITHOUT OVERTRAINING   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
