@@ -58,7 +58,7 @@ This should have been around 8.3, so there is an influence of slope
 and curvature.
 The result is a good scatterplot with some noise.
 
-SinNoise.txt
+SinNoise1000.txt
 has one input and one output.
 The input varies from 1 to 1000, and is given by
 =(1000-A1)*SIN($E$1*A1+$E$2*A1*A1) with $E$1 = 0.01 $E$2 = 0.0001
@@ -71,3 +71,7 @@ was used with no test set and still the fit was only good for the top seven
 peaks. Could this be improved? Probably not.The training set has only 1000 samples,
 and sometimes the noise deviates from the theoretical noise. If we had more training
 samples, then the curve would get better, but the noise would only get closer to ideal.
+
+NoisySin.txt
+has one input and one output but
+it has 10 times the density of sampling of SinNoise1000.txt

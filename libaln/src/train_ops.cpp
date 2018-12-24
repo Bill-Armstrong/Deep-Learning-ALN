@@ -251,8 +251,6 @@ void ALNAPI createNoiseVarianceFile()
 	double* aY = NULL;
 	double noiseSampleSum = 0;
 	long inside = 0; // counts samples inside their symplex of closest nDim points.
-	double yAtBarycentre;  // using the value at the Barycentre to subtract from the sample value
-	double Correction = ((float)nDim) / ((float)nDim + 1); // a correction factor to adjust variance (Barycentre!)
 	struct disc // each sample (X,y) has a disc struct at the same index
 	{
 		long*   aXX; // These are indices of samples nearby
@@ -280,8 +278,8 @@ void ALNAPI createNoiseVarianceFile()
 	for (i = 0; i < nRowsTR; i++) // i is the central sample its struct will be worked on.
 	{
 		// First we have to create the struct for i
-		adisc[i].aXX = (long*)malloc(nDim * sizeof(long));
-		adisc[i].aDD = (double*)malloc(nDim * sizeof(double));
+		adisc[i].aXX = (long*)malloc(2 * sizeof(long));
+		adisc[i].aDD = (double*)malloc(2 * sizeof(double));
 		// Get the struct data associated with the central sample aX with index i.
 		for (j = 0; j < nDim; j++)
 		{
@@ -289,7 +287,7 @@ void ALNAPI createNoiseVarianceFile()
 			adisc[i].aXX[j] = 0;          // This 0 will be replaced if there are at least nDim + 1 samples.
 			adisc[i].aDD[j] = DBL_MAX;    // Set all distances of the i-th struct to the max possible.
 		}
-		adisc[i].maxloc = nDim - 1;
+		adisc[i].maxloc = 1;
 		// We fill the struct with samples now, we have to go through ALL samples to get
 		// the nDim closest samples. This can be made faster than O(n^2), maybe O(n log n).
 		for (j = 0; j < nRowsTR; j++)
@@ -325,41 +323,16 @@ void ALNAPI createNoiseVarianceFile()
 	} // loop over i
 	// We have nDim samples closest to each sample index i
 	// Now we analyze geometrically the collections of samples in the structs
-	// In the following, M and z have additional 1 entries at the bottom row (for barycentric coordinates)
-	MatrixXd M(nDim, nDim); // the nDim nearby domain points to the i-th, arranged in columns
-	VectorXd z(nDim); // the central sample domain point
-	VectorXd y(nDim); // the nDim nearby sample values
-	VectorXd alpha(nDim); // barycentric coordinates of central sample w.r.t. nDim points nearby
 	long index;
-	double q;
+	double y[2];
 	for (i = 0; i < nRowsTR; i++)
 	{
-		// get the central sample's domain vector as a column with a 1 at the bottom
-		for (k = 0; k < nDim - 1; k++)
-		{
-			z(k) = TRfile.GetAt(i, k, 0); // get the central (i-th) sample's domain point
-		}
-		z(nDim - 1) = 1.0; // add a 1 at the bottom
-		q = TRfile.GetAt(i, nDim - 1, 0); // the value of the central sample
-		// get the nearby vectors as columns, synthesize sample value at barycentre
-		yAtBarycentre = 0;
-		for (j = 0; j < nDim; j++) // j column index over nDim samples
+		for (j = 0; j < 2; j++) // j column index over nDim samples
 		{
 			index = adisc[i].aXX[j];
-			for (k = 0; k < nDim - 1; k++) // k row index over domain components
-			{
-				M(k, j) = TRfile.GetAt(index, k, 0); // the j-th vector as a column in M
-			}
-			M(nDim - 1, j) = 1.0; // 1 at the bottom
-			y(j) = TRfile.GetAt(index, nDim - 1, 0); // the sample values as an nDim x 1 column
-			yAtBarycentre += y(j);
+			y[j] = TRfile.GetAt(index, nDim - 1, 0); // the sample values as an nDim x 1 column
 		}
-		yAtBarycentre /= nDim; // subtracted from the value of sample i to get a noise estimate
-		// Find the barycentric coordinates of the central sample -- useful to see if
-		// the simplex defined by the closest nDim points to X actually contains X. 
-		// alpha = M.colPivHouseholderQr().solve(z);
-		// Express the Noise Variance related to dB using the ratio of aplitudes
-		double NV = pow(q - yAtBarycentre, 2)* Correction; // the 0.75 is a tweak to compensate for slope
+		double NV = pow(y[0] - y[1], 2) * 0.5; 
 		noiseSampleSum += NV;
 		VARfile.SetAt(i, nDim - 1, NV, 0); // the domain components should be unchanged
 	} // end i loop over nRowsTR
@@ -367,127 +340,47 @@ void ALNAPI createNoiseVarianceFile()
 	fprintf(fpProtocol, "Average Noise Variance before smoothing %f \n ",
 		noiseSampleSum / nRowsVAR);
 	VARfile.Write("DiagnoseVARfileBeforeSmoothing.txt");
-	// Now we smooth the VARfile by averaging over the discs.
+	// Now we smooth the VARfile by averaging over the neighbors.
 	double smooth;
-	double Dimp1 = (double)nDim + 1;
-	int nIter = 20;
+	int nIter = 4;
 	noiseSampleSum = 0;
 	for (int iteration = 0; iteration < nIter; iteration++)
 	{
 		for (i = 0; i < nRowsVAR; i++)
 		{
 			smooth = 0;
-			for (j = 0; j < nDim; j++) // j column index over nDim samples
+			for (j = 0; j < 2; j++) // j index over 2 nearby samples
 			{
 				index = adisc[i].aXX[j];
 				smooth += VARfile.GetAt(index, nDim - 1, 0);
 			}
-			smooth += VARfile.GetAt(i, nDim - 1, 0);
-			smooth /= Dimp1;
+			smooth += VARfile.GetAt(i, nDim - 1, 0); // include the variance at the central point
+			// NB the value of noise variance at the central point may be influenced
+			//by the training value, but only weakly.
+			smooth /= 3;
 			VARfile.SetAt(i, nDim - 1, smooth, 0);
 			if (iteration == nIter - 1) noiseSampleSum += smooth;
 		}
 	}
 	fprintf(fpProtocol, "Average Noise Variance after smoothing %f ",
 		noiseSampleSum / nRowsVAR);
-	// VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
-	// Comment out either what is above or what is below this line.
-	// TEST  put in the real value of noise variance for NoisySin.txt!
-	// For this to be correct, there must be no test set.
-	// In addition, NoisySin.txt has a middle column with the correct output
+	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");   
+	/* Comment out either what is above or what is below this line.
+	// TEST  We put in the real value of noise variance for NoisySin.txt!
+	// NoisySin10000.txt has a middle column with the correct output
 	// which must be removed before training.
-	double correct;
+	double sampleX;
 	for (i = 0; i < nRowsVAR; i++)
 	{
-		VARfile.SetAt(i, 1, 0.0001333333 * pow((double) i + 1.0, 2) * Correction, 0);
+		sampleX = VARfile.GetAt(i, 0, 0); // this is the domain value
+		VARfile.SetAt(i, 1, 0.01333333 * pow(sampleX, 2), 0);
 	}
-	VARfile.Write("DiagnoseVARfileWithCorrrectNoise.txt");
-	//
+	VARfile.Write("DiagnoseVARfileWithCorrectNoise.txt");
+	*/
 	free(aX);
 	free(aY);
 	free(adisc);
 }
-
-/*
-void ALNAPI trainNoiseVarianceALN()
-{
-	fprintf(fpProtocol, "\n**************Training Noise Variance ALN begins ********\n");
-	fflush(fpProtocol);
-	if (bJitter)
-	{
-		fprintf(fpProtocol, "Jitter is used during approximation\n");
-	}
-	else
-	{
-		fprintf(fpProtocol, "Jitter is not used during approximation\n");
-	}
-	fflush(fpProtocol);
-	pNV_ALN = (CMyAln*)malloc(sizeof(CMyAln*));
-	pNV_ALN = new CMyAln; // NULL initialized ALN
-	// Set up the sample buffer.
-	double * adblX = (double *)malloc((nDim) * sizeof(double));
-	// Set up the ALN
-	if (!pNV_ALN->Create(nDim, nDim - 1))
-	{
-		fprintf(fpProtocol, "ALN creation failed!\n");
-		fflush(fpProtocol);
-		exit(0);
-	}
-	// Now make the tree growable
-	if (!pNV_ALN->SetGrowable(pNV_ALN->GetTree()))
-	{
-		fprintf(fpProtocol, "Setting NV_ALN growable failed!\n");
-		fflush(fpProtocol);
-		exit(0);
-	}
-	bALNgrowable = TRUE;
-	bTrainingAverage = FALSE;
-	bTrainNV_ALN = TRUE; // This causes the bounds on weights to be tighter than for other
-		//training (see prepareQuickStart routine)
-	(pNV_ALN->GetRegion(0))->dblSmoothEpsilon = 0.0;
-
-	nMaxEpochs = 20;
-	dblMinRMSE = 0.0;
-	dblLearnRate = 0.2;
-	fprintf(fpProtocol, "The smoothing for training NV_ALN is %f, and the learning rate is %f\n",
-		(pNV_ALN->GetRegion(0))->dblSmoothEpsilon, dblLearnRate);
-	bStopTraining = FALSE; // Set TRUE in alntrain.cpp. Set FALSE by any piece needing more training. 
-	nNumberLFNs = 1;  // initialize at 1
-	nRowsVAR = VARfile.RowCount();
-	ASSERT(nRowsVAR == nRowsTV);
-	createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
-	const double* adblData = TRfile.GetDataPtr();
-	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit = 1.0;  // TEST !!!  How should we do this?????
-	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
-	fflush(fpProtocol);
-	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough?
-	{
-		fprintf(fpProtocol, "Iteration %d ", iteration);
-
-		// TRAIN NOISE VARIANCE ALN   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-		if (!pNV_ALN->Train(nMaxEpochs, dblMinRMSE, dblLearnRate, bJitter, nNotifyMask))
-		{
-			fprintf(fpProtocol, "Training failed!\n");
-			fflush(fpProtocol);
-			exit(0);
-		}
-		if (bStopTraining == TRUE)
-		{
-			fprintf(fpProtocol, "This training stopped because all leaf nodes have stopped changing!\n");
-			fprintf(fpProtocol, "\nTraining of NV_ALN completed at iteration %d \n", iteration);
-			bStopTraining = FALSE;
-			fflush(fpProtocol);
-			break;
-		}
-		fflush(fpProtocol);
-	} // end of loop of training interations for NV_ALN
-	free(adblX);
-	bTrainNV_ALN = FALSE;
-	createSamples(pNV_ALN); // This changes the values in VARfile according to NV_ALN
-	pNV_ALN->Destroy();
-}
-*/
 
 void ALNAPI approximate() // routine
 {
@@ -991,43 +884,6 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileBAG.txt");
 	} // This ends if (nChoose == 3) BAGGING
 } // This ends createTR_VARfiles
-
-/*
-void createSamples(CMyAln* pNV_ALN)  // routine
-{
-	// The goal is to smooth the samples in VARfile
-	// using the result of training NV_ALN in TRfile
-	ASSERT(pNV_ALN);
-	ALNNODE* pActiveLFN;
-	double dblValue, dblALNValue;
-	double * adblX = (double *)malloc((nDim) * sizeof(double));
-	long nRowsVAR = VARfile.RowCount();
-		for (long i = 0; i < nRowsVAR; i++)
-		{
-			for (int j = 0; j < nDim; j++)
-			{
-				adblX[j] = VARfile.GetAt(i, nDim - 1, 0);
-			}
-			dblValue = adblX[nDim - 1];
-			ASSERT(dblValue >= 0);
-			dblALNValue = pNV_ALN->QuickEval(adblX, &pActiveLFN);
-			if (dblALNValue < 0) dblALNValue = 0;
-			VARfile.SetAt(i, nDim - 1, dblALNValue, 0); // keep samples >= 0
-		}
-	free(adblX);
-	// Now check to see the global noise variance (You can comment out what follows if it's proven OK)
-	// Check a case of known constant noise variance!
-	dblValue = 0;
-	for(long i = 0; i < nRowsVAR; i++)
-	{
-		dblValue += VARfile.GetAt(i, nDim - 1, 0);
-	}
-	fprintf(fpProtocol, "Average of noise variance samples = %f\n", dblValue / nRowsVAR);
-	fflush(fpProtocol);
-	if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAfterNV_ALN.txt");
-	if (bPrint && bDiagnostics) fprintf(fpProtocol, "Diagnose VARfileAfterNV_ALN.txt written\n");
-}
-*/
 
 void prepareQuickStart(CMyAln* pALN)
 {
