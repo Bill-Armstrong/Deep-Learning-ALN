@@ -50,7 +50,6 @@ static char THIS_FILE[] = __FILE__;
 #include <Eigen/Dense>
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
-void ALNAPI createNoiseVarianceFile();
 double dist(double*, double*); // calculates the distance between domain points
 #define PrintInterval 25
 //defines used to set up TRfile and VARfile
@@ -76,8 +75,8 @@ void ALNAPI constructDTREE(int nMaxDepth); // Takes the average ALN and turns it
 void ALNAPI cleanup(); // Destroys ALNs etc.
 void fillvector(double * adblX, CMyAln* paln); // Sends a vector to training from a file, online or averaging.
 void ALNAPI createTR_VARfiles(int nChoose);
-//void ALNAPI trainNoiseVarianceALN(); // Trains on the samples in VARfile to create NV_ALN
-//void createSamples(CMyAln* pNV_ALN); // Creates smoothed noise variance samples using NV_ALN
+void ALNAPI trainNoiseVarianceALN(); // Trains on the samples in VARfile to create NV_ALN
+void createSamples(CMyAln* pNV_ALN); // Creates smoothed noise variance samples using NV_ALN
 void prepareQuickStart(CMyAln* pALN); // This sets up ALN training with values already determined by Linear Regression
 
 // ALN pointers
@@ -96,7 +95,7 @@ long nRowsVAR; // the number of rows in the noise variance file.  When approxima
 double dblLimit = -1  ;// A negative value splits pieces based on an F test, otherwise they split if training MSE < dblLimit.
 int nEpochSize; // the number of samples in the current training set; one epoch = one pass through the set
 BOOL bALNgrowable = TRUE; // FALSE for linear regression, TRUE when the ALN has to grow.
-//BOOL bTrainNV_ALN = FALSE; // Controls setup of training for to fit noise samples in VARfile
+BOOL bTrainNV_ALN = FALSE; // Controls setup of training for to fit noise samples in VARfile
 BOOL bStopTraining = FALSE; // Set to TRUE and becomes FALSE if any (active) linear piece needs training
 int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO; // used with callbacks
 double * adblX = NULL;
@@ -127,7 +126,7 @@ void ALNAPI doLinearRegression() // routine
 	// NB The region concept has not been completed.  It allows the user to impose constraints
 	// e.g. on slopes(weights) which differ in different parts of the domain.  All we have is region 0 now.
 	bALNgrowable = FALSE; // The ALN consists of one leaf node LFN for linear regression.
-	//bTrainNV_ALN = FALSE; // TRUE only during training of the noise variance ALN.
+	bTrainNV_ALN = FALSE; // TRUE only during training of the noise variance ALN.
 	bTrainingAverage = FALSE; // Switch to tell fillvector whether get a training vector or compute an average.
 	prepareQuickStart(pALN);
 	nMaxEpochs = 20; // nMaxEpochs is the number of passes through the data (epochs) for each call to Train.
@@ -153,7 +152,7 @@ void ALNAPI doLinearRegression() // routine
 	// The advantage of giving the pointer adblData instead of NULL is that training permutes
 	// the order of the samples and goes through all samples exactly once per epoch.
 	pALN->SetDataInfo(nRowsTR, nDim, adblData, NULL);
-	int nIterations = 30;
+	int nIterations = 15;
 	// TRAIN FOR LINEAR REGRESSION   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	// The reason for iterations is so that we can monitor progress in the ... TrainProtocol.txt file,
 	// and set new parameters for subsequent training.
@@ -337,12 +336,13 @@ void ALNAPI createNoiseVarianceFile()
 		VARfile.SetAt(i, nDim - 1, NV, 0); // the domain components should be unchanged
 	} // end i loop over nRowsTR
 	// Report on VARfile
-	fprintf(fpProtocol, "Average Noise Variance before smoothing %f \n ",
+	fprintf(fpProtocol, "Average Noise Variance before training %f \n ",
 		noiseSampleSum / nRowsVAR);
-	VARfile.Write("DiagnoseVARfileBeforeSmoothing.txt");
+	VARfile.Write("DiagnoseVARfileBeforeTraining.txt");
+	/*
 	// Now we smooth the VARfile by averaging over the neighbors.
 	double smooth;
-	int nIter = 4;
+	int nIter = 20;
 	noiseSampleSum = 0;
 	for (int iteration = 0; iteration < nIter; iteration++)
 	{
@@ -364,7 +364,8 @@ void ALNAPI createNoiseVarianceFile()
 	}
 	fprintf(fpProtocol, "Average Noise Variance after smoothing %f ",
 		noiseSampleSum / nRowsVAR);
-	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");   
+	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
+	*/
 	/* Comment out either what is above or what is below this line.
 	// TEST  We put in the real value of noise variance for NoisySin.txt!
 	// NoisySin10000.txt has a middle column with the correct output
@@ -380,6 +381,85 @@ void ALNAPI createNoiseVarianceFile()
 	free(aX);
 	free(aY);
 	free(adisc);
+	trainNoiseVarianceALN();
+}
+
+void ALNAPI trainNoiseVarianceALN()
+{
+	fprintf(fpProtocol, "\n**************Training Noise Variance ALN begins ********\n");
+	fflush(fpProtocol);
+	if (bJitter)
+	{
+		fprintf(fpProtocol, "Jitter is used during NV train\n");
+	}
+	else
+	{
+		fprintf(fpProtocol, "Jitter is not used during NV train\n");
+	}
+	fflush(fpProtocol);
+	pNV_ALN = (CMyAln*)malloc(sizeof(CMyAln*));
+	pNV_ALN = new CMyAln; // NULL initialized ALN
+	// Set up the sample buffer.
+	double * adblX = (double *)malloc((nDim) * sizeof(double));
+	// Set up the ALN
+	if (!pNV_ALN->Create(nDim, nDim - 1))
+	{
+		fprintf(fpProtocol, "ALN creation failed!\n");
+		fflush(fpProtocol);
+		exit(0);
+	}
+	// Now make the tree growable
+	if (!pNV_ALN->SetGrowable(pNV_ALN->GetTree()))
+	{
+		fprintf(fpProtocol, "Setting NV_ALN growable failed!\n");
+		fflush(fpProtocol);
+		exit(0);
+	}
+	bALNgrowable = TRUE;
+	bTrainingAverage = FALSE;
+	bTrainNV_ALN = TRUE; // This causes the bounds on weights to be tighter than for other
+		//training (see prepareQuickStart routine)
+	(pNV_ALN->GetRegion(0))->dblSmoothEpsilon = 0.0;
+	nMaxEpochs =20; // TEST
+	dblMinRMSE = 0.0;
+	dblLearnRate = 0.1; // small so the pieces don't turn fast
+	fprintf(fpProtocol, "The smoothing for training NV_ALN is %f, and the learning rate is %f\n",
+		(pNV_ALN->GetRegion(0))->dblSmoothEpsilon, dblLearnRate);
+	nNumberLFNs = 1;  // initialize at 1
+	nRowsVAR = VARfile.RowCount();
+	ASSERT(nRowsVAR == nRowsTV);
+	createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
+	const double* adblData = TRfile.GetDataPtr();
+	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
+	dblLimit = 5000.0;  // TEST !!! For F-test
+	pNV_ALN->SetWeightMin(10.0, 0, 0); // Try these weights  TEST
+	pNV_ALN->SetWeightMax(20.0, 0, 0);
+	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
+	fflush(fpProtocol);
+	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
+	{
+		fprintf(fpProtocol, "Iteration %d ", iteration);
+
+		// TRAIN NOISE VARIANCE ALN   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+		if (!pNV_ALN->Train(nMaxEpochs, dblMinRMSE, dblLearnRate, bJitter, nNotifyMask))
+		{
+			fprintf(fpProtocol, "Training failed!\n");
+			fflush(fpProtocol);
+			exit(0);
+		}
+		if (bStopTraining == TRUE)
+		{
+			fprintf(fpProtocol, "This training stopped because all leaf nodes have stopped changing!\n");
+			fprintf(fpProtocol, "\nTraining of NV_ALN completed at iteration %d \n", iteration);
+			bStopTraining = FALSE;
+			fflush(fpProtocol);
+			break;
+		}
+		fflush(fpProtocol);
+	} // end of loop of training iterations for NV_ALN
+	free(adblX);
+	bTrainNV_ALN = FALSE;
+	createSamples(pNV_ALN); // This changes the values in VARfile according to NV_ALN
 }
 
 void ALNAPI approximate() // routine
@@ -444,7 +524,7 @@ void ALNAPI approximate() // routine
 		// Set constraints on variables for ALN index n
 		prepareQuickStart(apALN[n]);
 		bTrainingAverage = FALSE;
-		//bTrainNV_ALN = FALSE;
+		bTrainNV_ALN = FALSE;
 		if(bClassify)
     {
      // TO DO
@@ -652,7 +732,7 @@ void ALNAPI trainAverage() // routine
 	nMaxEpochs = 20;
 	dblMinRMSE = 0; // Stopping splitting uses the F-test with a noise variance divided by nALNs.
 	dblLearnRate = 0.2;
-	int numberIterations = 3;
+	int numberIterations = 2;
 	if(bEstimateNoiseVariance)
 	{
 		for (int iteration = 0; iteration < numberIterations; iteration++)
@@ -919,7 +999,7 @@ void prepareQuickStart(CMyAln* pALN)
 			pALN->SetWeightMax(dblMaxWeight[m], m);
 		}
 	}
-	if(bALNgrowable) // && !bTrainNV_ALN) // This setup is not used for LR or training NV_ALN
+	if(bALNgrowable && !bTrainNV_ALN) // This setup is not used for LR or training NV_ALN
 	{
 		(pALN->GetRegion(0))->dblSmoothEpsilon = adblStdevVar[nDim - 1] / 100.0; // a shot in the dark TEST !!!!
 		// use the weights and centroids from linear regression
@@ -944,4 +1024,37 @@ double dist(double* adblA, double* adblB)
 		sum += pow(adblA[j] - adblB[j], 2);
 	}
 	return pow(sum, 0.5);
+}
+void createSamples(CMyAln* pNV_ALN)  // routine
+{
+	// The goal is to smooth the samples in VARfile
+	// using the result of training NV_ALN in TRfile
+	ASSERT(pNV_ALN);
+	ALNNODE* pActiveLFN;
+	double dblValue, dblALNValue;
+	double * adblX = (double *)malloc((nDim) * sizeof(double));
+	long nRowsVAR = VARfile.RowCount();
+	for (long i = 0; i < nRowsVAR; i++)
+	{
+		for (int j = 0; j < nDim - 1; j++)
+		{
+			adblX[j] = VARfile.GetAt(i, j, 0);
+		}
+		// VARfile.SetAt(i, nDim - 1, 0.0, 0); // Just to make sure there is no influence
+		dblALNValue = pNV_ALN->QuickEval(adblX, &pActiveLFN);
+		VARfile.SetAt(i, nDim - 1, dblALNValue, 0); 
+	}
+	free(adblX);
+	pNV_ALN->Destroy();
+	// Now check to see the global noise variance (You can comment out what follows if it's proven OK)
+	// Check a case of known constant noise variance!
+	dblValue = 0;
+	for(long i = 0; i < nRowsVAR; i++)
+	{
+		dblValue += VARfile.GetAt(i, nDim - 1, 0);
+	}
+	fprintf(fpProtocol, "Average of noise variance samples = %f\n", dblValue / nRowsVAR);
+	fflush(fpProtocol);
+	if(bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAfterNV_ALN_train.txt");
+	if(bPrint && bDiagnostics) fprintf(fpProtocol, "Diagnose VARfileAfterNV_ALN_train.txt written\n");
 }

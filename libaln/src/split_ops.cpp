@@ -185,8 +185,8 @@ void doSplits(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 				}
 				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit)
 				{
-					// The piece fits well, stop training it.
-					LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting
+					// The piece fits well, stop training it. 
+					// LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting TEST
 				}
 				else
 				{

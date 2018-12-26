@@ -34,6 +34,8 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+extern BOOL bTrainNV_ALN;
+
 ///////////////////////////////////////////////////////////////////////////////
 // LFN specific adapt
 
@@ -130,7 +132,7 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
 		// get pointer to variable constraints
 		ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, i);
 		// skip any variables of constant monotonicity; W is constant and X is irrelevant
-		if (pConstr->dblWMax == pConstr->dblWMin) continue;
+		if (pConstr->dblWMax == pConstr->dblWMin) continue; // Why?? you still have to adapt centroid TEST leave this out
     // above condition should always catch output var
     ASSERT (i != nOutput);
 		// The following was changed on March 24, 2015, to allow for real-time
