@@ -271,10 +271,10 @@ void ALNAPI createNoiseVarianceFile()
 	// The dist array and maxdist are then adjusted.
 	aX = (double*)malloc(nDim * sizeof(double));
 	aY = (double*)malloc(nDim * sizeof(double));
-	adisc = (disc*)malloc(nRowsTR * sizeof(disc));
+	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use only the VARfile here
 	long i, j, k;
 	double d1;
-	for (i = 0; i < nRowsTR; i++) // i is the central sample its struct will be worked on.
+	for (i = 0; i < nRowsVAR; i++) // i is the central sample its struct will be worked on.
 	{
 		// First we have to create the struct for i
 		adisc[i].aXX = (long*)malloc(2 * sizeof(long));
@@ -282,21 +282,21 @@ void ALNAPI createNoiseVarianceFile()
 		// Get the struct data associated with the central sample aX with index i.
 		for (j = 0; j < nDim; j++)
 		{
-			aX[j] = TRfile.GetAt(i, j, 0); // Get the central sample's domain components.
+			aX[j] = VARfile.GetAt(i, j, 0); // Get the central sample's domain components.
 			adisc[i].aXX[j] = 0;          // This 0 will be replaced if there are at least nDim + 1 samples.
 			adisc[i].aDD[j] = DBL_MAX;    // Set all distances of the i-th struct to the max possible.
 		}
 		adisc[i].maxloc = 1;
 		// We fill the struct with samples now, we have to go through ALL samples to get
 		// the nDim closest samples. This can be made faster than O(n^2), maybe O(n log n).
-		for (j = 0; j < nRowsTR; j++)
+		for (j = 0; j < nRowsVAR; j++)
 		{
 			if (j != i) // insert only samples j into the list of nearby samples which are not the central sample
 			{
 				// Get the domain point for the j-th sample into aY
 				for (k = 0; k < nDim - 1; k++)
 				{
-					aY[k] = TRfile.GetAt(j, k, 0);
+					aY[k] = VARfile.GetAt(j, k, 0);
 				}
 				d1 = dist(aX, aY);
 				int imaxloc = adisc[i].maxloc;
@@ -324,17 +324,18 @@ void ALNAPI createNoiseVarianceFile()
 	// Now we analyze geometrically the collections of samples in the structs
 	long index;
 	double y[2];
-	for (i = 0; i < nRowsTR; i++)
+	for (i = 0; i < nRowsVAR; i++)
 	{
 		for (j = 0; j < 2; j++) // j column index over nDim samples
 		{
 			index = adisc[i].aXX[j];
-			y[j] = TRfile.GetAt(index, nDim - 1, 0); // the sample values as an nDim x 1 column
+			y[j] = VARfile.GetAt(index, nDim - 1, 0); // the sample values as an nDim x 1 column
 		}
 		double NV = pow(y[0] - y[1], 2) * 0.5; 
 		noiseSampleSum += NV;
-		VARfile.SetAt(i, nDim - 1, NV, 0); // the domain components should be unchanged
-	} // end i loop over nRowsTR
+		// We train on the log 10 of the noise variance samples
+		VARfile.SetAt(i, nDim - 1, log10(NV), 0); // the domain components should be unchanged
+	} // end i loop over nRowsVAR
 	// Report on VARfile
 	fprintf(fpProtocol, "Average Noise Variance before training %f \n ",
 		noiseSampleSum / nRowsVAR);
@@ -428,12 +429,13 @@ void ALNAPI trainNoiseVarianceALN()
 	nNumberLFNs = 1;  // initialize at 1
 	nRowsVAR = VARfile.RowCount();
 	ASSERT(nRowsVAR == nRowsTV);
+	// We now put the VARfile content into TRfile for training
 	createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit = 5000.0;  // TEST !!! For F-test
-	pNV_ALN->SetWeightMin(10.0, 0, 0); // Try these weights  TEST
-	pNV_ALN->SetWeightMax(20.0, 0, 0);
+	dblLimit = 0.5;  // TEST !!! For F-test
+	pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights  TEST
+	pNV_ALN->SetWeightMax(5.0, 0, 0); // Remember log10 !!!!
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
 	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
@@ -925,8 +927,9 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 
 	if(nChoose == 1) // NOISE_VARIANCE
 	{
+		// We start out using the VARfile before training. Then this is called.
 		// We have to use only TRfile for training because of the way we did splitops.  Should be corrected.
-		// For now, the VARfile is copied into the TRfile
+		// For now, the VARfile is copied into the TRfile for training.
 		for (i = 0; i < nRowsTV; i++)
 		{
 			for (j = 0; j < nDim; j++) 
@@ -1025,6 +1028,7 @@ double dist(double* adblA, double* adblB)
 	}
 	return pow(sum, 0.5);
 }
+
 void createSamples(CMyAln* pNV_ALN)  // routine
 {
 	// The goal is to smooth the samples in VARfile
@@ -1042,7 +1046,7 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 		}
 		// VARfile.SetAt(i, nDim - 1, 0.0, 0); // Just to make sure there is no influence
 		dblALNValue = pNV_ALN->QuickEval(adblX, &pActiveLFN);
-		VARfile.SetAt(i, nDim - 1, dblALNValue, 0); 
+		VARfile.SetAt(i, nDim - 1, pow(10, dblALNValue), 0); // Undoing the log10
 	}
 	free(adblX);
 	pNV_ALN->Destroy();
