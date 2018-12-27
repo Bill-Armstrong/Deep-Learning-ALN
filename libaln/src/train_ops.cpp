@@ -394,9 +394,9 @@ void ALNAPI trainNoiseVarianceALN()
 	//createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit =2.0;  // TEST !!! For F-test
-	//pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights  TEST
-	//pNV_ALN->SetWeightMax(5.0, 0, 0); // Remember log10 !!!!
+	dblLimit =0.01;  // Don't do F-test; overtrain with weight bounds.
+	pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights
+	pNV_ALN->SetWeightMax(0.12, 0, 0); // Remember log10 !!!!
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
 	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
@@ -882,8 +882,8 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 				VARfile.SetAt(i, j, dblValue, 0);
 			}
 		} // end of i loop
-		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileLR.txt");
-		fflush(fpProtocol);
+		//if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileLR.txt");
+		//fflush(fpProtocol);
 	}	// end if(nChoose == 1) LINEAR_REGRESSION
 
 	if (nChoose == 2) // APPROXIMATION 
@@ -910,7 +910,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			dblValue = VARfile.GetAt(i, nDim - 1, 0);
 			VARfile.SetAt(i, nDim - 1, dblValue/nALNs, 0);
 		} // end of i loop
-		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileBAG.txt");
+		//if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileBAG.txt");
 	} // This ends if (nChoose == 3) BAGGING
 } // This ends createTR_VARfiles
 

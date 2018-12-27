@@ -707,8 +707,8 @@ void ALNAPI preprocessDataFile()  // routine input: szDataFileName file outputs:
 			UNfile.SetAt(i, ncoldata, item[ncoldata], 0);
 		}
 	}
-	if (bPrint && bDiagnostics) UNfile.Write("DiagnoseUNfile.txt");
-	if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseUNfile.txt written\n");
+	//if (bPrint && bDiagnostics) UNfile.Write("DiagnoseUNfile.txt");
+	//if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnoseUNfile.txt written\n");
 	// now we create a file with ALN inputs as lines.
 	// this has to use several lines of the UNfile because of lags
 	// we have to compute the maximum lag
@@ -765,8 +765,8 @@ void ALNAPI preprocessDataFile()  // routine input: szDataFileName file outputs:
 	// write it out
 	nRowsPP = k; // this is the number of rows in the date with headers, comments, 
 	// commas in numbers and missing values removed 
-	if (bPrint && bDiagnostics) PreprocessedDataFile.Write("DiagnosePreprocessedDataFile.txt");
-	if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnosePreprocessedDataFile.txt written\n");
+	//if (bPrint && bDiagnostics) PreprocessedDataFile.Write("DiagnosePreprocessedDataFile.txt");
+	//if (bPrint && bDiagnostics) fprintf(fpProtocol, "DiagnosePreprocessedDataFile.txt written\n");
 	fclose(fpData);
 	if (bTrain)
 	{
@@ -908,12 +908,12 @@ void ALNAPI createTVTSfiles()  // routine
 		}
 		if (bPrint && bDiagnostics)
 		{
-			TVfile.Write("DiagnoseTVfile.txt");
-			fprintf(fpFileSetupProtocol, "DiagnoseTVfile.txt written with %d rows.\n", nRowsTV);
-			fflush(fpFileSetupProtocol);
-			TSfile.Write("DiagnoseTSfile.txt");
-			fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
-			fflush(fpFileSetupProtocol);
+			//TVfile.Write("DiagnoseTVfile.txt");
+			//fprintf(fpFileSetupProtocol, "DiagnoseTVfile.txt written with %d rows.\n", nRowsTV);
+			//fflush(fpFileSetupProtocol);
+			//TSfile.Write("DiagnoseTSfile.txt");
+			//fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
+			//fflush(fpFileSetupProtocol);
 		}
 
 	} // end if(bTrain)
