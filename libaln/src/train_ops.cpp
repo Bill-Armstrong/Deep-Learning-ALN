@@ -53,8 +53,7 @@ using Eigen::VectorXd;
 double dist(double*, double*); // calculates the distance between domain points
 #define PrintInterval 25
 //defines used to set up TRfile and VARfile
-#define LINEAR_REGRESSION 0
-#define NOISE_VARIANCE 1
+#define LINEAR_REGRESSION 1
 #define APPROXIMATION 2
 #define BAGGING 3
 
@@ -245,78 +244,67 @@ void ALNAPI doLinearRegression() // routine
 
 void ALNAPI createNoiseVarianceFile()
 {
-	double value = 0;
-	double* aX = NULL;
-	double* aY = NULL;
+	double* aXcentral = NULL;
+	double* aXnew = NULL;
 	double noiseSampleSum = 0;
-	long inside = 0; // counts samples inside their symplex of closest nDim points.
-	struct disc // each sample (X,y) has a disc struct at the same index
+	struct disc // each sample (X,y) index i in VARfile has a disc struct at index i
 	{
-		long*   aXX; // These are indices of samples nearby
-		double* aDD; // These are the distances of sample j to (X,y)
-		int maxloc;      // Location in aXX of a sample at the maximum distance from the central one
+		long*   aXX; // These are indices of two samples in VARfile close to (X,y)
+		double* aDD; // These are the corresponding distances of those samples to (X,y)
+		int maxloc;  // Index 0 or 1 of a sample at maximum distance from (X,y)
 	};
 	disc* adisc = NULL;
-	// Example: domain 8 dimensional, samples 9 components, nDim = 9, we seek any 9 closest samples in the domain.
-	// ...TO DO Preprocessing: N samples with equal X are grouped and have the average y and N attached.
-	// Processing:
-	// Each sample in turn has the role of central sample X. It has a struct with an array of nDim sample indices
-	// of other samples. The other samples have distances from the central sample recorded and their
-	// maximum distance from the central sample is tracked. Initially, the distances are all extremely large
-	// as is the maximum distance.  The initial indices don't matter because they will all be replaced.
-	// We go through all samples Y to find any set of nDim closest. If we come across the index of the central
-	// sample, we go on to the next sample. Otherwise we compute the distance d1 of Y to X.
-	// With preprocessing d1 can't be zero; but here we just ignore the sample. If d1 >= maxdist we also
-	// ignore it. If d1 < maxdist, the dist array is searched and Y replaces any sample at maxdist.
+	// Example: domain 8 dimensional, samples 9 components, nDim = 9.
+	// Each sample in turn takes on the role of central sample (X,y). 
+	// Initially, the distances from central sample are all extremely large.
+	// The initial indices don't matter because they will all be replaced.
+	// We go through all samples to find a set of two closest. If we come across the index of the central
+	// sample, we go on to the next sample. Otherwise we compute the distance ds of the new one to (X,y).
+	// With preprocessing ds can't be zero; but here we can just use the sample. If ds >= maxdist we
+	// ignore it. If ds < maxdist, the aDD array is searched and the new sample replaces any sample at maxdist.
 	// The dist array and maxdist are then adjusted.
-	aX = (double*)malloc(nDim * sizeof(double));
-	aY = (double*)malloc(nDim * sizeof(double));
-	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use only the VARfile here
+	aXcentral = (double*)malloc((nDim - 1) * sizeof(double)); // these hold domain points
+	aXnew = (double*)malloc((nDim - 1) * sizeof(double));
+	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use the VARfile here to set up training NV samples in TRfile
 	long i, j, k;
-	double d1;
+	double ds;
 	for (i = 0; i < nRowsVAR; i++) // i is the central sample its struct will be worked on.
 	{
 		// First we have to create the struct for i
 		adisc[i].aXX = (long*)malloc(2 * sizeof(long));
 		adisc[i].aDD = (double*)malloc(2 * sizeof(double));
-		// Get the struct data associated with the central sample aX with index i.
-		for (j = 0; j < nDim; j++)
+		// Get the struct data associated with the central sample aXcentral with index i.
+		for (k = 0; k < nDim - 1; k++)
 		{
-			aX[j] = VARfile.GetAt(i, j, 0); // Get the central sample's domain components.
-			adisc[i].aXX[j] = 0;          // This 0 will be replaced if there are at least nDim + 1 samples.
-			adisc[i].aDD[j] = DBL_MAX;    // Set all distances of the i-th struct to the max possible.
+			aXcentral[k] = VARfile.GetAt(i, k, 0); // Get the central sample's domain components into X0.
 		}
+		// initialize the adisc arrays of the central sample
+		adisc[i].aXX[0] = 0;          // These 0's will be replaced if there are at least 3 samples.
+		adisc[i].aDD[0] = DBL_MAX;    // Set all distances of the i-th struct to the max possible.
+		adisc[i].aXX[1] = 0;         
+		adisc[i].aDD[1] = DBL_MAX;
 		adisc[i].maxloc = 1;
-		// We fill the struct with samples now, we have to go through ALL samples to get
-		// the nDim closest samples. This can be made faster than O(n^2), maybe O(n log n).
+		// We fill the struct with samples now; we have to go through ALL samples to get
+		// a closest pair of samples. This can be made faster than O(n^2), maybe O(n log n).
 		for (j = 0; j < nRowsVAR; j++)
 		{
 			if (j != i) // insert only samples j into the list of nearby samples which are not the central sample
 			{
-				// Get the domain point for the j-th sample into aY
+				// Get the domain point for the j-th sample into aXnew
 				for (k = 0; k < nDim - 1; k++)
 				{
-					aY[k] = VARfile.GetAt(j, k, 0);
+					aXnew[k] = VARfile.GetAt(j, k, 0);
 				}
-				d1 = dist(aX, aY);
+				ds = dist(aXcentral, aXnew);
 				int imaxloc = adisc[i].maxloc;
-				if (d1 < adisc[i].aDD[imaxloc])
+				if (ds < adisc[i].aDD[imaxloc])
 				{
-					// insert the point closer to X at the place indicated by maxloc
-					// we replace the index of a sample at the maximum distance with the index of aY
+					// insert the new point at the place indicated by maxloc
 					adisc[i].aXX[imaxloc] = j;
-					adisc[i].aDD[imaxloc] = d1; // the distance at m becomes d1
+					adisc[i].aDD[imaxloc] = ds;
 					// find the new maximum distance and a sample index and where it occurs
-					double current = 0;
-					for (int check = 0; check < nDim; check++)
-					{
-						if (adisc[i].aDD[check] > current)
-						{
-							current = adisc[i].aDD[check];
-							adisc[i].maxloc = check;
-						}
-					}
-				} // drop the samples with d1 > maximum distance
+					adisc[i].maxloc = (adisc[i].aDD[1] > adisc[i].aDD[0])?1:0;
+				} // drop the samples with ds >= maximum distance
 			} // drop samples with j == i
 		} // end of j loop
 	} // loop over i
@@ -326,61 +314,34 @@ void ALNAPI createNoiseVarianceFile()
 	double y[2];
 	for (i = 0; i < nRowsVAR; i++)
 	{
-		for (j = 0; j < 2; j++) // j column index over nDim samples
+		index = adisc[i].aXX[0];
+		for (k = 0; k < nDim - 1; k++)
 		{
-			index = adisc[i].aXX[j];
-			y[j] = VARfile.GetAt(index, nDim - 1, 0); // the sample values as an nDim x 1 column
+			aXnew[k] = VARfile.GetAt(index, k, 0);
 		}
-		double NV = pow(y[0] - y[1], 2) * 0.5; 
+		y[0] = VARfile.GetAt(index, nDim - 1, 0);
+		index = adisc[i].aXX[1];
+		for (k = 0; k < nDim - 1; k++)
+		{
+			aXnew[k] += VARfile.GetAt(index, k, 0);
+			aXnew[k] *= 0.5;
+		}
+		y[1] = VARfile.GetAt(index, nDim - 1, 0);
+		double NV = pow(y[0] - y[1], 2) * 0.5;
 		noiseSampleSum += NV;
-		// We train on the log 10 of the noise variance samples
-		VARfile.SetAt(i, nDim - 1, log10(NV), 0); // the domain components should be unchanged
+		// We set up TRfile for training differently
+		for (k = 0; k < nDim - 1; k++)
+		{
+			TRfile.SetAt(i, k, aXnew[k], 0);
+		}
+		TRfile.SetAt(i, nDim - 1, log10(NV), 0);
 	} // end i loop over nRowsVAR
 	// Report on VARfile
-	fprintf(fpProtocol, "Average Noise Variance before training %f \n ",
+	fprintf(fpProtocol, "Average Noise Variance sample value %f \n ",
 		noiseSampleSum / nRowsVAR);
-	VARfile.Write("DiagnoseVARfileBeforeTraining.txt");
-	/*
-	// Now we smooth the VARfile by averaging over the neighbors.
-	double smooth;
-	int nIter = 20;
-	noiseSampleSum = 0;
-	for (int iteration = 0; iteration < nIter; iteration++)
-	{
-		for (i = 0; i < nRowsVAR; i++)
-		{
-			smooth = 0;
-			for (j = 0; j < 2; j++) // j index over 2 nearby samples
-			{
-				index = adisc[i].aXX[j];
-				smooth += VARfile.GetAt(index, nDim - 1, 0);
-			}
-			smooth += VARfile.GetAt(i, nDim - 1, 0); // include the variance at the central point
-			// NB the value of noise variance at the central point may be influenced
-			//by the training value, but only weakly.
-			smooth /= 3;
-			VARfile.SetAt(i, nDim - 1, smooth, 0);
-			if (iteration == nIter - 1) noiseSampleSum += smooth;
-		}
-	}
-	fprintf(fpProtocol, "Average Noise Variance after smoothing %f ",
-		noiseSampleSum / nRowsVAR);
-	VARfile.Write("DiagnoseVARfileAfterSmoothing.txt");
-	*/
-	/* Comment out either what is above or what is below this line.
-	// TEST  We put in the real value of noise variance for NoisySin.txt!
-	// NoisySin10000.txt has a middle column with the correct output
-	// which must be removed before training.
-	double sampleX;
-	for (i = 0; i < nRowsVAR; i++)
-	{
-		sampleX = VARfile.GetAt(i, 0, 0); // this is the domain value
-		VARfile.SetAt(i, 1, 0.01333333 * pow(sampleX, 2), 0);
-	}
-	VARfile.Write("DiagnoseVARfileWithCorrectNoise.txt");
-	*/
-	free(aX);
-	free(aY);
+	TRfile.Write("DiagnoseTRfileBeforeTrainingALN.txt");
+	free(aXcentral);
+	free(aXnew);
 	free(adisc);
 	trainNoiseVarianceALN();
 }
@@ -419,7 +380,7 @@ void ALNAPI trainNoiseVarianceALN()
 	bALNgrowable = TRUE;
 	bTrainingAverage = FALSE;
 	bTrainNV_ALN = TRUE; // This causes the bounds on weights to be tighter than for other
-		//training (see prepareQuickStart routine)
+		//training (see prepareQuickStart routine) Get rid of this TEST
 	(pNV_ALN->GetRegion(0))->dblSmoothEpsilon = 0.0;
 	nMaxEpochs =20; // TEST
 	dblMinRMSE = 0.0;
@@ -430,12 +391,12 @@ void ALNAPI trainNoiseVarianceALN()
 	nRowsVAR = VARfile.RowCount();
 	ASSERT(nRowsVAR == nRowsTV);
 	// We now put the VARfile content into TRfile for training
-	createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
+	//createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit = 0.5;  // TEST !!! For F-test
-	pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights  TEST
-	pNV_ALN->SetWeightMax(5.0, 0, 0); // Remember log10 !!!!
+	dblLimit =2.0;  // TEST !!! For F-test
+	//pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights  TEST
+	//pNV_ALN->SetWeightMax(5.0, 0, 0); // Remember log10 !!!!
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
 	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
@@ -905,7 +866,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	long i;
 	int j;
 
-	if (nChoose == 0) // LINEAR_REGRESSION
+	if (nChoose == 1) // LINEAR_REGRESSION
 	{
 		// Create the files
 		nRowsTR = nRowsVAR = TVfile.RowCount();
@@ -923,22 +884,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 		} // end of i loop
 		if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileLR.txt");
 		fflush(fpProtocol);
-	}	// end if(nChoose == 0) LINEAR_REGRESSION
-
-	if(nChoose == 1) // NOISE_VARIANCE
-	{
-		// We start out using the VARfile before training. Then this is called.
-		// We have to use only TRfile for training because of the way we did splitops.  Should be corrected.
-		// For now, the VARfile is copied into the TRfile for training.
-		for (i = 0; i < nRowsTV; i++)
-		{
-			for (j = 0; j < nDim; j++) 
-			{
-				dblValue = VARfile.GetAt(i, j, 0);
-				TRfile.SetAt(i, j, dblValue, 0);
-			}
-		}
-	}
+	}	// end if(nChoose == 1) LINEAR_REGRESSION
 
 	if (nChoose == 2) // APPROXIMATION 
 	{
@@ -1032,7 +978,7 @@ double dist(double* adblA, double* adblB)
 void createSamples(CMyAln* pNV_ALN)  // routine
 {
 	// The goal is to smooth the samples in VARfile
-	// using the result of training NV_ALN in TRfile
+	// using the result of training of log10 NV_ALN in TRfile
 	ASSERT(pNV_ALN);
 	ALNNODE* pActiveLFN;
 	double dblValue, dblALNValue;
@@ -1044,7 +990,7 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 		{
 			adblX[j] = VARfile.GetAt(i, j, 0);
 		}
-		// VARfile.SetAt(i, nDim - 1, 0.0, 0); // Just to make sure there is no influence
+		adblX[nDim - 1] = 0;
 		dblALNValue = pNV_ALN->QuickEval(adblX, &pActiveLFN);
 		VARfile.SetAt(i, nDim - 1, pow(10, dblALNValue), 0); // Undoing the log10
 	}
