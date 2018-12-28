@@ -394,9 +394,9 @@ void ALNAPI trainNoiseVarianceALN()
 	//createTR_VARfiles(NOISE_VARIANCE); // We have to fix things up so we don't have to always train on TRfile because of splitops
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit =0.01;  // Don't do F-test; overtrain with weight bounds.
-	pNV_ALN->SetWeightMin(0.0, 0, 0); // Try these weights
-	pNV_ALN->SetWeightMax(0.12, 0, 0); // Remember log10 !!!!
+	dblLimit =0.005;  // Don't do F-test; overtrain with weight bounds.
+	pNV_ALN->SetWeightMin(0.001, 0, 0); // Try these weights
+	pNV_ALN->SetWeightMax(0.02, 0, 0); // Remember log10 !!!!
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
 	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
