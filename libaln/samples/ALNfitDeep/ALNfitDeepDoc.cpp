@@ -36,7 +36,7 @@ static char THIS_FILE[] = __FILE__;
 
 #define		MESSAGE0  "Analyzing the data file"
 #define		MESSAGE1  "Linear regression to find useful starting values."
-#define		MESSAGE2  "Creating noise variance samples."
+#define		MESSAGE2  "Creating noise variance samples and training an ALN on their logarithms."
 #define		MESSAGE3  "Training one or more ALNs using the noise variance to prevent overtraining."
 #define		MESSAGE4  "Training a new ALN with samples of the average of the trained ALNs"
 #define		MESSAGE5  "Constructing a DTREE from the average ALN and writing the .dtr file "
@@ -101,7 +101,7 @@ void CALNfitDeepDoc::GenerateReportString()
 	{
 		MESSAGE0,  //"Analyzing data files",
 		MESSAGE1,  //"Using linear regression to support further training",
-		MESSAGE2,  //"Creating noise variance samples",
+		MESSAGE2,  //"Creating noise variance samples and training an ALN on their logarithms",
 		MESSAGE3,  //"Training one or more ALNs using the noise variance samples to guide ALN growth",
 		MESSAGE4,  //"Training a new ALN with samples of the average of the trained ALNs",
 		MESSAGE5,  //"Constructing a DTREE from the average ALN and writing the .dtr file ",
