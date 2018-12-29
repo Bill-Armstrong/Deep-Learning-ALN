@@ -183,7 +183,7 @@ void doSplits(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 					// Note that when there are few hits on the piece, the dblSplitLimit is larger and 
 					// the criterion for fitting well enough is easier to satisfy.
 				}
-				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit)
+				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit * 0.8) // TEST an extra factor towards overfitting
 				{
 					// The piece fits well, stop training it. 
 					// LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting TEST

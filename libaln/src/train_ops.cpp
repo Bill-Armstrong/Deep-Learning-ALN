@@ -395,11 +395,22 @@ void ALNAPI trainNoiseVarianceALN()
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
 	dblLimit =0.005;  // Don't do F-test; overtrain with weight bounds.
-	pNV_ALN->SetWeightMin(0.001, 0, 0); // Try these weights
-	pNV_ALN->SetWeightMax(0.02, 0, 0); // Remember log10 !!!!
+	//pNV_ALN->SetWeightMin(-1.0, 0, 0); // Try these weights
+	//pNV_ALN->SetWeightMax(0.02, 0, 0); // Remember log10 !!!!
+	double boundOnLogNoiseSlope;
+	for (int m = 0; m < nDim - 1; m++)
+	{
+		// We need rough upper and lower bounds on the partial derivatives of log10 of noise variance
+		// This one is a certain fraction of the maximum possible slope defined by a range and an intersample distance
+		boundOnLogNoiseSlope = 0.0001 * log10(pow(3.0, 0.5) * adblStdevVar[nDim - 1]) / adblEpsilon[m];
+		pNV_ALN->SetWeightMax(boundOnLogNoiseSlope, m);
+		pNV_ALN->SetWeightMin(-boundOnLogNoiseSlope, m);
+		fprintf(fpProtocol, "Upper bound on log noise slope in axis %d = %f \n ", m, boundOnLogNoiseSlope);
+	}
+	fflush(fpProtocol);
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
-	for (int iteration = 0; iteration < 20; iteration++) // is 10 iterations enough? // TEST
+	for (int iteration = 0; iteration < 40; iteration++) // is 10 iterations enough? // TEST
 	{
 		fprintf(fpProtocol, "Iteration %d ", iteration);
 
