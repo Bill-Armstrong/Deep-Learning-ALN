@@ -989,7 +989,7 @@ double dist(double* adblA, double* adblB)
 void createSamples(CMyAln* pNV_ALN)  // routine
 {
 	// The goal is to smooth the samples in VARfile
-	// using the result of training of log10 NV_ALN in TRfile
+	// using the result of training of log10 NV_ALN in TRfile.
 	ASSERT(pNV_ALN);
 	ALNNODE* pActiveLFN;
 	double dblValue, dblALNValue;
@@ -1006,6 +1006,7 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 		VARfile.SetAt(i, nDim - 1, pow(10, dblALNValue), 0); // Undoing the log10
 	}
 	free(adblX);
+	pNV_ALN->Write("Log10NoiseVarianceALN.txt");
 	pNV_ALN->Destroy();
 	// Now check to see the global noise variance (You can comment out what follows if it's proven OK)
 	// Check a case of known constant noise variance!
@@ -1014,7 +1015,8 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 	{
 		dblValue += VARfile.GetAt(i, nDim - 1, 0);
 	}
-	fprintf(fpProtocol, "Average of noise variance samples = %f\n", dblValue / nRowsVAR);
+	dblSetTolerance = dblValue / nRowsVAR;
+	fprintf(fpProtocol, "Average of noise variance samples = %f\n", dblSetTolerance);
 	fflush(fpProtocol);
 	if(bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAfterNV_ALN_train.txt");
 	if(bPrint && bDiagnostics) fprintf(fpProtocol, "Diagnose VARfileAfterNV_ALN_train.txt written\n");

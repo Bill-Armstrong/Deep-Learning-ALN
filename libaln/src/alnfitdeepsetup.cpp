@@ -915,9 +915,28 @@ void ALNAPI createTVTSfiles()  // routine
 			//fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
 			//fflush(fpFileSetupProtocol);
 		}
-
 	} // end if(bTrain)
-
+	else
+	{
+		// This is an evaluation.
+		nRowsTS = nRowsPP;
+		TSfile.Create(nRowsTS, nALNinputs);
+		double dblVal;
+		for (int i = 0; i < nRowsPP; i++)
+		{
+			for (int j = 0; j < nALNinputs; j++)
+			{
+				dblVal = PreprocessedDataFile.GetAt(i, j, 0);
+				TSfile.SetAt(i, j, dblVal, 0);
+			}
+		}
+	} // end of writingTSfile
+	if (bPrint && bDiagnostics)
+	{
+		TSfile.Write("DiagnoseTSfile.txt");
+		fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
+		fflush(fpFileSetupProtocol);
+	}
 	fflush(fpProtocol);
 } // end of createTVTSfiles
 
