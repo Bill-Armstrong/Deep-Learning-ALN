@@ -73,10 +73,11 @@ int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 // samples on it. This value comes from tables of the F-test for d.o.f. > 7 and probability 90%.
 // For 90% with 3 d.o.f the value is 5.39, i.e. with fewer d.o.f. training stops sooner
 // and the training error will generally be larger than with a lower F-value.
-// static const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
-// Following is for 75%
-// static const double adblFconstant[13]{ 3.00, 2.36, 2.06, 1.89, 1.78, 1.70, 1.64, 1.59, 1.55, 1.36, 1.28, 1.24, 1.19 };
+//	90%			static const double adblFconstant[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
+//  75%     static const double adblFconstant[13]{ 3.00, 2.36, 2.06, 1.89, 1.78, 1.70, 1.64, 1.59, 1.55, 1.36, 1.28, 1.24, 1.19 };
+//  50% 
 static const double adblFconstant[13]{ 1,1,1,1,1,1,1,1,1,1,1,1,1 };
+//  25%     static const double adblFconstant[13]{0.333, 0.424, 0.485, 0.529, 0.562, 0.588, 0.610, 0.629, 0.645, 0.735, 0.781, 0.806, 0.840 };
 
 void splitControl(ALN* pALN, double dblLimit)  // routine
 {
@@ -183,10 +184,10 @@ void doSplits(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 					// Note that when there are few hits on the piece, the dblSplitLimit is larger and 
 					// the criterion for fitting well enough is easier to satisfy.
 				}
-				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit * 0.8) // TEST an extra factor towards overfitting
+				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit) // TEST an extra factor towards overfitting
 				{
 					// The piece fits well, stop training it. 
-					// LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting TEST
+					LFN_FLAGS(pNode) &= ~LF_SPLIT;  // this flag setting prevents further splitting TEST
 				}
 				else
 				{
