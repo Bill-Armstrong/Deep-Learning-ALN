@@ -308,7 +308,7 @@ BOOL bDecimal = TRUE; // means numbers could have a decimal point
 BOOL bComma = TRUE;   // means numbers could have a comma
 //double dblSetTolerance; // this is the value of tolerance set in the options dialog
 // for integers both of the above are true
-int nDim =0;
+int nDim = 0;
 int nOutputIndex = 0;
 long nRowsPP   = 0;          // The number of rows in the PreprocessedDataFile
 long nRowsTV   = 0;          // The number of rows in the TVfile (Training & Variance File)
@@ -933,9 +933,9 @@ void ALNAPI createTVTSfiles()  // routine
 	} // end of writingTSfile
 	if (bPrint && bDiagnostics)
 	{
-		TSfile.Write("DiagnoseTSfile.txt");
-		fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
-		fflush(fpFileSetupProtocol);
+		//TSfile.Write("DiagnoseTSfile.txt");
+		//fprintf(fpFileSetupProtocol, "DiagnoseTSfile.txt written with %d rows.\n", nRowsTS);
+		//fflush(fpFileSetupProtocol);
 	}
 	fflush(fpProtocol);
 } // end of createTVTSfiles

@@ -99,6 +99,8 @@ BOOL bStopTraining = FALSE; // Set to TRUE and becomes FALSE if any (active) lin
 int nNotifyMask = AN_TRAIN | AN_EPOCH | AN_VECTORINFO; // used with callbacks
 double * adblX = NULL;
 
+using namespace std;
+
 void ALNAPI doLinearRegression() // routine
 {
   fprintf(fpProtocol,"\n****** Linear regression begins: it gains useful information for further training *****\n");
@@ -151,7 +153,7 @@ void ALNAPI doLinearRegression() // routine
 	// The advantage of giving the pointer adblData instead of NULL is that training permutes
 	// the order of the samples and goes through all samples exactly once per epoch.
 	pALN->SetDataInfo(nRowsTR, nDim, adblData, NULL);
-	int nIterations = 15;
+	int nIterations = 3;
 	// TRAIN FOR LINEAR REGRESSION   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	// The reason for iterations is so that we can monitor progress in the ... TrainProtocol.txt file,
 	// and set new parameters for subsequent training.
@@ -249,7 +251,6 @@ void ALNAPI createNoiseVarianceFile()
 	double* aXnearby0 = NULL;
 	double* aXnearby1 = NULL;
 	double* aXmid = NULL;
-	double noiseSampleSum = 0;
 	struct disc // each sample (X,y) index i in VARfile has a disc struct at index i
 	{
 		long*   aXX; // These are indices of two samples in VARfile close to (X,y)
@@ -270,7 +271,8 @@ void ALNAPI createNoiseVarianceFile()
 	aXnearby0 = (double*)malloc((nDim - 1) * sizeof(double));
 	aXnearby1 = (double*)malloc((nDim - 1) * sizeof(double));
 	aXmid = (double*)malloc((nDim - 1) * sizeof(double));
-	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use the VARfile here to set up training NV samples in TRfile
+	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use the VARfile here to set up
+																									// training NV samples in TRfile
 	long i, j, k;
 	double ds;
 	for (i = 0; i < nRowsVAR; i++) // i is the central sample its struct will be worked on.
@@ -304,7 +306,7 @@ void ALNAPI createNoiseVarianceFile()
 				int imaxloc = adisc[i].maxloc;
 				if (ds < adisc[i].aDD[imaxloc])
 				{
-					// insert the new point at the place indicated by maxloc
+					// insert the new point at the place indicated by maxloc (can be 0 or 1)
 					adisc[i].aXX[imaxloc] = j;
 					adisc[i].aDD[imaxloc] = ds;
 					// find the new maximum distance and a sample index and where it occurs
@@ -314,11 +316,16 @@ void ALNAPI createNoiseVarianceFile()
 		} // end of j loop
 	} // end loop over i
 	// We have two samples closest to each sample index i
-	// Note that they may be at equal distance, or even closer to each other than to the central sample.
+	// Note that they may be at equal distance, or closer to each other than to central sample.
 	// Now we analyze geometrically the collections of samples in the structs
 	long index;
 	double y[3];
 	double NV;
+	double noiseSampleArithAvg = 0;
+	double noiseSampleGeoAvg = 1.0;
+	nRowsVAR = VARfile.RowCount();
+	double nRowsVARrecip = 1.0 / (double) nRowsVAR;
+	fprintf(fpProtocol, "nRowsVAR is %d\n", nRowsVAR);
 	for (i = 0; i < nRowsVAR; i++)
 	{
 		//Get the nearby sample number 0
@@ -338,8 +345,8 @@ void ALNAPI createNoiseVarianceFile()
 		// Compare the nearby samples
 		if (dist(aXnearby0, aXnearby1) < min(adisc[i].aDD[0], adisc[i].aDD[1]))
 		{
+			// Generate a noise variance sample at the midpoint between nearby samples
 			NV = pow(y[0] - y[1], 2) * 0.5;
-			noiseSampleSum += NV;
 			for (k = 0; k < nDim - 1; k++)
 			{
 				aXmid[k] = 0.5 * (aXnearby0[k] + aXnearby1[k]);
@@ -359,7 +366,6 @@ void ALNAPI createNoiseVarianceFile()
 			{
 				// generate a new sample between the central sample and the 0 index one nearby
 				NV = pow(y[0] - y[2], 2) * 0.5;
-				noiseSampleSum += NV;
 				for (k = 0; k < nDim - 1; k++)
 				{
 					aXmid[k] = 0.5 * (aXnearby0[k] + aXcentral[k]);
@@ -369,13 +375,14 @@ void ALNAPI createNoiseVarianceFile()
 			{
 				// generate a new sample between the central sample and the 1 index one nearby
 				NV = pow(y[1] - y[2], 2) * 0.5;
-				noiseSampleSum += NV;
 				for (k = 0; k < nDim - 1; k++)
 				{
 					aXmid[k] = 0.5 * (aXnearby1[k] + aXcentral[k]);
 				}
 			}
 		}
+		noiseSampleArithAvg += NV;
+		noiseSampleGeoAvg *= pow(NV, nRowsVARrecip);
 		// We set up TRfile for training differently
 		for (k = 0; k < nDim - 1; k++)
 		{
@@ -386,10 +393,11 @@ void ALNAPI createNoiseVarianceFile()
 		free(adisc[i].aXX);
 		free(adisc[i].aDD);
 	} // end i loop over nRowsVAR
-	noiseSampleSum /= nRowsVAR; // turn the sum into the average
+	noiseSampleArithAvg /= nRowsVAR; // turn the sum into the average
 	// Report on VARfile
 	fprintf(fpProtocol, "Average Noise Variance sample value is %f and the log10 of that is %f \n",
-		noiseSampleSum, log10(noiseSampleSum));
+		noiseSampleArithAvg, log10(noiseSampleArithAvg));
+	fprintf(fpProtocol, "Geometric Average of Noise Variance samples = %f\n", noiseSampleGeoAvg);
 	TRfile.Write("DiagnoseTRfileBeforeTrainingALN.txt");
 	free(aXcentral);
 	free(aXnearby0);
@@ -420,7 +428,7 @@ void ALNAPI trainNoiseVarianceALN()
 	// First we'll test this idea on nDim = 2 using NoisySin20000.txt as data.
 	double maxSlope = -dblMax;
 	double minSlope = dblMax;
-	if (nDim = 2)
+	if (nDim == 2)
 	{
 		double coordinate;
 		long numberblock;
@@ -456,7 +464,7 @@ void ALNAPI trainNoiseVarianceALN()
 			{
 				aLogNoise[k] -= aLogNoise[k + 1];
 				aLogNoise[k] = fabs(aLogNoise[k]);
-				aLogNoise[k] /= blocksize;
+				aLogNoise[k] /= blocksize; // aLogNoise[k] is now a measure of average slope on axis 0
 			}
 			else
 			{
@@ -471,7 +479,7 @@ void ALNAPI trainNoiseVarianceALN()
 				if (aLogNoise[k] < minSlope) minSlope = aLogNoise[k];
 			}
 		}
-	}	// Finished with the special case nDim = 2
+	}	// Finished slope estimation for the special case nDim = 2
 	fflush(fpProtocol);
 	pNV_ALN = (CMyAln*)malloc(sizeof(CMyAln*));
 	pNV_ALN = new CMyAln; // NULL initialized ALN
@@ -510,24 +518,30 @@ void ALNAPI trainNoiseVarianceALN()
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
 	dblLimit =0.001;  // Don't do F-test, use weight bounds
 
-	pNV_ALN->SetWeightMin(0.002, 0, 0); // Try these weights  TEST  cheating a bit on the min, but not the max
-	pNV_ALN->SetWeightMax(0.020368, 0, 0); // Remember log10 !!!!
-	double UboundOnLogNoiseSlope;
-	double LboundOnLogNoiseSlope;
-	for (int m = 0; m < nDim - 1; m++)
+	if (nDim > 2)
 	{
-		// We need rough upper and lower bounds on the partial derivatives of log10 of noise variance
-		// This one is a certain fraction of the maximum possible slope defined by a range and an intersample distance
-		UboundOnLogNoiseSlope = 0.00001 * log10(pow(3.0, 0.5) * adblStdevVar[nDim - 1]) / adblEpsilon[m];
-		LboundOnLogNoiseSlope = -UboundOnLogNoiseSlope;
-		pNV_ALN->SetWeightMax(UboundOnLogNoiseSlope, m);
-		pNV_ALN->SetWeightMin(LboundOnLogNoiseSlope, m);
-		fprintf(fpProtocol, "Upper bound on log noise slope in axis %d = %f \n ", m, UboundOnLogNoiseSlope);
-		fprintf(fpProtocol, "Lower bound on log noise slope in axis %d = %f \n ", m, LboundOnLogNoiseSlope);
+		fprintf(fpProtocol, "The dimension nDim is greater than 2 \n ");
+		// In the case of high dimensions, the analysis of noise by dividing each axis into blocks
+		// will fail, so we look at the maximum slope between samples and divide by a number that 
+		// prevents overfitting, at least between neighboring samples, e.g. 1/1000
+		double UboundOnLogNoiseSlope;
+		double LboundOnLogNoiseSlope;
+		for (int m = 0; m < nDim - 1; m++)
+		{
+			UboundOnLogNoiseSlope = 0.001 * log10(adblStdevVar[nDim - 1]) / adblEpsilon[m];
+			LboundOnLogNoiseSlope = -UboundOnLogNoiseSlope;
+			pNV_ALN->SetWeightMax(UboundOnLogNoiseSlope, m);
+			pNV_ALN->SetWeightMin(LboundOnLogNoiseSlope, m);
+			fprintf(fpProtocol, "Upper bound on log noise slope in axis %d = %f \n ", m, UboundOnLogNoiseSlope);
+			fprintf(fpProtocol, "Lower bound on log noise slope in axis %d = %f \n ", m, LboundOnLogNoiseSlope);
+		}
 	}
-
-	if (nDim == 2)
+	else
 	{
+		// nDim == 2
+		fprintf(fpProtocol, "The dimension is %d\n", nDim);
+		//pNV_ALN->SetWeightMin(0.002, 0, 0); // Try these weights  TEST  cheating a bit on the min,
+    //pNV_ALN->SetWeightMax(0.020368, 0, 0); // but not the max for NoisySin20000.txt. Remember log10 !!!!
 		pNV_ALN->SetWeightMax(maxSlope, 0);
 		pNV_ALN->SetWeightMin(minSlope, 0);
 		fprintf(fpProtocol, "Upper bound on axis 0 slope in case nDim = 2, is %f \n", maxSlope);
@@ -812,7 +826,14 @@ void ALNAPI trainAverage() // routine
 	// define the region where the data points are located.
 	// The values of those points are automatically jittered to cover that region.
 	fprintf(fpProtocol,"\n**** Training an ALN by resampling the average of approximations ******\n");
-	fprintf(fpProtocol, "The F-limit used for stopping splitting of the average ALN is %f \n", dblLimit);
+	if (dblLimit > 0)
+	{
+		fprintf(fpProtocol, "The value used for stopping splitting of the average ALN is %f \n", dblLimit);
+	}
+	else
+	{
+		fprintf(fpProtocol, "An F-test is used for stopping splitting of the average ALN\n");
+	}
 	// The noise variance values in VARfile are the previous ones divided by nalns.
 	createTR_VARfiles(BAGGING);
 	pAvgALN = new CMyAln; // NULL initialized ALN
@@ -1092,6 +1113,7 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 	double dblValue, dblALNValue;
 	double * adblX = (double *)malloc((nDim) * sizeof(double));
 	long nRowsVAR = VARfile.RowCount();
+	double nRowsVARrecip = 1.0 / (double) nRowsVAR;
 	for (long i = 0; i < nRowsVAR; i++)
 	{
 		for (int j = 0; j < nDim - 1; j++)
@@ -1106,15 +1128,19 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 	free(adblX);
 	//pNV_ALN->Write("Log10NoiseVarianceALN.txt");
 	pNV_ALN->Destroy();
-	// Now check to see the global noise variance (You can comment out what follows if it's proven OK)
+	// Now check to see the global noise variance 
 	// Check a case of known constant noise variance!
-	dblValue = 0;
+	double arithAvg = 0;
+	double dblGeoAvg = 1.0;
 	for(long i = 0; i < nRowsVAR; i++)
 	{
-		dblValue += VARfile.GetAt(i, nDim - 1, 0);
+		dblValue = VARfile.GetAt(i, nDim - 1, 0);
+		arithAvg += dblValue;
+		dblGeoAvg *= pow(dblValue, nRowsVARrecip);
 	}
-	dblSetTolerance = dblValue / nRowsVAR;
-	fprintf(fpProtocol, "Average of noise variance samples = %f\n", dblSetTolerance);
+	dblSetTolerance = arithAvg / nRowsVAR;
+	fprintf(fpProtocol, "Arithmetic average of noise variance samples = %f\n", dblSetTolerance);
+	fprintf(fpProtocol, "Geometric average of noise variance samples = %f\n", dblGeoAvg);
 	fflush(fpProtocol);
 	if(bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAfterNV_ALN_train.txt");
 	if(bPrint && bDiagnostics) fprintf(fpProtocol, "Diagnose VARfileAfterNV_ALN_train.txt written\n");
