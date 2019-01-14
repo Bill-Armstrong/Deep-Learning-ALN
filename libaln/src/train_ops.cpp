@@ -56,6 +56,8 @@ double dist(double*, double*); // calculates the distance between domain points
 #define LINEAR_REGRESSION 1
 #define APPROXIMATION 2
 #define BAGGING 3
+// The following tells how many nearby samples to a given sample we look at.
+#define NEARBY 5
 
 // We use dblRespTotal in two ways and the following definition helps.
 #define DBLNOISEVARIANCE dblRespTotal
@@ -248,78 +250,124 @@ void ALNAPI createNoiseVarianceFile()
 {
 	fprintf(fpProtocol, "\n ********* Begin Creation of Noise Variance File ********\n");
 	double* aXcentral = NULL;
-	double* aXnearby0 = NULL;
-	double* aXnearby1 = NULL;
+	double* aXnearby = NULL;
 	double* aXmid = NULL;
 	struct disc // each sample (X,y) index i in VARfile has a disc struct at index i
 	{
 		long*   aXX; // These are indices of two samples in VARfile close to (X,y)
 		double* aDD; // These are the corresponding distances of those samples to (X,y)
-		int maxloc;  // Index 0 or 1 of a sample at maximum distance from (X,y)
+		int maxloc;  // Index of a sample at maximum distance from (X,y)
 	};
 	disc* adisc = NULL;
 	// Example: domain 8 dimensional, samples 9 components, nDim = 9.
-	// Each sample in turn takes on the role of central sample (X,y). 
-	// Initially, the distances from central sample are all extremely large.
-	// The initial indices don't matter because they will all be replaced.
-	// We go through all samples to find a set of two closest. If we come across the index of the central
-	// sample, we go on to the next sample. Otherwise we compute the distance ds of the new one to (X,y).
-	// With preprocessing ds can't be zero; but here we can just use the sample. If ds >= maxdist we
-	// ignore it. If ds < maxdist, the aDD array is searched and the new sample replaces any sample at maxdist.
-	// The dist array and maxdist are then adjusted.
+	// Each sample i in turn takes on the role of central sample (X,y). 
+	// Initially, none of the data in adisc makes sense. They will all be replaced.
+	// We go through all samples j to find a set of all closest samples to sample i.
+	// If we come across the index i of the central sample, we go on to the next sample.
+	// Otherwise we compute the distance ds of the new one to (X,y).
+	// If it is greater than the current distance of a nearby sample, we go on to the next j.
+	// If it is less, then we have to start over with just the one sample.
+	// If the distance is equal, then we add the sample to the list of closest samples.
 	aXcentral = (double*)malloc((nDim - 1) * sizeof(double)); // these hold domain points
-	aXnearby0 = (double*)malloc((nDim - 1) * sizeof(double));
-	aXnearby1 = (double*)malloc((nDim - 1) * sizeof(double));
+	aXnearby = (double*)malloc((nDim - 1) * sizeof(double));
 	aXmid = (double*)malloc((nDim - 1) * sizeof(double));
-	adisc = (disc*)malloc(nRowsVAR * sizeof(disc)); //We use the VARfile here to set up
-																									// training NV samples in TRfile
+	adisc = (disc*)malloc(nRowsVAR * sizeof(disc));
+	//We use the VARfile here to set up training NV samples in TRfile.
 	long i, j, k;
 	double ds;
 	for (i = 0; i < nRowsVAR; i++) // i is the central sample its struct will be worked on.
 	{
-		// First we have to create the struct for i
-		adisc[i].aXX = (long*)malloc(2 * sizeof(long));
-		adisc[i].aDD = (double*)malloc(2 * sizeof(double));
-		// Get the struct data associated with the central sample aXcentral with index i.
+		// First we have to create the struct for i, we allow up to NEARBY samples closest to sample i.
+		adisc[i].aXX = (long*)malloc(NEARBY * sizeof(long));
+		adisc[i].aDD = (double*)malloc(NEARBY * sizeof(double));
+		adisc[i].maxloc = -1; // All aXX[j], aDD[j] with j > maxloc are always meaningless
+		// Get the central sample aXcentral with index i.
 		for (k = 0; k < nDim - 1; k++)
 		{
-			aXcentral[k] = VARfile.GetAt(i, k, 0); // Get the central sample's domain components into X0.
+			aXcentral[k] = VARfile.GetAt(i, k, 0); // just the domain components
 		}
-		// initialize the adisc arrays of the central sample
-		adisc[i].aXX[0] = 0;          // These 0's will be replaced if there are at least 3 samples.
-		adisc[i].aDD[0] = DBL_MAX;    // Set all distances of the i-th struct to the max possible.
-		adisc[i].aXX[1] = 0;         
-		adisc[i].aDD[1] = DBL_MAX;
-		adisc[i].maxloc = 1;
-		// We fill the struct with samples now; we have to go through ALL samples to get
-		// a closest pair of samples. This can be made faster than O(n^2), maybe O(n log n).
+		// We have to go through ALL samples j now to get all the closest samples to i.
+		// This can be made faster than O(n^2), maybe O(n log n).
 		for (j = 0; j < nRowsVAR; j++)
 		{
-			if (j != i) // insert only samples j into the list of nearby samples which are not the central sample
+			if (j != i) // sample i is not nearby itselr
 			{
-				// Get the domain point for the j-th sample into aXnearby0
+				// Get the domain point for the j-th sample into aXnearby
 				for (k = 0; k < nDim - 1; k++)
 				{
-					aXnearby0[k] = VARfile.GetAt(j, k, 0);
+					aXnearby[k] = VARfile.GetAt(j, k, 0);
 				}
-				ds = dist(aXcentral, aXnearby0);
+				ds = dist(aXcentral, aXnearby);
 				int imaxloc = adisc[i].maxloc;
-				if (ds < adisc[i].aDD[imaxloc])
+				if (imaxloc == -1) // We always put j = 0 or 1 as the first nearby sample, after which maxloc >= 0
 				{
-					// insert the new point at the place indicated by maxloc (can be 0 or 1)
+					// insert the j index at 0 with its distance
+					adisc[i].aXX[0] = j;          // These -1's will be replaced by the indices of closest points
+					adisc[i].aDD[0] = ds;
+					adisc[i].maxloc = 0;
+					continue;
+				}
+				else	if (ds > adisc[i].aDD[0]) // There are samples nearby and imaxloc + 1 is their number.
+				{
+					// aXnearby is not to be placed among the closest points
+					continue;
+				}
+				else if (ds < adisc[i].aDD[0])
+				{
+					// this j is the closest point to point i found, dump all others
+					// insert the new point at index 0 which becomes the new maxloc
+					adisc[i].aXX[0] = j;
+					adisc[i].aDD[0] = ds;
+					adisc[i].maxloc = 0;
+				}
+				else if (++imaxloc < NEARBY)
+				{
+					// The rare (?) case of another sample equally close to the central sample has arisen
+					// insert it at the next possible place if this is less than NEARBY
 					adisc[i].aXX[imaxloc] = j;
 					adisc[i].aDD[imaxloc] = ds;
-					// find the new maximum distance and a sample index and where it occurs
-					adisc[i].maxloc = (adisc[i].aDD[1] > adisc[i].aDD[0])?1:0;
-				} // drop the samples with ds >= maximum distance
+					adisc[i].maxloc = imaxloc;
+				}
+				else
+				{
+					fprintf(fpProtocol, "****** NEARBY is not large enough !!!!!! *******\n");
+					fflush(fpProtocol);
+				}
 			} // drop samples with j == i
 		} // end of j loop
 	} // end loop over i
-	// We have two samples closest to each sample index i
-	// Note that they may be at equal distance, or closer to each other than to central sample.
+	// We have one or more samples closest to each sample index i
 	// Now we analyze geometrically the collections of samples in the structs
+	// We gather statistics about the distances to the closest samples and their numbers
+	int NumberNearby[NEARBY];
+	for (k = 0; k < NEARBY; k++)
+	{
+		NumberNearby[k] = 0;
+	}
+	double minDist = DBL_MAX;
+	double maxDist = 0;
+	double currDist = 0;
+	double avgDist = 0;
+	int imaxloc;
+	for (i = 0; i < nRowsVAR; i++)
+	{
+		imaxloc = adisc[i].maxloc;
+		NumberNearby[imaxloc + 1] += 1;
+		currDist = adisc[i].aDD[0];
+		avgDist += currDist;
+		if (currDist < minDist) minDist = currDist; // all the entries are at the same distance
+		if (currDist > maxDist) maxDist = currDist;
+	}
+	avgDist /= nRowsVAR;
+	for (k = 0; k < NEARBY; k++)
+	{
+		fprintf(fpProtocol,"Number of rows with %d nearby is %d\n", k, NumberNearby[k]);
+	}
+	fprintf(fpProtocol, "The minimum, average and maximum distances to closest neigbors are %f, %f and %f\n",
+		minDist, avgDist, maxDist);
+	fflush(fpProtocol);
 	long index;
-	double y[3];
+	double y[2];
 	double NV;
 	double noiseSampleArithAvg = 0;
 	double noiseSampleGeoAvg = 1.0;
@@ -332,54 +380,20 @@ void ALNAPI createNoiseVarianceFile()
 		index = adisc[i].aXX[0];
 		for (k = 0; k < nDim - 1; k++)
 		{
-			aXnearby0[k] = VARfile.GetAt(index, k, 0);
+			aXnearby[k] = VARfile.GetAt(index, k, 0);
 		}
 		y[0] = VARfile.GetAt(index, nDim - 1, 0);
-		//Get the nearby sample number 1
-		index = adisc[i].aXX[1];
+		// Get the central sample
 		for (k = 0; k < nDim - 1; k++)
 		{
-			aXnearby1[k] = VARfile.GetAt(index, k, 0);
+			aXcentral[k] = VARfile.GetAt(i, k, 0);
 		}
-		y[1] = VARfile.GetAt(index, nDim - 1, 0);
-		// Compare the nearby samples
-		if (dist(aXnearby0, aXnearby1) < min(adisc[i].aDD[0], adisc[i].aDD[1]))
+		y[1] = VARfile.GetAt(i, nDim - 1, 0);
+		// generate a new sample between the central sample and the 0 index one nearby
+		NV = pow(y[0] - y[1], 2) * 0.5;
+		for (k = 0; k < nDim - 1; k++)
 		{
-			// Generate a noise variance sample at the midpoint between nearby samples
-			NV = pow(y[0] - y[1], 2) * 0.5;
-			for (k = 0; k < nDim - 1; k++)
-			{
-				aXmid[k] = 0.5 * (aXnearby0[k] + aXnearby1[k]);
-			}
-		}
-		else
-		{
-			// Get the central sample
-			for (k = 0; k < nDim - 1; k++)
-			{
-				aXcentral[k] = VARfile.GetAt(i, k, 0);
-			}
-			y[2] = VARfile.GetAt(i, nDim - 1, 0);
-
-			// find which of the nearby is closer to the central sample
-			if (adisc[i].aDD[0] < adisc[i].aDD[1])
-			{
-				// generate a new sample between the central sample and the 0 index one nearby
-				NV = pow(y[0] - y[2], 2) * 0.5;
-				for (k = 0; k < nDim - 1; k++)
-				{
-					aXmid[k] = 0.5 * (aXnearby0[k] + aXcentral[k]);
-				}
-			}
-			else
-			{
-				// generate a new sample between the central sample and the 1 index one nearby
-				NV = pow(y[1] - y[2], 2) * 0.5;
-				for (k = 0; k < nDim - 1; k++)
-				{
-					aXmid[k] = 0.5 * (aXnearby1[k] + aXcentral[k]);
-				}
-			}
+			aXmid[k] = 0.5 * (aXnearby[k] + aXcentral[k]);
 		}
 		noiseSampleArithAvg += NV;
 		noiseSampleGeoAvg *= pow(NV, nRowsVARrecip);
@@ -400,8 +414,7 @@ void ALNAPI createNoiseVarianceFile()
 	fprintf(fpProtocol, "Geometric Average of Noise Variance samples = %f\n", noiseSampleGeoAvg);
 	TRfile.Write("DiagnoseTRfileBeforeTrainingALN.txt");
 	free(aXcentral);
-	free(aXnearby0);
-	free(aXnearby1);
+	free(aXnearby);
 	free(aXmid);
 	free(adisc);
 	trainNoiseVarianceALN();
@@ -540,8 +553,12 @@ void ALNAPI trainNoiseVarianceALN()
 	{
 		// nDim == 2
 		fprintf(fpProtocol, "The dimension is %d\n", nDim);
-		//pNV_ALN->SetWeightMin(0.002, 0, 0); // Try these weights  TEST  cheating a bit on the min,
-    //pNV_ALN->SetWeightMax(0.020368, 0, 0); // but not the max for NoisySin20000.txt. Remember log10 !!!!
+		// comment out the next two lines to use the maxSlope and minSlope from above
+		// maxSlope = 0.004; // TEST these weights.  The optimum for both is .004,
+    // minSlope = 0.004; // for Noisy/GaussianSin20000.txt.
+		// maxSlope = 0.1;   // TEST these weights as loose bounds. 
+		// minSlope = -0.1; 
+
 		pNV_ALN->SetWeightMax(maxSlope, 0);
 		pNV_ALN->SetWeightMin(minSlope, 0);
 		fprintf(fpProtocol, "Upper bound on axis 0 slope in case nDim = 2, is %f \n", maxSlope);
