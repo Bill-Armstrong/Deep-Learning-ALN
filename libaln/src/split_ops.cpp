@@ -78,9 +78,9 @@ int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 static const double adblFconstant90[13]{ 9.00, 5.39, 4.11, 3.45, 3.05, 2.78, 2.59, 2.44, 2.32, 1.79, 1.61, 1.51, 1.40 };
 static const double adblFconstant75[13]{ 3.00, 2.36, 2.06, 1.89, 1.78, 1.70, 1.64, 1.59, 1.55, 1.36, 1.28, 1.24, 1.19 };
 static const double adblFconstant50[13]{ 1,1,1,1,1,1,1,1,1,1,1,1,1 };
-// The following two have not had any beneficial effect.
-// static const double adblFconstant35[13]{ 0.58, 0.65, 0.70, 0.73, 0.75, 0.77, 0.78, 0.79, 0.80, 0.86, 0.88, 0.90, 0.92 };
-// static const double adblFconstant25[13]{ 0.333, 0.424, 0.485, 0.529, 0.562, 0.588, 0.610, 0.629, 0.645, 0.735, 0.781, 0.806, 0.840 };
+// The following two have not had any beneficial effect; but who knows when they might be useful?
+static const double adblFconstant35[13]{ 0.58, 0.65, 0.70, 0.73, 0.75, 0.77, 0.78, 0.79, 0.80, 0.86, 0.88, 0.90, 0.92 };
+static const double adblFconstant25[13]{ 0.333, 0.424, 0.485, 0.529, 0.562, 0.588, 0.610, 0.629, 0.645, 0.735, 0.781, 0.806, 0.840 };
 
 void splitControl(ALN* pALN, double dblLimit)  // routine
 {
@@ -183,9 +183,19 @@ void doSplits(ALN* pALN, ALNNODE* pNode, double dblLimit) // routine
 					if (Count > 30) dofIndex = 10;
 					if (Count > 40) dofIndex = 11;
 					if (Count > 60) dofIndex = 12;
-					dblSplitLimit = adblFconstant50[dofIndex];
+					dblSplitLimit = adblFconstant50[dofIndex]; // One can reject the H0 of a good fit with various percentages
+					// 90, 75, 50, 35, 25. E.g. 90% says that if the training error is greater than the dblSplitLimit prescribes
+					// it is 90% sure that the fit is bad.  A higher percentage needs less training time.
 					// Note that when there are few hits on the piece, the dblSplitLimit is larger and 
 					// the criterion for fitting well enough is easier to satisfy.
+
+					if (bTrainNV_ALN) // One case of doing the F-test
+					{
+						// the noise variance is the sum NV =dblPieceNoiseVariance over the piece
+						// The training SE/ Count is compared to 0.5 * ((sum NV)/ Count)^2; we remove Count once from both sides
+						dblPieceNoiseVariance *= 0.5 * dblPieceNoiseVariance / Count; // TEST current theory
+						dblSplitLimit = adblFconstant50[dofIndex];
+					}
 				}
 				if (dblPieceSquareTrainError < dblPieceNoiseVariance * dblSplitLimit)
 				{

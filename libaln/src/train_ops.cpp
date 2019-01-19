@@ -53,7 +53,8 @@ using Eigen::VectorXd;
 double dist(double*, double*); // calculates the distance between domain points
 #define PrintInterval 25
 //defines used to set up TRfile and VARfile
-#define LINEAR_REGRESSION 1
+#define LINEAR_REGRESSION 0
+#define NOISE_VARIANCE 1
 #define APPROXIMATION 2
 #define BAGGING 3
 // The following tells how many nearby samples to a given sample we look at.
@@ -261,13 +262,12 @@ void ALNAPI createNoiseVarianceFile()
 	disc* adisc = NULL;
 	// Example: domain 8 dimensional, samples 9 components, nDim = 9.
 	// Each sample i in turn takes on the role of central sample (X,y). 
-	// Initially, none of the data in adisc makes sense. They will all be replaced.
-	// We go through all samples j to find a set of all closest samples to sample i.
-	// If we come across the index i of the central sample, we go on to the next sample.
-	// Otherwise we compute the distance ds of the new one to (X,y).
-	// If it is greater than the current distance of a nearby sample, we go on to the next j.
-	// If it is less, then we have to start over with just the one sample.
-	// If the distance is equal, then we add the sample to the list of closest samples.
+	// We go through all samples j to find a set of 2 * nDim closest samples to sample i as follows:
+	// If j is the index i of the central sample, we go on to the next sample.
+	// We compute the distance ds of sample j to (X,y).
+	// If there are fewer than 2 * nDim nearby samples, we sort sample j into its proper place in increasing distance
+	// If there are 2 * nDim nearby samples, and ds >= the maximal distance of a nearby sample we go on to the next j
+	// Otherwise, we get rid of the sample at maximum distance and sort j into its proper place in increasing distance.
 	aXcentral = (double*)malloc((nDim - 1) * sizeof(double)); // these hold domain points
 	aXnearby = (double*)malloc((nDim - 1) * sizeof(double));
 	aXmid = (double*)malloc((nDim - 1) * sizeof(double));
@@ -277,20 +277,20 @@ void ALNAPI createNoiseVarianceFile()
 	double ds;
 	for (i = 0; i < nRowsVAR; i++) // i is the central sample its struct will be worked on.
 	{
-		// First we have to create the struct for i, we allow up to NEARBY samples closest to sample i.
-		adisc[i].aXX = (long*)malloc(NEARBY * sizeof(long));
-		adisc[i].aDD = (double*)malloc(NEARBY * sizeof(double));
-		adisc[i].maxloc = -1; // All aXX[j], aDD[j] with j > maxloc are always meaningless
+		// First we have to create the struct for i, we allow up to 2 * nDim samples closest to sample i.
+		adisc[i].aXX = (long*)malloc(2 * nDim * sizeof(long));
+		adisc[i].aDD = (double*)malloc(2 * nDim * sizeof(double));
+		adisc[i].maxloc = -1; // All aXX[j], aDD[j] with j > maxloc are always meaningless IMPORTANT!!!
 		// Get the central sample aXcentral with index i.
 		for (k = 0; k < nDim - 1; k++)
 		{
 			aXcentral[k] = VARfile.GetAt(i, k, 0); // just the domain components
 		}
-		// We have to go through ALL samples j now to get all the closest samples to i.
+		// We have to go through ALL samples j now to get 2 * nDim closest samples to i.
 		// This can be made faster than O(n^2), maybe O(n log n).
 		for (j = 0; j < nRowsVAR; j++)
 		{
-			if (j != i) // sample i is not nearby itselr
+			if (j != i) // sample i is not included in the nearby ones
 			{
 				// Get the domain point for the j-th sample into aXnearby
 				for (k = 0; k < nDim - 1; k++)
@@ -298,85 +298,51 @@ void ALNAPI createNoiseVarianceFile()
 					aXnearby[k] = VARfile.GetAt(j, k, 0);
 				}
 				ds = dist(aXcentral, aXnearby);
-				int imaxloc = adisc[i].maxloc;
-				if (imaxloc == -1) // We always put j = 0 or 1 as the first nearby sample, after which maxloc >= 0
+				int jtemp;
+				double dstemp;
+				int imaxloc = adisc[i].maxloc; // maxloc is the highest index of a sample, data above it are meaningless
+				if (imaxloc < 2 * nDim - 1) 
 				{
-					// insert the j index at 0 with its distance
-					adisc[i].aXX[0] = j;          // These -1's will be replaced by the indices of closest points
-					adisc[i].aDD[0] = ds;
-					adisc[i].maxloc = 0;
-					continue;
-				}
-				else	if (ds > adisc[i].aDD[0]) // There are samples nearby and imaxloc + 1 is their number.
-				{
-					// aXnearby is not to be placed among the closest points
-					continue;
-				}
-				else if (ds < adisc[i].aDD[0])
-				{
-					// this j is the closest point to point i found, dump all others
-					// insert the new point at index 0 which becomes the new maxloc
-					adisc[i].aXX[0] = j;
-					adisc[i].aDD[0] = ds;
-					adisc[i].maxloc = 0;
-				}
-				else if (++imaxloc < NEARBY)
-				{
-					// The rare (?) case of another sample equally close to the central sample has arisen
-					// insert it at the next possible place if this is less than NEARBY
+					// add the new sample at the next available place
+					++imaxloc;
 					adisc[i].aXX[imaxloc] = j;
 					adisc[i].aDD[imaxloc] = ds;
 					adisc[i].maxloc = imaxloc;
 				}
-				else
+				else if (ds < adisc[i].aDD[imaxloc])
 				{
-					fprintf(fpProtocol, "****** NEARBY is not large enough !!!!!! *******\n");
-					fflush(fpProtocol);
+					// imaxloc = 2 * nDim -1 and there is no space for a new sample unless ds is smaller than the maximum
+					// we assume the nearby samples are sorted; that imaxloc is the index of a sample at maximun distance
+					// insert j at imaxloc
+					adisc[i].aXX[imaxloc] = j;
+					adisc[i].aDD[imaxloc] = ds;
+				}
+				// now sort the new sample into place in order of increasing ds
+				int k = imaxloc;
+				while ((k > 0) && (adisc[i].aDD[k] < adisc[i].aDD[k - 1]))
+				{
+					// interchange the samples
+					jtemp = adisc[i].aXX[k];
+					dstemp = adisc[i].aDD[k];
+					adisc[i].aXX[k] = adisc[i].aXX[k - 1];
+					adisc[i].aDD[k] = adisc[i].aDD[k - 1];
+					adisc[i].aXX[k - 1] = jtemp;
+					adisc[i].aDD[k - 1] = dstemp;
+					k--;
 				}
 			} // drop samples with j == i
 		} // end of j loop
 	} // end loop over i
-	// We have one or more samples closest to each sample index i
-	// Now we analyze geometrically the collections of samples in the structs
-	// We gather statistics about the distances to the closest samples and their numbers
-	int NumberNearby[NEARBY];
-	for (k = 0; k < NEARBY; k++)
-	{
-		NumberNearby[k] = 0;
-	}
-	double minDist = DBL_MAX;
-	double maxDist = 0;
-	double currDist = 0;
-	double avgDist = 0;
-	int imaxloc;
-	for (i = 0; i < nRowsVAR; i++)
-	{
-		imaxloc = adisc[i].maxloc;
-		NumberNearby[imaxloc + 1] += 1;
-		currDist = adisc[i].aDD[0];
-		avgDist += currDist;
-		if (currDist < minDist) minDist = currDist; // all the entries are at the same distance
-		if (currDist > maxDist) maxDist = currDist;
-	}
-	avgDist /= nRowsVAR;
-	for (k = 0; k < NEARBY; k++)
-	{
-		fprintf(fpProtocol,"Number of rows with %d nearby is %d\n", k, NumberNearby[k]);
-	}
-	fprintf(fpProtocol, "The minimum, average and maximum distances to closest neigbors are %f, %f and %f\n",
-		minDist, avgDist, maxDist);
-	fflush(fpProtocol);
+	// We have 2* nDim samples closest to each sample index i in order of increasing distance
 	long index;
 	double y[2];
 	double NV;
-	double noiseSampleArithAvg = 0;
-	double noiseSampleGeoAvg = 1.0;
+	double noiseSampleSum = 0;
 	nRowsVAR = VARfile.RowCount();
-	double nRowsVARrecip = 1.0 / (double) nRowsVAR;
 	fprintf(fpProtocol, "nRowsVAR is %d\n", nRowsVAR);
 	for (i = 0; i < nRowsVAR; i++)
 	{
-		//Get the nearby sample number 0
+		//Get the nearby sample number 0 which is at minimum distance from the central sample
 		index = adisc[i].aXX[0];
 		for (k = 0; k < nDim - 1; k++)
 		{
@@ -389,110 +355,62 @@ void ALNAPI createNoiseVarianceFile()
 			aXcentral[k] = VARfile.GetAt(i, k, 0);
 		}
 		y[1] = VARfile.GetAt(i, nDim - 1, 0);
-		// generate a new sample between the central sample and the 0 index one nearby
+		// generate a new NV sample between the central sample and the 0 index one nearby
 		NV = pow(y[0] - y[1], 2) * 0.5;
 		for (k = 0; k < nDim - 1; k++)
 		{
 			aXmid[k] = 0.5 * (aXnearby[k] + aXcentral[k]);
 		}
-		noiseSampleArithAvg += NV;
-		noiseSampleGeoAvg *= pow(NV, nRowsVARrecip);
-		// We set up TRfile for training differently
+		noiseSampleSum += NV;
+		// We set up TRfile for training on the NV samples
 		for (k = 0; k < nDim - 1; k++)
 		{
 			TRfile.SetAt(i, k, aXmid[k], 0);
 		}
-		TRfile.SetAt(i, nDim - 1, log10(NV), 0);
-		// last pass with the i struct
-		free(adisc[i].aXX);
-		free(adisc[i].aDD);
+		TRfile.SetAt(i, nDim - 1, NV, 0);
 	} // end i loop over nRowsVAR
-	noiseSampleArithAvg /= nRowsVAR; // turn the sum into the average
-	// Report on VARfile
-	fprintf(fpProtocol, "Average Noise Variance sample value is %f and the log10 of that is %f \n",
-		noiseSampleArithAvg, log10(noiseSampleArithAvg));
-	fprintf(fpProtocol, "Geometric Average of Noise Variance samples = %f\n", noiseSampleGeoAvg);
-	TRfile.Write("DiagnoseTRfileBeforeTrainingALN.txt");
+	fprintf(fpProtocol, "The average Noise Variance sample value is %f \n", noiseSampleSum/nRowsVAR);
+	TRfile.Write("DiagnoseTRfileBeforeSmoothing.txt");
+	// Now smooth the results in a few iterations using TRfile and the nearby noise variance samples
+	int iterations = 10;
+	for (int iteration = 0; iteration < iterations; iteration++)
+	{
+		for (i = 0; i < nRowsTR; i++)
+		{
+			double dblAvg = 0;
+			double factor = 1.0 / (2.0 * nDim + 1.0);
+			for (k = 0; k < 2 * nDim; k++)
+			{
+				int index = adisc[i].aXX[k];
+				// get the values of the nearby samples
+				dblAvg += TRfile.GetAt(index, nDim - 1, 0);
+			}
+			dblAvg += TRfile.GetAt(i, nDim - 1, 0);
+			dblAvg *= factor; // dblAvg is now the average over the central and nearby samples, make them all equal to this
+			for (k = 0; k < 2 * nDim; k++)
+			{
+				int index = adisc[i].aXX[k];
+				TRfile.SetAt(index, nDim - 1, dblAvg, 0);
+			}
+			TRfile.SetAt(i, nDim - 1, dblAvg, 0);
+			if (iteration == iterations - 1)
+			{
+				// cleanup
+				free(adisc[i].aXX);
+				free(adisc[i].aDD);
+			}
+		}
+	}
+	TRfile.Write("DiagnoseTRfileAfterSmoothing.txt");
 	free(aXcentral);
 	free(aXnearby);
 	free(aXmid);
 	free(adisc);
 	trainNoiseVarianceALN();
 }
-
 void ALNAPI trainNoiseVarianceALN()
 {
 	fprintf(fpProtocol, "\n**************Training Noise Variance ALN begins ********\n");
-	fflush(fpProtocol);
-	if (bJitter)
-	{
-		fprintf(fpProtocol, "Jitter is used during NV train\n");
-	}
-	else
-	{
-		fprintf(fpProtocol, "Jitter is not used during NV train\n");
-	}
-	// Here we have to analyze the noise for the rate of change in all axes.
-	// Let's say we want to reduce the variance by a factor of 16 in blocks, so we need 256 samples.
-	// Then we put together 256 blocks the size of dblEpsilon[m] in each dimension.  These will have to be
-	// arranged as a block with side ceil (dblEpsilon[m] * 256^(1/(nDim - 1))) in each domain dimension.
-	// This won't work in higher dimensions, so we'll just use the first four at most (nDim - 1 = 4).
-	// So we use blocks 3 dblEpsilon[m] on a side. For nDim = 2, 3, or 4 we can use 81, 9 or 5 on a side.
-	// First we'll test this idea on nDim = 2 using NoisySin20000.txt as data.
-	double maxSlope = -dblMax;
-	double minSlope = dblMax;
-	if (nDim == 2)
-	{
-		double coordinate;
-		long numberblock;
-		double blocksize = 256 * adblEpsilon[0]; // this is in units of the corresponding axis
-		long arraysize = ceil((adblMaxVar[0] - adblMinVar[0]) / blocksize);
-		fprintf(fpProtocol, "For LogNoise analysis the blocksize is %f and the array size is %d \n",
-			blocksize, arraysize);
-		fprintf(fpProtocol, "Check: blocksize times arraysize = %f and the range of variable 0 is %f \n",
-			blocksize * arraysize, adblMaxVar[0] - adblMinVar[0]);
-		double* aLogNoise = (double*)malloc(arraysize * sizeof(double)); // samples of log noise
-		long* anLogNoise = (long*)malloc(arraysize * sizeof(long)); // the number of samples in the average
-		for (int k = 0; k < arraysize; k++)
-		{
-			aLogNoise[k] = 0;
-			anLogNoise[k] = 0;
-		}
-		for (long i = 0; i < nRowsTR; i++)
-		{
-			coordinate = TRfile.GetAt(i, 0, 0);
-			numberblock = floor((coordinate - adblMinVar[0]) / blocksize);
-			ASSERT((numberblock >= 0) && (numberblock < arraysize));
-			aLogNoise[numberblock] += TRfile.GetAt(i, nDim - 1, 0);
-			anLogNoise[numberblock] += 1;
-		}
-		for (int k = 0; k < arraysize; k++)
-		{
-			if (anLogNoise[k] > 0) aLogNoise[k] /= anLogNoise[k]; // arithmetic mean of the logs
-			// = geometric mean of the original noise samples
-		}
-		for (int k = 0; k < arraysize - 1; k++)
-		{
-			if ((anLogNoise[k] > 0) && (anLogNoise[k + 1] > 0))
-			{
-				aLogNoise[k] -= aLogNoise[k + 1];
-				aLogNoise[k] = fabs(aLogNoise[k]);
-				aLogNoise[k] /= blocksize; // aLogNoise[k] is now a measure of average slope on axis 0
-			}
-			else
-			{
-				aLogNoise[k] = -100.0;
-			}
-		}
-		for (int k = 0; k < arraysize - 1; k++)
-		{
-			if ((anLogNoise[k] > 0) && (anLogNoise[k + 1] > 0))
-			{
-				if (aLogNoise[k] > maxSlope) maxSlope = aLogNoise[k];
-				if (aLogNoise[k] < minSlope) minSlope = aLogNoise[k];
-			}
-		}
-	}	// Finished slope estimation for the special case nDim = 2
 	fflush(fpProtocol);
 	pNV_ALN = (CMyAln*)malloc(sizeof(CMyAln*));
 	pNV_ALN = new CMyAln; // NULL initialized ALN
@@ -505,7 +423,7 @@ void ALNAPI trainNoiseVarianceALN()
 		fflush(fpProtocol);
 		exit(0);
 	}
-	// Now make the tree growable
+	// Make it growable
 	if (!pNV_ALN->SetGrowable(pNV_ALN->GetTree()))
 	{
 		fprintf(fpProtocol, "Setting NV_ALN growable failed!\n");
@@ -514,10 +432,9 @@ void ALNAPI trainNoiseVarianceALN()
 	}
 	bALNgrowable = TRUE;
 	bTrainingAverage = FALSE;
-	bTrainNV_ALN = TRUE; // This causes the bounds on weights to be tighter than for other
-		//training (see prepareQuickStart routine) Get rid of this TEST
+	bTrainNV_ALN = TRUE;
 	(pNV_ALN->GetRegion(0))->dblSmoothEpsilon = 0.0;
-	nMaxEpochs =20; // TEST
+	nMaxEpochs = 20; // TEST
 	dblMinRMSE = 0.0;
 	dblLearnRate = 0.1; // small so the pieces don't turn fast
 	fprintf(fpProtocol, "The smoothing for training NV_ALN is %f, and the learning rate is %f\n",
@@ -525,47 +442,25 @@ void ALNAPI trainNoiseVarianceALN()
 	nNumberLFNs = 1;  // initialize at 1
 	nRowsVAR = VARfile.RowCount();
 	ASSERT(nRowsVAR == nRowsTV);
-	// We now put the VARfile content into TRfile for training
-	//createTR_VARfiles(NOISE_VARIANCE); // We should fix things up so we don't have to always train on TRfile because of splitops
+	// We now put the smoothed TRfile content into VARfile to use in an F-test
+	createTR_VARfiles(NOISE_VARIANCE); // We shouldn't have to always train on TRfile because of splitops
 	const double* adblData = TRfile.GetDataPtr();
 	pNV_ALN->SetDataInfo(nRowsTR, nDim, adblData, NULL); // Not possible yet to train on VARfile
-	dblLimit =0.001;  // Don't do F-test, use weight bounds
-
-	if (nDim > 2)
+	dblLimit = -1.0;  // Use a special F-test where VARfile is used differently in split_ops
+	// We take the Standard Deviation of the output function and
+	// divide by the same for variable m.  This is close to a bound on average slope magnitude.
+	// A bound on maximum slope might be 100 times this?????  Try it.
+	// What this bound tries to do is limit the jumpiness of the slope, which is assumed slowly-varying.
+	double UboundOnSlope;
+	double LboundOnSlope;
+	for (int m = 0; m < nDim - 1; m++)
 	{
-		fprintf(fpProtocol, "The dimension nDim is greater than 2 \n ");
-		// In the case of high dimensions, the analysis of noise by dividing each axis into blocks
-		// will fail, so we look at the maximum slope between samples and divide by a number that 
-		// prevents overfitting, at least between neighboring samples, e.g. 1/1000
-		double UboundOnLogNoiseSlope;
-		double LboundOnLogNoiseSlope;
-		for (int m = 0; m < nDim - 1; m++)
-		{
-			UboundOnLogNoiseSlope = 0.001 * log10(adblStdevVar[nDim - 1]) / adblEpsilon[m];
-			LboundOnLogNoiseSlope = -UboundOnLogNoiseSlope;
-			pNV_ALN->SetWeightMax(UboundOnLogNoiseSlope, m);
-			pNV_ALN->SetWeightMin(LboundOnLogNoiseSlope, m);
-			fprintf(fpProtocol, "Upper bound on log noise slope in axis %d = %f \n ", m, UboundOnLogNoiseSlope);
-			fprintf(fpProtocol, "Lower bound on log noise slope in axis %d = %f \n ", m, LboundOnLogNoiseSlope);
-		}
+		UboundOnSlope = 100.0 * adblStdevVar[nDim - 1] / adblStdevVar[m];
+		LboundOnSlope = -UboundOnSlope;
+		pNV_ALN->SetWeightMax(UboundOnSlope, m);
+		pNV_ALN->SetWeightMin(LboundOnSlope, m);
+		fprintf(fpProtocol, "Magnitude of upper and lower bound on slope in axis %d = %f \n ", m, UboundOnSlope);
 	}
-	else
-	{
-		// nDim == 2
-		fprintf(fpProtocol, "The dimension is %d\n", nDim);
-		// comment out the next two lines to use the maxSlope and minSlope from above
-		// maxSlope = 0.004; // TEST these weights.  The optimum for both is .004,
-    // minSlope = 0.004; // for Noisy/GaussianSin20000.txt.
-		// maxSlope = 0.1;   // TEST these weights as loose bounds. 
-		// minSlope = -0.1; 
-
-		pNV_ALN->SetWeightMax(maxSlope, 0);
-		pNV_ALN->SetWeightMin(minSlope, 0);
-		fprintf(fpProtocol, "Upper bound on axis 0 slope in case nDim = 2, is %f \n", maxSlope);
-		fprintf(fpProtocol, "Lower bound on axis 0 slope in case nDim = 2, is %f \n", minSlope);
-	}
-		
-	fflush(fpProtocol);
 	fprintf(fpProtocol, "----------  Training NV_ALN  ------------------\n");
 	fflush(fpProtocol);
 	for (int iteration = 0; iteration < 40; iteration++) // is 10 iterations enough? // TEST
@@ -1012,7 +907,7 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 	long i;
 	int j;
 
-	if (nChoose == 1) // LINEAR_REGRESSION
+	if (nChoose == 0) // LINEAR_REGRESSION
 	{
 		// Create the files
 		nRowsTR = nRowsVAR = TVfile.RowCount();
@@ -1030,8 +925,20 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 		} // end of i loop
 		//if (bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileLR.txt");
 		//fflush(fpProtocol);
-	}	// end if(nChoose == 1) LINEAR_REGRESSION
+	}	// end if(nChoose == 0) LINEAR_REGRESSION
 
+	if (nChoose == 1) // NOISE_VARIANCE
+	{
+		for (i = 0; i < nRowsTV; i++)
+		{
+			for (j = 0; j < nDim; j++) // ... to the front or
+			{
+				dblValue = TRfile.GetAt(i, j, 0);
+				VARfile.SetAt(i, j, dblValue, 0);
+			}
+		} // end of i loop
+	}// end if(nChoose == 1) NOISE_VARIANCE
+	
 	if (nChoose == 2) // APPROXIMATION 
 	{
 		// We have to use only TRfile for training because of the way we did splitops.  Should be corrected.
@@ -1127,7 +1034,7 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 	// using the result of training of log10 NV_ALN in TRfile.
 	ASSERT(pNV_ALN);
 	ALNNODE* pActiveLFN;
-	double dblValue, dblALNValue;
+	double dblALNValue;
 	double * adblX = (double *)malloc((nDim) * sizeof(double));
 	long nRowsVAR = VARfile.RowCount();
 	double nRowsVARrecip = 1.0 / (double) nRowsVAR;
@@ -1139,25 +1046,20 @@ void createSamples(CMyAln* pNV_ALN)  // routine
 		}
 		adblX[nDim - 1] = 0;
 		dblALNValue = pNV_ALN->QuickEval(adblX, &pActiveLFN);
-		VARfile.SetAt(i, nDim - 1, pow(10, dblALNValue), 0); // Undoing the log10
+		VARfile.SetAt(i, nDim - 1, dblALNValue, 0);
 		//VARfile.SetAt(i, nDim - 1, 1.3333333 * pow(1.00461579,2.0 * adblX[0]), 0); // TEST use actual noise variance
 	}
 	free(adblX);
-	//pNV_ALN->Write("Log10NoiseVarianceALN.txt");
 	pNV_ALN->Destroy();
 	// Now check to see the global noise variance 
 	// Check a case of known constant noise variance!
 	double arithAvg = 0;
-	double dblGeoAvg = 1.0;
 	for(long i = 0; i < nRowsVAR; i++)
 	{
-		dblValue = VARfile.GetAt(i, nDim - 1, 0);
-		arithAvg += dblValue;
-		dblGeoAvg *= pow(dblValue, nRowsVARrecip);
+		arithAvg += VARfile.GetAt(i, nDim - 1, 0);
 	}
 	dblSetTolerance = arithAvg / nRowsVAR;
 	fprintf(fpProtocol, "Arithmetic average of noise variance samples = %f\n", dblSetTolerance);
-	fprintf(fpProtocol, "Geometric average of noise variance samples = %f\n", dblGeoAvg);
 	fflush(fpProtocol);
 	if(bPrint && bDiagnostics) VARfile.Write("DiagnoseVARfileAfterNV_ALN_train.txt");
 	if(bPrint && bDiagnostics) fprintf(fpProtocol, "Diagnose VARfileAfterNV_ALN_train.txt written\n");

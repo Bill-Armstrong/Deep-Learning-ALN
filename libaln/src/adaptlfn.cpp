@@ -131,10 +131,8 @@ void ALNAPI AdaptLFN(ALNNODE* pNode, ALN* pALN, const double* adblX,
   {
 		// get pointer to variable constraints
 		ALNCONSTRAINT* pConstr = GetVarConstraint(NODE_REGION(pNode), pALN, i);
-		// skip any variables of constant monotonicity; W is constant and X is irrelevant
-		if (pConstr->dblWMax == pConstr->dblWMin) continue; // Why?? you still have to adapt centroid TEST leave this out
-    // above condition should always catch output var
-    ASSERT (i != nOutput);
+		// skip the output variable TEST WWA Jan 15, 2019 formerly removed all inputs of constant monotonicity
+		if (i == nOutput) continue; 
 		// The following was changed on March 24, 2015, to allow for real-time
 		// inputs where X[i] and the previous value might be correlated.
 		// Compute the distance of X from the old centroid in axis i
