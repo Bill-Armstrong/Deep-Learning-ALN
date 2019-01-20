@@ -80,7 +80,7 @@ void ALNAPI createTR_VARfiles(int nChoose);
 void ALNAPI trainNoiseVarianceALN(); // Trains on the samples in VARfile to create NV_ALN
 void createSamples(CMyAln* pNV_ALN); // Creates smoothed noise variance samples using NV_ALN
 void prepareQuickStart(CMyAln* pALN); // This sets up ALN training with values already determined by Linear Regression
-
+double scalarProduct(double* adblA, double* adblB);
 // ALN pointers
 
 static CMyAln* pALN = NULL; // declares a pointer to an ALN used in linear regression
@@ -253,6 +253,7 @@ void ALNAPI createNoiseVarianceFile()
 	double* aXcentral = NULL;
 	double* aXnearby = NULL;
 	double* aXmid = NULL;
+	double* aUnit = NULL;
 	struct disc // each sample (X,y) index i in VARfile has a disc struct at index i
 	{
 		long*   aXX; // These are indices of two samples in VARfile close to (X,y)
@@ -271,6 +272,7 @@ void ALNAPI createNoiseVarianceFile()
 	aXcentral = (double*)malloc((nDim - 1) * sizeof(double)); // these hold domain points
 	aXnearby = (double*)malloc((nDim - 1) * sizeof(double));
 	aXmid = (double*)malloc((nDim - 1) * sizeof(double));
+	aUnit = (double*)malloc((nDim - 1) * sizeof(double));
 	adisc = (disc*)malloc(nRowsVAR * sizeof(disc));
 	//We use the VARfile here to set up training NV samples in TRfile.
 	long i, j, k;
@@ -344,23 +346,57 @@ void ALNAPI createNoiseVarianceFile()
 	{
 		//Get the nearby sample number 0 which is at minimum distance from the central sample
 		index = adisc[i].aXX[0];
+		double d0 = adisc[i].aDD[0];
 		for (k = 0; k < nDim - 1; k++)
 		{
 			aXnearby[k] = VARfile.GetAt(index, k, 0);
 		}
 		y[0] = VARfile.GetAt(index, nDim - 1, 0);
-		// Get the central sample
+		// Get the central sample and create a midpoint between samples
 		for (k = 0; k < nDim - 1; k++)
 		{
 			aXcentral[k] = VARfile.GetAt(i, k, 0);
-		}
-		y[1] = VARfile.GetAt(i, nDim - 1, 0);
-		// generate a new NV sample between the central sample and the 0 index one nearby
-		NV = pow(y[0] - y[1], 2) * 0.5;
-		for (k = 0; k < nDim - 1; k++)
-		{
 			aXmid[k] = 0.5 * (aXnearby[k] + aXcentral[k]);
 		}
+		y[1] = VARfile.GetAt(i, nDim - 1, 0);
+		/*  Slope compensation failed. Even with a slope, the 0 sample could be randomly above or below the other.
+		// Generate a new NV sample at aXmid. Introduce slope compensation:
+		// Use the 2 * nDim nearby points to compute a slope from the central point to the nearby sample 0 so one
+		// can improve the noise sample by an estimate of the difference of the unknown function at the two places.
+		// The unit vector from the central sample towards the nearby 0 sample is:
+		for (k = 0; k < nDim - 1; k++)
+		{
+			aUnit[k] = (aXnearby[k] - aXcentral[k])/d0;
+		}
+		// Get all the nearby samples j.
+		// For each one compute the scalar product with aUnit getting the distance 
+		// from the central sample in the direction of aUnit.
+		double totalDistanceAlongUnit = 0;
+		double totalValueDiffs = 0;
+		for (int j = 0; j < 2 * nDim; j++)
+		{
+			index = adisc[i].aXX[j];
+			for (k = 0; k < nDim -1; k++)
+			{
+				// Repurpose aXnearby to be a vector from the central sample to sample j.
+				aXnearby[k] = VARfile.GetAt(index, k, 0) - aXcentral[k];
+			}
+			totalDistanceAlongUnit += scalarProduct(aXnearby, aUnit);
+			totalValueDiffs += VARfile.GetAt(index, nDim - 1, 0);
+		}
+		totalValueDiffs -= 2 * nDim * y[1];
+		// Correct by the the distance between the central sample and sample 0 times the slope going up.
+		// If the totalDistanceAlongUnit is small, the correction may generate an erroneous value.
+		if ( fabs(totalDistanceAlongUnit) > 100000.0 + d0) //TEST
+		{
+			NV = pow(y[0] - y[1] - d0 * totalValueDiffs / totalDistanceAlongUnit, 2) * 0.5;
+		}
+		else
+		{
+			NV = pow(y[0] - y[1], 2) * 0.5;
+		}
+		*/
+		NV = pow(y[0] - y[1], 2) * 0.5;
 		noiseSampleSum += NV;
 		// We set up TRfile for training on the NV samples
 		for (k = 0; k < nDim - 1; k++)
@@ -934,7 +970,12 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			for (j = 0; j < nDim; j++) // ... to the front or
 			{
 				dblValue = TRfile.GetAt(i, j, 0);
-				VARfile.SetAt(i, j, dblValue, 0);
+				if (j < nDim - 1)
+				{
+					// This perturbs the domain points in VARfile so that if they are equally spaced, the one closer is
+					// chosen randomly.  If it is chosen systematically, the slope of the function may affect the noise.
+					VARfile.SetAt(i, j, dblValue + 0.0001 * ALNRandFloat() * adblEpsilon[j], 0);
+				}
 			}
 		} // end of i loop
 	}// end if(nChoose == 1) NOISE_VARIANCE
@@ -1026,6 +1067,16 @@ double dist(double* adblA, double* adblB)
 		sum += pow(adblA[j] - adblB[j], 2);
 	}
 	return pow(sum, 0.5);
+}
+
+double scalarProduct(double* adblA, double* adblB)
+{
+	double sum = 0.0;
+	for (int j = 0; j < nDim - 1; j++)
+	{
+		sum += adblA[j] * adblB[j];
+	}
+	return sum;
 }
 
 void createSamples(CMyAln* pNV_ALN)  // routine
