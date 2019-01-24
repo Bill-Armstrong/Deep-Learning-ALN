@@ -491,7 +491,7 @@ void ALNAPI trainNoiseVarianceALN()
 	double LboundOnSlope;
 	for (int m = 0; m < nDim - 1; m++)
 	{
-		UboundOnSlope = 100.0 * adblStdevVar[nDim - 1] / adblStdevVar[m];
+		UboundOnSlope = 25.0 * adblStdevVar[nDim - 1] / adblStdevVar[m];
 		LboundOnSlope = -UboundOnSlope;
 		pNV_ALN->SetWeightMax(UboundOnSlope, m);
 		pNV_ALN->SetWeightMin(LboundOnSlope, m);
@@ -970,11 +970,12 @@ void ALNAPI createTR_VARfiles(int nChoose) // routine
 			for (j = 0; j < nDim; j++) // ... to the front or
 			{
 				dblValue = TRfile.GetAt(i, j, 0);
-				if (j < nDim - 1)
+				if (j == 0)
 				{
-					// This perturbs the domain points in VARfile so that if they are equally spaced, the one closer is
-					// chosen randomly.  If it is chosen systematically, the slope of the function may affect the noise.
-					VARfile.SetAt(i, j, dblValue + 0.0001 * ALNRandFloat() * adblEpsilon[j], 0);
+					// This perturbs the domain points in VARfile so that if they are equally spaced, e.g. on
+					// a grid, the one closer is chosen randomly.  If it is chosen systematically,
+					// the slope of the function may affect the noise variance samples in a systematic way.
+					VARfile.SetAt(i, j, dblValue + 0.01 * ALNRandFloat() * adblEpsilon[j], 0);
 				}
 			}
 		} // end of i loop
