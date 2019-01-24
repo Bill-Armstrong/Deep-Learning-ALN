@@ -1,7 +1,0 @@
-##Kenneth Osborn Cogger, Jr.  August 10, 1942 - August 15, 2015
-
-Ken Cogger died on August 15, 2015.  He was my friend and collaborator for close to 20 years.  Although we seldom had the chance to meet, online contact gave me a chance to learn from his vast knowledge of statistics.  Ken believed in ALNs, and in his final months had worked intesely and meticulously to compare ALNs to other machine learning systems. The DevilsTowerRotated.txt example was one he developed to challenge learning systems. A joint technical paper with some of his results is included with the ALNfitDeep download.
-
-On this day, the anniversary of his passing, I take pleasure in dedicating this software, ALNfitDeep, to Ken. 
-
-Bill Armstrong
