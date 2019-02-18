@@ -1,1 +1,0 @@
-The idea for this directory is that once a satisfactory library is created in win32/lib, it can be copied here and made read-only.  The library in win32/lib should be writeable so as not to prevent updates when libaln or libalndll is built.
