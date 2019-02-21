@@ -1,0 +1,10 @@
+The Data file was successfully opened.
+Opening data file C:\Users\arms\Documents\ALN2018tests\NoisyFlat.txt for analysis succeeded!
+The line read from the file is: 
+ A	B	C	D	E	F	G	H	OUTPUT 
+The line is assumed to be a header line. Analysis continues.
+There were 9 items read in the header line
+First data line to help checking for correctness:
+0.12236965	0.593928191	0.680068453	0.304440112	0.771464984	0.995950187	0.783162903	0.026995261	11.20918193
+Count of items in first data line = 9
+Data file analysis returned: header lines 1, rows 241, columns 9 

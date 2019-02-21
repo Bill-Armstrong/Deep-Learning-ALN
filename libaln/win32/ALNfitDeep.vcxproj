@@ -1,0 +1,337 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug MT DLL|Win32">
+      <Configuration>Debug MT DLL</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug MT|Win32">
+      <Configuration>Debug MT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release MT DLL|Win32">
+      <Configuration>Release MT DLL</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release MT|Win32">
+      <Configuration>Release MT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{81F30868-CE4B-4997-B65E-55F17B7A4A85}</ProjectGuid>
+    <RootNamespace>ALNfitDeep</RootNamespace>
+    <Keyword>MFCProj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <ProjectName>ALNfitDeep</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <UseOfMfc>Dynamic</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <UseOfMfc>Dynamic</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <CLRSupport>false</CLRSupport>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>14.0.24720.0</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
+    <IntDir>.\ALNfitDeep\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>ALNfitDeepDebug</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
+    <IntDir>.\ALNfitDeep\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>ALNfitDeep</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
+    <IntDir>.\ALNfitDeep\</IntDir>
+    <EnableManagedIncrementalBuild>false</EnableManagedIncrementalBuild>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>ALNfitDeepDebugDLL</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
+    <IntDir>.\ALNfitDeep\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>ALNfitDeepDLL</TargetName>
+    <OutDir>..\samples\ALNfitDeep\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>true</OpenMPSupport>
+      <BrowseInformation>false</BrowseInformation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <WarningLevel>Level1</WarningLevel>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <StringPooling>false</StringPooling>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <AdditionalOptions>/FS</AdditionalOptions>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>.\lib\libalndmt.lib;.\lib\libalnppdmt.lib</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
+      <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmt.lib;libcmtd.lib;msvcrtd.lib</IgnoreSpecificDefaultLibraries>
+      <HeapReserveSize>0</HeapReserveSize>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <EnableUAC>false</EnableUAC>
+      <GenerateDebugInformation>No</GenerateDebugInformation>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <AssemblyDebug>false</AssemblyDebug>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(TargetName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;WINVER=0x0A00</PreprocessorDefinitions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <WarningLevel>Level1</WarningLevel>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>true</OpenMPSupport>
+      <BrowseInformation>false</BrowseInformation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeaderFile />
+      <StringPooling>false</StringPooling>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <AdditionalOptions>/FS</AdditionalOptions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>.\lib\libalnmt.lib;.\lib\libalnppmt.lib</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <SubSystem>Windows</SubSystem>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
+      <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmtd.lib;nafxcwd.lib;msvcrtd.lib</IgnoreSpecificDefaultLibraries>
+      <HeapReserveSize>0</HeapReserveSize>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ImportLibrary>
+      </ImportLibrary>
+      <EnableUAC>false</EnableUAC>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <GenerateDebugInformation>No</GenerateDebugInformation>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <AssemblyDebug>false</AssemblyDebug>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(TargetName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <WarningLevel>Level1</WarningLevel>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>true</OpenMPSupport>
+      <BrowseInformation>true</BrowseInformation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <StringPooling>false</StringPooling>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <AdditionalOptions>/FS</AdditionalOptions>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>false</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>.\lib\libalnmtd.lib;.\lib\libalnppmtd.lib</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
+      <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmt.lib;msvcrt.lib;nafxcw.lib</IgnoreSpecificDefaultLibraries>
+      <HeapReserveSize>0</HeapReserveSize>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <EnableUAC>false</EnableUAC>
+      <GenerateDebugInformation>Debug</GenerateDebugInformation>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <AssemblyDebug>false</AssemblyDebug>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(TargetName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\include;C:\Boost\boost_1_68_0;C:\Eigen\eigen-eigen-b3f3d4950030</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OpenMPSupport>true</OpenMPSupport>
+      <BrowseInformation>true</BrowseInformation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <StringPooling>false</StringPooling>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <AdditionalOptions>/FS</AdditionalOptions>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <MinimalRebuild>true</MinimalRebuild>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>.\lib\libalndmtd.lib;.\lib\libalnppdmtd.lib</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>libc.lib;libcd.lib;libcmt.lib;libcmtd.lib;msvcrt.lib</IgnoreSpecificDefaultLibraries>
+      <HeapReserveSize>0</HeapReserveSize>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
+      <AdditionalLibraryDirectories>C:\Boost\boost_1_68_0;.\lib</AdditionalLibraryDirectories>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <EnableUAC>false</EnableUAC>
+      <GenerateDebugInformation>Debug</GenerateDebugInformation>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <AssemblyDebug>false</AssemblyDebug>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
+      <FixedBaseAddress>false</FixedBaseAddress>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <Bscmake>
+      <OutputFile>$(IntDir)$(TargetName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\alnextern.h" />
+    <ClInclude Include="..\include\targetver.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\ALNfitDeep.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\ALNfitDeepDoc.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\ALNfitDeepView.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\MainFrm.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\OptionsDialog.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\resource.h" />
+    <ClInclude Include="..\samples\ALNfitDeep\StdAfx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\samples\ALNfitDeep\res\ALNfitDoc.ico" />
+    <Image Include="..\samples\ALNfitDeep\res\ALNfitDeep.ico" />
+    <Image Include="..\samples\ALNfitDeep\res\bitmap1.bmp" />
+    <Image Include="..\samples\ALNfitDeep\res\Toolbar.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\samples\ALNfitDeep\ALNfitDeep.cpp" />
+    <ClCompile Include="..\samples\ALNfitDeep\ALNfitDeepDoc.cpp" />
+    <ClCompile Include="..\samples\ALNfitDeep\ALNfitDeepView.cpp" />
+    <ClCompile Include="..\samples\ALNfitDeep\MainFrm.cpp" />
+    <ClCompile Include="..\samples\ALNfitDeep\OptionsDialog.cpp" />
+    <ClCompile Include="..\samples\ALNfitDeep\StdAfx.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\samples\ALNfitDeep\ALNfitDeep.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties RESOURCE_FILE="..\samples\ALNfitDeep\ALNfitDeep.rc" />
+    </VisualStudio>
+  </ProjectExtensions>
+</Project>
