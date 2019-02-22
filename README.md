@@ -17,7 +17,7 @@ Using the ALNfitDeep software you can change the line dblLimit = -1.0 to dblLimi
 
 =B1+10\*(1.00461579^A1)\*2\*(NORMINV(RAND(),0,1))
 
-Now copy B1 and C1 into B2 and C2, then copy all columns to get the number of samples you want.
+Now copy B1 and C1 into B2 and C2, then copy all columns to get the number of samples you want. Copy the three columns onto a new sheet, add any headers, e.g. X, Noiseless, Noisy, and save the sheet as a tab-separated text file.
 
 When you Browse to this file and open it in ALNfitDeep, use the Previous connection and Remove buttons to exclude the actual values of the unknown function in column B from training. It will show up in the "E" output file for evaluating accuracy of the result.
 
