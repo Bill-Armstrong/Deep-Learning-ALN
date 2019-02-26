@@ -5,6 +5,8 @@
 *.bsc
 *.CDR
 *.db
+*.db-shm
+*.db-wal
 *.def
 *.dep
 *.dll

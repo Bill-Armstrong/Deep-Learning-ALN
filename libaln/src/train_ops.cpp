@@ -404,10 +404,9 @@ void ALNAPI createNoiseVarianceFile()
 		yy = (y - X * betaHat);
 		ESS = yy.transpose() * yy;
 		NV = ESS /(Nearby + 1 - nDim); // ESS is the sum of squared errors.
-		// An ALN's mean squared error should be close to NV at this place.
-		// The noise variance is probably ESS/(Nearby + 1 - nDim) since the
-		// fitted linear piece removes nDim degrees of freedom)
-		noiseSampleSum += NV;
+		// For the noise variance we use ESS/(Nearby + 1 - nDim) which is
+		// the square of the standard error of regression. It differs from
+		// ESS because fitting the data removes nDim degrees of freedom.
 		if (NV < noiseSampleMin)noiseSampleMin = NV;
 		if (NV > noiseSampleMax)noiseSampleMax = NV;
 		// We set up TRfile for training on the NV samples
