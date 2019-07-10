@@ -32,15 +32,13 @@ int ALNAPI analyzeInputFile(char * szDataFileName, int * nHeaderLines, long * nr
 void ALNAPI analyzeTV();	// Computes the standard deviations of the variables in the TVset.
 void ALNAPI getTVfile();	// The TVfile created from the PreprocessedDataFile is read in
 void ALNAPI getTSfile();	// The TSfile created from the PreprocessedDataFile is read in 
-void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
-void ALNAPI createNoiseVarianceFile(); // Creates samples estimating the noise variance.
-//void ALNAPI trainNoiseVarianceALN(); // Trains on the noise variance samples to smooth them.
+//void ALNAPI doLinearRegression();	// This does a truncated linear regression fit to get an upper bound on noise
+void ALNAPI createNoiseVarianceTool(); // Helps to create samples estimating the noise variance during approximation.
 void ALNAPI approximate();	// This creates one or more approximant ALNs using the weight bounds found above.  These are averaged in bagging later.
 void ALNAPI reportFunctions();	// reports on the trained function ALNs with stats and plots
 void ALNAPI evaluate();	// Evaluate an existing DTREE on the data file after preprocessing
 void ALNAPI cleanup();	// destroys allocated items no longer needed
 void ALNAPI outputTrainingResults();	// outputs the results of training
-void ALNAPI trainAverage();	// trains an average of several smoothed ALNs (i.e. with fillets)
 void ALNAPI constructDTREE(int);	// constructs a DTREE from the average ALN from bagging
 int ALNAPI analyzeauxiliaryfile(char * szAuxiliaryFileName, int * pAuxheaderlines, long * pAuxrows, int * pAuxcols, BOOL bPrint);
 void ALNAPI MakeAuxNumericalFile(char * szAuxiliaryFileName,int nHeaderLinesAuxiliary,long nAuxRows, int nAuxCols, CDataFile & AuxNumericalFile);

@@ -36,7 +36,6 @@ void dodivideVAR(ALN*, ALNNODE*); // divides the sum of noise variance samples o
 UINT TakeActionProc(LPVOID pParam);  // separate thread
 
 //Global variables
-extern BOOL bTrainingAverage; // Switch to tell fillvector whether get a training vector or compute an average
 extern int nNumberLFNs;				// used to control the epoch size, which should be proportional to this
 extern BOOL bDecimal;					// Numbers could have a decimal point (as in North America).
 extern BOOL bComma;						// Numbers could have a comma (as in Europe).
@@ -44,7 +43,7 @@ extern int nDim;							// Number of ALN inputs plus one for the output.
 extern int nOutputIndex;			// Usually nDim - 1. A change of output of an ALN
 			// occurs for the inverse ALN when the ALN output is monotonic in an input.
 extern long nRowsPP;          // The number of rows in the PreprocessedDataFile
-extern long nRowsTV;          // Number of rows in the TVfile (used to create TRfile, NVfile).
+extern long nRowsTV;          // Number of rows in the TVfile (used to create TRfile).
 extern double* adblEpsilon;   // An array of doubles holding the average distance between inputs.
 extern double* adblMinVar;    // Array of minima of the variables
 extern double* adblMaxVar;    // Array of maxima of the variables

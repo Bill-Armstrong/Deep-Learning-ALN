@@ -198,12 +198,13 @@ const ALNNODE* CAln::GetTree() const
 }
 
 void CAln::SetDataInfo(int nPoints, int nCols, const double* adblData,
-                       const VARINFO* aVarInfo /*= NULL*/)
+                       const VARINFO* aVarInfo /*= NULL*/, const double MSEorF)
 {
+	m_datainfo.nPoints = nPoints;
   m_datainfo.nCols = nCols;
-  m_datainfo.nPoints = nPoints;
   m_datainfo.adblData = adblData;
   m_datainfo.aVarInfo = aVarInfo;
+  m_datainfo.MSEorF = MSEorF;
 }
 
 BOOL CAln::Create(int nDim, int nOutput)
@@ -297,7 +298,7 @@ BOOL CAln::Train(int nMaxEpochs, double dblMinRMSErr, double dblLearnRate,
 
   m_nLastError = ALNTrain(m_pALN, pData, &callback, nMaxEpochs, dblMinRMSErr, dblLearnRate, bJitter);
 
-  return (m_nLastError == ALN_NOERROR || m_nLastError == ALN_USERABORT);
+	return (m_nLastError == ALN_NOERROR || m_nLastError == ALN_USERABORT);
 }
 
 double CAln::CalcRMSError(int nNotifyMask /*= AN_NONE*/, 

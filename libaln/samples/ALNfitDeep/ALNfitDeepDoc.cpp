@@ -35,10 +35,10 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 #define		MESSAGE0  "Analyzing the data file"
-#define		MESSAGE1  "Doing linear regression to find some useful starting values."
-#define		MESSAGE2  "Creating noise variance samples; training an ALN on the noise variance."
-#define		MESSAGE3  "Training ALNs using the noise variance function to prevent overtraining."
-#define		MESSAGE4  "Bagging: training an ALN on samples of the average of several trained ALNs"
+#define		MESSAGE1  "Doing linear regression has been eliminated"
+#define		MESSAGE2  "Creating a tool for generating noise variance samples."
+#define		MESSAGE3  "Training ALNs using noise variance samples."
+#define		MESSAGE4  "Bagging: this step is no longer required and has been removed"
 #define		MESSAGE5  "Constructing a DTREE from the average ALN and writing the .dtr file "
 #define		MESSAGE6  "Loading and evaluating the DTREE on the test data file"
 #define		MESSAGE7  "Determining importance of input variables using the trained ALNs"

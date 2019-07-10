@@ -418,10 +418,6 @@ inline void Adapt(ALNNODE* pNode, ALN* pALN, const double* adblX,
 // split routines
 int ALNAPI SplitLFN(ALN* pALN, ALNNODE* pNode);
 
-// find LFNs to split according to number of points on them and the F-test
-void ALNAPI FindSplitLFN(ALN* pALN);
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // DTREE conversion routines
 

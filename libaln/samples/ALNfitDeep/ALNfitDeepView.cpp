@@ -823,10 +823,10 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
 			// Noise estimation may work for classification, but more study is required.
       PassBackStatus(1,10);  
       PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			doLinearRegression();
+			//doLinearRegression();
       PassBackStatus(2,15);  
       ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-			createNoiseVarianceFile();
+			createNoiseVarianceTool();
 			//trainNoiseVarianceALN();
 		}
     PassBackStatus(3,30);  
@@ -837,7 +837,7 @@ UINT ActionsProc(LPVOID pParam)  // the actions thread
     outputTrainingResults();
     PassBackStatus(4,80);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
-    trainAverage();
+    // trainAverage(); Bagging is no longer required
     PassBackStatus(5,85);  
     ::PostMessage((HWND) pParam, WM_UPDATESCREEN,0,0);
     constructDTREE(nDTREEDepth);

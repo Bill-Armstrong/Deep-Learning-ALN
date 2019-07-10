@@ -58,7 +58,7 @@ void ALNAPI Jitter(ALN* pALN, double* adblX)
 #ifdef _DEBUG
     double dbl = adblX[i];
 #endif
-
+		
     adblX[i] += Noise() * pALN->aRegions[0].aConstr[i].dblEpsilon;
 
 #ifdef _DEBUG

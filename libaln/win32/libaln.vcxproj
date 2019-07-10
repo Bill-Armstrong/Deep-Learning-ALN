@@ -21,28 +21,28 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AEB0F1E6-D227-433A-8BFC-17AAA35624C2}</ProjectGuid>
     <RootNamespace>libaln</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <UseOfAtl>Static</UseOfAtl>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -100,7 +100,6 @@
       <PrecompiledHeader />
       <AssemblerListingLocation>.\libalndmt/</AssemblerListingLocation>
       <ObjectFileName>.\libalndmt/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalndmt/</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PrecompiledHeaderFile />
@@ -129,7 +128,6 @@
       <PrecompiledHeader />
       <AssemblerListingLocation>.\libalnmtd\</AssemblerListingLocation>
       <ObjectFileName>.\libalnmtd\</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnmtd\</ProgramDataBaseFileName>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -165,9 +163,8 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
-      <AssemblerListingLocation>.\libalnmt/</AssemblerListingLocation>
-      <ObjectFileName>.\libalnmt/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnmt/</ProgramDataBaseFileName>
+      <AssemblerListingLocation>.\libalnmt\</AssemblerListingLocation>
+      <ObjectFileName>.\libalnmt\</ObjectFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PrecompiledHeaderFile />
@@ -195,9 +192,10 @@
       <PreprocessorDefinitions>_DEBUG;_MT;_DLL;_AFXDLL;WIN32;_WINDOWS;ALN_NOFORCE_LIBS;LITTLE_ENDIAN;_CRT_SECURE_NO_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
-      <AssemblerListingLocation>.\libalndmtd/</AssemblerListingLocation>
-      <ObjectFileName>.\libalndmtd/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalndmtd/</ProgramDataBaseFileName>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ObjectFileName>
+      </ObjectFileName>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -270,7 +268,6 @@
     <ClCompile Include="..\src\plimit.cpp" />
     <ClCompile Include="..\src\prepaln.cpp" />
     <ClCompile Include="..\src\shuffle.cpp" />
-    <ClCompile Include="..\src\splitlfn.cpp" />
     <ClCompile Include="..\src\split_ops.cpp" />
     <ClCompile Include="..\src\train_ops.cpp" />
     <ClCompile Include="..\src\validatedatainfo.cpp" />

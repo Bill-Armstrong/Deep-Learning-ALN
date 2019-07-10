@@ -224,10 +224,9 @@ void ALNAPI reportFunctions();      // reports on the trained function ALNs with
 void fillvector(double *, CMyAln*); // Used to input a data vector under program control
 
 // The main steps in training operations (train_ops.cpp)
-void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
+//void ALNAPI doLinearRegression();   // This does a linear regression fit, finding RMS error and weights
 void ALNAPI computeNoiseVariance();  // This makes noise variance samples. These are then used to train an ALN so samples are smoothed.
 void ALNAPI approximate();          // This creates the final approximant using the weight bounds found above
-void ALNAPI trainAverage();         // Does bagging by averaging several ALNs created using noise variance stopping
 void ALNAPI outputTrainingResults();// Prints out the results of training 
 void ALNAPI constructDTREE(int);		// The DTREE is a VERY fast way of evaluating any ALN.
 void ALNAPI evaluate();			        // Evaluate an existing DTREE on the data file after preprocessing
@@ -296,7 +295,6 @@ UINT TakeActionProc(LPVOID pParam);  // separate thread
 
 
 //global variables used only internally
-BOOL bTrainingAverage = FALSE;// Switch to tell fillvector whether get a training vector or compute an average
 int nNumberLFNs;  // used to control the epoch size, which should be proportional to this
 char szVarName[100][3];
 BOOL bEstimateNoiseVariance = TRUE; // if TRUE we estimate noise variance

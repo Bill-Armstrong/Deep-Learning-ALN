@@ -47,8 +47,8 @@ int ALNAPI ValidateALNDataInfo(const ALN* pALN,
     return ALN_GENERIC;
   }
 
-  // must have at least one training point
-  if (pDataInfo->nPoints <= 0)
+  // must have at least one training point or not have a training set
+	if ((pDataInfo->nPoints <= 0) && (pDataInfo->MSEorF <= 0))
   {
     return ALN_GENERIC;
   }

@@ -363,6 +363,7 @@ extern "C" {
 		const VARINFO* aVarInfo;  /* variable info... may be NULL                */
 		const double* adblData;   /* data array... may be NULL                   */
 		int nCols;                /* number of columns in non-NULL data array    */
+		double MSEorF;						/* split criterion:this if > 0, F-test if <= 0 A NEW ITEM FOR MYTEST*/
 	} ALNDATAINFO;
 
 	/*

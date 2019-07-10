@@ -21,27 +21,27 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{79E5138E-D1CB-4143-9F07-4ECFF90001C2}</ProjectGuid>
     <RootNamespace>alnpp</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -68,22 +68,22 @@
     <_ProjectFileVersion>14.0.24720.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT DLL|Win32'">
-    <OutDir>lib\</OutDir>
+    <OutDir>.\lib\</OutDir>
     <IntDir>libalnppdmtd\</IntDir>
     <TargetName>libalnppdmtd</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT|Win32'">
-    <OutDir>lib\</OutDir>
+    <OutDir>.\lib\</OutDir>
     <IntDir>libalnppmt\</IntDir>
     <TargetName>libalnppmt</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MT|Win32'">
-    <OutDir>lib\</OutDir>
+    <OutDir>.\lib\</OutDir>
     <IntDir>libalnppmtd\</IntDir>
     <TargetName>libalnppmtd</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MT DLL|Win32'">
-    <OutDir>lib\</OutDir>
+    <OutDir>.\lib\</OutDir>
     <IntDir>libalnppdmt\</IntDir>
     <TargetName>libalnppdmt</TargetName>
   </PropertyGroup>
@@ -91,12 +91,12 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_DEBUG;_MT;_DLL;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT_MAXVER;_DEBUG;_MT;_DLL;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeaderOutputFile>.\libalnppdmtd/alnpp.pch</PrecompiledHeaderOutputFile>
       <AssemblerListingLocation>.\libalnppdmtd/</AssemblerListingLocation>
       <ObjectFileName>.\libalnppdmtd/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnppdmtd/</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>.\lib\</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -118,14 +118,14 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>..\include;..\..\boost_1_41_0\boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MT;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT_MAXVER;_MT;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeaderOutputFile>.\libalnppmt/alnpp.pch</PrecompiledHeaderOutputFile>
       <AssemblerListingLocation>.\libalnppmt/</AssemblerListingLocation>
       <ObjectFileName>.\libalnppmt/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnppmt/</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>.\lib\</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
     </ClCompile>
@@ -148,12 +148,12 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\include;..\..\boost_1_41_0\boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_DEBUG;_MT;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT_MAXVER;_DEBUG;_MT;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeaderOutputFile>.\libalnppmtd/alnpp.pch</PrecompiledHeaderOutputFile>
       <AssemblerListingLocation>.\libalnppmtd/</AssemblerListingLocation>
       <ObjectFileName>.\libalnppmtd/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnppmtd/</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>.\lib\</ProgramDataBaseFileName>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -179,14 +179,14 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MT;_DLL;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT_MAXVER;_MT;_DLL;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeaderOutputFile>.\libalnppdmt/alnpp.pch</PrecompiledHeaderOutputFile>
       <AssemblerListingLocation>.\libalnppdmt/</AssemblerListingLocation>
       <ObjectFileName>.\libalnppdmt/</ObjectFileName>
-      <ProgramDataBaseFileName>.\libalnppdmt/</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>.\lib\</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
     </ClCompile>

@@ -24,8 +24,7 @@
 // training support routines
 
 // libaln/src/alntrain.cpp
-// Revision date: November 30, 2018
-// Changes by: WWA
+// Revision date: July 3, 2019
 
 #ifdef ALNDLL
 #define ALNIMP __declspec(dllexport)
@@ -56,7 +55,7 @@ static char THIS_FILE[] = __FILE__;
 // ALN train returns an ALN_* error code, (ALN_NOERROR on success).
 
 // helper declarations
-static int ALNAPI ValidateALNTrainInfo(const ALN* pALN,
+int ALNAPI ValidateALNTrainInfo(const ALN* pALN,
                                        const ALNDATAINFO* pDataInfo,
                                        const ALNCALLBACKINFO* pCallbackInfo,
                                        int nMaxEpochs,
@@ -64,13 +63,14 @@ static int ALNAPI ValidateALNTrainInfo(const ALN* pALN,
                                        double dblLearnRate);
 
 #ifdef _DEBUG
-static void DebugValidateALNTrainInfo(const ALN* pALN,
+void DebugValidateALNTrainInfo(const ALN* pALN,
                                       const ALNDATAINFO* pDataInfo,
                                       const ALNCALLBACKINFO* pCallbackInfo,
                                       int nMaxEpochs,
                                       double dblMinRMSErr,
                                       double dblLearnRate);
 #endif
+
 
 static int ALNAPI DoTrainALN(ALN* pALN,
                              const ALNDATAINFO* pDataInfo,
@@ -95,9 +95,10 @@ ALNIMP int ALNAPI ALNTrain(ALN* pALN,
                            double dblLearnRate,
                            BOOL bJitter)
 {
-  int nReturn = ValidateALNTrainInfo(pALN, pDataInfo, pCallbackInfo,
-                                     nMaxEpochs, dblMinRMSErr, dblLearnRate);
-  if (nReturn == ALN_NOERROR)
+	int nReturn = ValidateALNTrainInfo(pALN, pDataInfo, pCallbackInfo,
+                                 nMaxEpochs, dblMinRMSErr, dblLearnRate);
+ 
+	//if (nReturn == ALN_NOERROR)
   {
     // train if the ALN is successfully prepped
     if (PrepALN(pALN))
@@ -164,23 +165,23 @@ static int ALNAPI DoTrainALN(ALN* pALN,
     if (!adblX) ThrowALNMemoryException();
     memset(adblX, 0, sizeof(double) * nDim); // this has space for all the inputs and the output value
 
-    // allocate column base vector
-    apdblBase = AllocColumnBase(nStart, pALN, pDataInfo);
+		// We can do this only if there is a training set
+		// allocate column base vector
+		apdblBase = AllocColumnBase(nStart, pALN, pDataInfo);
 
 		// allocate and init shuffle array
 		anShuffle = new int[nEnd - nStart + 1];
-    if (!anShuffle) ThrowALNMemoryException();
+		if (!anShuffle) ThrowALNMemoryException();
 		for (int i = nStart; i <= nEnd; i++)
 			anShuffle[i - nStart] = i - nStart;
 
-    // allocate and init cutoff info array
+		// allocate and init cutoff info array
 		// pLFN will contain a pointer to the active LFN of a piece
 		// when the input is on that piece.  It will speed up cutoffs in evaluation.
-    aCutoffInfo = new CCutoffInfo[nEnd - nStart + 1];
-    if (!aCutoffInfo) ThrowALNMemoryException();
+		aCutoffInfo = new CCutoffInfo[nEnd - nStart + 1];
+		if (!aCutoffInfo) ThrowALNMemoryException();
 		for (int i = nStart; i <= nEnd; i++)
 			aCutoffInfo[i - nStart].pLFN = NULL;
-
 		// count total number of LFNs in ALN
 		int nLFNs = 0;
     int nAdaptedLFNs = 0;
@@ -205,7 +206,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 		}
 
 		///// begin epoch loop
-
+		dblLimit = pDataInfo->MSEorF;
 		// We reset counters for splitting when adaptation has had a chance to adjust pieces very
 		// closely to the training samples, e.g. the limited number of pieces fits well.
 		// We do nMaxEpochs training, then allow splitting after the last epoch.
@@ -229,7 +230,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			Shuffle(nStart, nEnd, anShuffle);
 
 			long nPoint; // The number of training samples may be huge.
-			 // this does all the samples in an epoch in a randomized order.
+				// this does all the samples in an epoch in a randomized order.
 
 			for (nPoint = nStart; nPoint <= nEnd; nPoint++)
 			{
@@ -242,7 +243,8 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 
 				// if we have our first data point, init LFNs on first pass
 				if (nEpoch == 0 && nPoint == nStart)
-					InitLFNs(pTree, pALN, adblX);
+					InitLFNs(pTree, pALN, adblX); // MYTEST leave this here if nPoints <= 0 ????
+
 
 				// jitter the data point
 				if (bJitter) Jitter(pALN, adblX);
@@ -281,6 +283,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 				}
 			}	// end for each point in data set
 
+
 			// estimate RMS error on training set for this epoch
 			epochinfo.dblEstRMSErr = sqrt(dblSqErrorSum / nPoints);
 
@@ -309,7 +312,7 @@ static int ALNAPI DoTrainALN(ALN* pALN,
 			}
 
 			// Split candidate LFNs after the last epoch in this call to ALNTrain.
-			if ((nEpoch == (nMaxEpochs - 1)) && bALNgrowable)
+			if (nEpoch == (nMaxEpochs - 1))
 			{
 				bStopTraining = TRUE;  // this is set to FALSE by any leaf node needing further training
 				splitControl(pALN, dblLimit);  // This leads to leaf nodes splitting

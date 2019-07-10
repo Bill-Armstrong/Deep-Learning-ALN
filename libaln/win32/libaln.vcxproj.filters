@@ -167,12 +167,6 @@
     <ClCompile Include="..\src\split_ops.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\splitlfn.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\train_ops.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\validatedatainfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -195,6 +189,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\alnfitdeepsetup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\train_ops.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

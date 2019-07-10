@@ -159,7 +159,7 @@ BEGIN
     LTEXT           "Copyright (C) 2018 W W Armstrong. License: LGPL open source - see files.",IDC_STATIC,13,38,279,11
     DEFPUSHBUTTON   "OK",IDOK,313,7,32,14,WS_GROUP
     LTEXT           "Please see the User Guide for the most recent information.",IDC_STATIC_HELP_MESSAGE,14,55,325,10
-    LTEXT           "Dendronic Decisions Limited made an early version open-source before 2008",IDC_STATIC,14,91,310,14
+    LTEXT           "Dendronic Decisions Limited made an early open-source version before 2008",IDC_STATIC,14,91,310,14
     LTEXT           "Based on the ALNfit and ALNfit Pro",IDC_STATIC,39,22,209,11
     LTEXT           "You can develop your own machine learning applications based on ALNfitDeep.",IDC_STATIC,13,71,324,20
 END

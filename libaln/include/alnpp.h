@@ -121,11 +121,11 @@ public:
   double GetMax(int nVar, int nRegion = 0) const;
   void SetMax(double dblMax, int nVar, int nRegion = 0);
 
-  // aln data 
+	// aln data 
   const ALNDATAINFO* GetDataInfo() const { return &m_datainfo; }
   ALNDATAINFO* GetDataInfo() { return &m_datainfo; }
   void SetDataInfo(int nPoints, int nCols, const double* adblData,
-                   const VARINFO* aVarInfo = NULL);
+                   const VARINFO* aVarInfo = NULL, const double MSEorF = -1.0);
                   
   // region (nRegion must be 0)
   ALNREGION* GetRegion(int nRegion = 0);
